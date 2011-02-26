@@ -27,16 +27,16 @@ data Message = Subscribe B.ByteString Integer
 
 readMsg :: Reply -> Maybe Message
 readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
-    kind <- readBulk r0
+    kind <- fromBulk r0
     case kind of
-        "subscribe"    -> Subscribe    <$> readBulk r1 <*> readInt r2
-        "unsubscribe"  -> Unsubscribe  <$> readBulk r1 <*> readInt r2
-        "psubscribe"   -> PSubscribe   <$> readBulk r1 <*> readInt r2
-        "punsubscribe" -> PUnsubscribe <$> readBulk r1 <*> readInt r2
-        "message"      -> Message      <$> readBulk r1 <*> readBulk r2
-        "pmessage"     -> PMessage     <$> readBulk r1
-                                            <*> readBulk r2
-                                            <*> (maybeHead rs >>= readBulk)
+        "subscribe"    -> Subscribe    <$> fromBulk r1 <*> fromInt r2
+        "unsubscribe"  -> Unsubscribe  <$> fromBulk r1 <*> fromInt r2
+        "psubscribe"   -> PSubscribe   <$> fromBulk r1 <*> fromInt r2
+        "punsubscribe" -> PUnsubscribe <$> fromBulk r1 <*> fromInt r2
+        "message"      -> Message      <$> fromBulk r1 <*> fromBulk r2
+        "pmessage"     -> PMessage     <$> fromBulk r1
+                                            <*> fromBulk r2
+                                            <*> (maybeHead rs >>= fromBulk)
         _              -> Nothing
 readMsg _ = Nothing
 
@@ -47,13 +47,13 @@ maybeHead _      = Nothing
 
 
 
-readBulk :: Reply -> Maybe B.ByteString
-readBulk (Bulk s) = s
-readBulk _        = Nothing
+fromBulk :: Reply -> Maybe B.ByteString
+fromBulk (Bulk s) = s
+fromBulk _        = Nothing
 
-readInt :: Reply -> Maybe Integer
-readInt (Integer i) = Just i
-readInt _           = Nothing
+fromInt :: Reply -> Maybe Integer
+fromInt (Integer i) = Just i
+fromInt _           = Nothing
 
 
 subscribe chans = PubSubAction "SUBSCRIBE" chans
