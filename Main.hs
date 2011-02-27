@@ -8,44 +8,12 @@ import Control.Monad.State
 import Control.Monad.Trans
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Network
 import System.IO (Handle, hClose, hFlush)
 
 import Request
 import Reply
+import Internal
 
-
-type Connection = Handle
-
-newtype Redis a = Redis (ReaderT Handle (StateT [Reply] IO) a)
-    deriving (Monad, MonadIO)
-
-
-runRedis :: Handle -> Redis a -> IO a
-runRedis h (Redis r) = do
-    replies <- fmap parseReply $ LB.hGetContents h
-    evalStateT (runReaderT r h) replies
-
-
-sendPing :: Redis Reply
-sendPing = sendRequest ["PING"]
-
-sendSet :: Redis Reply
-sendSet = sendRequest ["SET", "mykey", "myvalue"]
-
-sendGet :: Redis Reply
-sendGet = sendRequest ["GET", "anotherkey"]
-
-
-sendRequest :: [B.ByteString] -> Redis Reply
-sendRequest req = Redis $ do
-    h <- ask
-    liftIO $ B.hPut h $ renderRequest req
-    liftIO $ hFlush h
-    
-    (reply:rs) <- get
-    put rs
-    return reply
 
 
 main :: IO ()

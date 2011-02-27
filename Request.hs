@@ -4,7 +4,6 @@ module Request where
 import qualified Data.ByteString.Char8 as S
 
 
-
 renderRequest :: [S.ByteString] -> S.ByteString
 renderRequest req = S.concat (argCnt:args)
   where

@@ -8,6 +8,7 @@ import qualified Data.ByteString.Char8 as B
 import Data.Maybe
 
 import Reply
+import Internal
 
 
 newtype PubSub a = PubSub (WriterT [PubSubAction] IO a)
@@ -56,11 +57,16 @@ fromInt (Integer i) = Just i
 fromInt _           = Nothing
 
 
-subscribe chans = PubSubAction "SUBSCRIBE" chans
+subscribe   = PubSubAction "SUBSCRIBE"
 unsubscribe = PubSubAction "UNSUBSCRIBE"
 
 
---pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis a
+pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
+pubSub init = do
+    undefined
+    
+    
+    
 
 --subscribe, unsubscribe :: ByteString -> WriterT [PubSub] Redis
 
