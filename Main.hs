@@ -13,6 +13,7 @@ import System.IO (Handle, hClose, hFlush)
 import Request
 import Reply
 import Internal
+import PubSub
 
 
 
@@ -22,11 +23,13 @@ main = withSocketsDo $ do
     h <- connectTo "127.0.0.1" (PortNumber 6379)
 
     pong1 <- runRedis h $ do
-        sendRequest ["MULTI"]
-        sendRequest ["GET", "mykey"]
-        sendRequest ["LRANGE", "mylist", "0", "2"]
-        sendRequest ["EXEC"]
-
+        
+        pubSub (subscribe "myChan") $ \msg -> do
+            liftIO $ print msg
+            case msg of
+                (Message c "logout") -> unsubscribe "myChan"
+                _                    -> return ()
+        
     print pong1
-                
+    
     hClose h

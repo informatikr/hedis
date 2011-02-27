@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module PubSub where
+module PubSub (
+    PubSub,
+    Message(Message, PMessage),
+    pubSub,
+    subscribe, unsubscribe,
+    psubscribe, punsubscribe
+) where
 
 import Control.Applicative
 import Control.Monad.Writer
@@ -11,42 +17,67 @@ import Reply
 import Internal
 
 
-newtype PubSub a = PubSub (WriterT [PubSubAction] IO a)
-    deriving (Monad, MonadIO)
+newtype PubSub a = PubSub (WriterT PuSubActions IO a)
+    deriving (Monad, MonadIO, MonadWriter PuSubActions)
 
-data PubSubAction = PubSubAction B.ByteString [B.ByteString]
+type PuSubActions = [[B.ByteString]]
 
-
-data Message = Subscribe B.ByteString Integer
-             | Unsubscribe B.ByteString Integer
-             | PSubscribe B.ByteString Integer
-             | PUnsubscribe B.ByteString Integer
-             | Message B.ByteString B.ByteString
+data Message = Message B.ByteString B.ByteString
              | PMessage B.ByteString B.ByteString B.ByteString
+             | SubscriptionCnt Integer
     deriving (Show)
 
+
+------------------------------------------------------------------------------
+-- Public Interface
+--
+subscribe :: B.ByteString -> PubSub ()
+subscribe = pubSubAction "SUBSCRIBE"
+
+unsubscribe :: B.ByteString -> PubSub ()
+unsubscribe = pubSubAction "UNSUBSCRIBE"
+
+psubscribe :: B.ByteString -> PubSub ()
+psubscribe = pubSubAction "PSUBSCRIBE"
+
+punsubscribe :: B.ByteString -> PubSub ()
+punsubscribe = pubSubAction "PUNSUBSCRIBE"
+
+pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
+pubSub (PubSub init) callback = do    
+    liftIO (execWriterT init) >>= mapM_ send
+    reply <- recv
+    case readMsg reply of
+            Nothing                  -> undefined
+            Just (SubscriptionCnt 0) -> return ()
+            Just (SubscriptionCnt _) -> pubSub (return ()) callback
+            Just msg                 -> pubSub (callback msg) callback
+
+
+------------------------------------------------------------------------------
+-- Helpers
+--
+pubSubAction :: B.ByteString -> B.ByteString -> PubSub ()
+pubSubAction cmd chan = tell [(cmd : [chan])]
 
 readMsg :: Reply -> Maybe Message
 readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
     kind <- fromBulk r0
     case kind of
-        "subscribe"    -> Subscribe    <$> fromBulk r1 <*> fromInt r2
-        "unsubscribe"  -> Unsubscribe  <$> fromBulk r1 <*> fromInt r2
-        "psubscribe"   -> PSubscribe   <$> fromBulk r1 <*> fromInt r2
-        "punsubscribe" -> PUnsubscribe <$> fromBulk r1 <*> fromInt r2
-        "message"      -> Message      <$> fromBulk r1 <*> fromBulk r2
-        "pmessage"     -> PMessage     <$> fromBulk r1
-                                            <*> fromBulk r2
-                                            <*> (maybeHead rs >>= fromBulk)
-        _              -> Nothing
+        "message"  -> Message  <$> fromBulk r1 <*> fromBulk r2
+        "pmessage" -> PMessage <$> fromBulk r1
+                                        <*> fromBulk r2
+                                        <*> (maybeHead rs >>= fromBulk)
+        _          -> SubscriptionCnt <$>
+                        if kind `elem` [ "subscribe", "unsubscribe"
+                                       , "psubscribe", "punsubscribe"]
+                            then fromInt r2
+                            else Nothing
 readMsg _ = Nothing
-
 
 maybeHead :: [a] -> Maybe a
 maybeHead (x:xs) = Just x
 maybeHead _      = Nothing
-
-
 
 fromBulk :: Reply -> Maybe B.ByteString
 fromBulk (Bulk s) = s
@@ -55,48 +86,3 @@ fromBulk _        = Nothing
 fromInt :: Reply -> Maybe Integer
 fromInt (Integer i) = Just i
 fromInt _           = Nothing
-
-
-subscribe   = PubSubAction "SUBSCRIBE"
-unsubscribe = PubSubAction "UNSUBSCRIBE"
-
-
-pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
-pubSub init = do
-    undefined
-    
-    
-    
-
---subscribe, unsubscribe :: ByteString -> WriterT [PubSub] Redis
-
-{- 
-Die an "pubSub" übergebene Action gibt eine Liste an weiteren 
-
-
-Für jede Message ein Callback. Callbackfunktion hat den von Redis gewrappten
-Typ (z.B. IO). Dazu ein WriterT für weitere PubSub-Commands.
-
-Nach dem Callback werden die zurückgegebenen Commands an den Server geschickt.
-Liegen keine Kommandos mehr vor und ist die Anzahl der Subscriptions gleich
-null wird PubSub abgebrochen.
-
--}
-
-
-
---pubSub (subscribe ["myChan"]) $ \msg -> do
---    liftIO doSomething
---    subscribe ["anotherChan"]
---    unsubscribe "anotherChan"
---    unsubscribe "myChan"
-
-foo :: Reply
-foo = MultiBulk $ Just
-        [ Bulk (Just "message")
-        , Bulk (Just "myChan")
-        , Bulk (Just "message payload")
-        ]
-
-main :: IO ()
-main = print $ readMsg foo
