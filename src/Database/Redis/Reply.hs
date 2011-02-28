@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Reply (Reply(..), parseReply) where
+module Database.Redis.Reply (Reply(..), parseReply) where
 
 import Prelude hiding (error, take)
 import Control.Applicative

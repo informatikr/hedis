@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Internal (
+module Database.Redis.Internal (
     module Network,
     Connection(..),
     connectTo,
@@ -19,8 +19,8 @@ import Network (HostName(..), PortID(..), withSocketsDo)
 import qualified Network (connectTo)
 import System.IO (Handle, hClose, hFlush)
 
-import Reply
-import Request
+import Database.Redis.Reply
+import Database.Redis.Request
 
 
 type Connection = Handle

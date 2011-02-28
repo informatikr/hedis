@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module PubSub (
+module Database.Redis.PubSub (
     PubSub,
     Message(Message, PMessage),
     pubSub,
@@ -13,8 +13,8 @@ import Control.Monad.Writer
 import qualified Data.ByteString.Char8 as B
 import Data.Maybe
 
-import Reply
-import Internal
+import Database.Redis.Reply
+import Database.Redis.Internal
 
 
 newtype PubSub a = PubSub (WriterT PuSubActions IO a)

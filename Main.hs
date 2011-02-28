@@ -30,6 +30,8 @@ main = withSocketsDo $ do
                 (Message c "logout") -> unsubscribe "myChan"
                 _                    -> return ()
         
+        sendRequest ["PING"]
+        
     print pong1
     
     hClose h

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Request where
+module Database.Redis.Request where
 
 import qualified Data.ByteString.Char8 as S
 

@@ -1,0 +1,39 @@
+name:               redis-client
+version:            0.1
+synopsis:           A client for the Redis datastore.
+Description:        TODO cabal description
+license:            BSD3
+license-file:       LICENSE
+author:             Falko Peters
+maintainer:         falko.peters@gmail.com
+copyright:          Copyright (c) 2009-2010 Falko Peters
+category:           Database
+
+build-type:         Simple
+
+  
+-- Extra files to be distributed with the package, such as examples or
+-- a README.
+-- Extra-source-files:
+
+-- Constraint on the version of Cabal needed to build this package.
+Cabal-Version: >=1.2
+
+
+Library
+  Hs-Source-Dirs:   src
+  Exposed-modules:  Database.Redis
+  Build-depends:    base >= 4,
+                    network >= 2,
+                    bytestring >= 0.9,
+                    mtl >= 2,
+                    attoparsec >= 0.8
+  Other-modules:    Database.Redis.Internal,
+                    Database.Redis.PubSub,
+                    Database.Redis.Reply,
+                    Database.Redis.Request
+
+
+source-repository head
+  type:     git
+  location: https://github.com/informatikr/redis-client
