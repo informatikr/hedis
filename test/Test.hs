@@ -18,16 +18,11 @@ main = withSocketsDo $ do
     
     h <- connectTo "127.0.0.1" (PortNumber 6379)
 
-    pong1 <- runRedis h $ do
+    pong <- runRedis h $ do
+        p1 <- sendRequest ["PING"]
+        p2 <- sendRequest ["PING"]
+        return (p1,p2)
         
-        pubSub (subscribe "myChan") $ \msg -> do
-            liftIO $ print msg
-            case msg of
-                (Message c "logout") -> unsubscribe "myChan"
-                _                    -> return ()
-        
-        sendRequest ["PING"]
-        
-    print pong1
+    print pong
     
     hClose h
