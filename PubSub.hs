@@ -20,6 +20,7 @@ import Internal
 newtype PubSub a = PubSub (WriterT PuSubActions IO a)
     deriving (Monad, MonadIO, MonadWriter PuSubActions)
 
+-- TODO more efficient/less ugly type?
 type PuSubActions = [[B.ByteString]]
 
 data Message = Message B.ByteString B.ByteString
@@ -44,7 +45,7 @@ punsubscribe :: B.ByteString -> PubSub ()
 punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
 pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
-pubSub (PubSub init) callback = do    
+pubSub (PubSub init) callback = do
     liftIO (execWriterT init) >>= mapM_ send
     reply <- recv
     case readMsg reply of
