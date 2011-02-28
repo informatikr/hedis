@@ -15,22 +15,21 @@ data Reply = SingleLine S.ByteString
            | Integer Integer
            | Bulk (Maybe S.ByteString)
            | MultiBulk (Maybe [Reply])
-           | ConnectionLost
+           | Disconnect
          deriving (Show)
 
 
 parseReply :: L.ByteString -> [Reply]
-parseReply input = 
+parseReply input =
     case P.parse reply input of
-        P.Fail _ _ _  -> undefined -- TODO report error to caller
+        P.Fail _ _ _  -> [Disconnect]
         P.Done rest r -> r : parseReply rest
-
 
 ------------------------------------------------------------------------------
 -- Reply parsers
 --
 reply :: Parser Reply
-reply = choice [singleLine, error, integer, bulk, multiBulk, shutdown]
+reply = choice [singleLine, error, integer, bulk, multiBulk, disconnect]
 
 singleLine :: Parser Reply
 singleLine = fmap SingleLine $ '+' `prefixing` line
@@ -55,8 +54,8 @@ multiBulk = fmap MultiBulk $ do
             then return Nothing
             else fmap Just $ count len reply
 
-shutdown :: Parser Reply
-shutdown = P.endOfInput >> return ConnectionLost
+disconnect :: Parser Reply
+disconnect = P.endOfInput >> return Disconnect
 
 
 ------------------------------------------------------------------------------
