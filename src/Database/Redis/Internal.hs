@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Internal (
     module Network,
-    Connection(..),
+    Connection,
     connectTo,
     Redis(..),
     runRedis,
@@ -12,12 +12,11 @@ module Database.Redis.Internal (
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Trans
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Network (HostName(..), PortID(..), withSocketsDo)
+import Network (HostName, PortID(..), withSocketsDo)
 import qualified Network (connectTo)
-import System.IO (Handle, hClose, hFlush)
+import System.IO (Handle, hFlush)
 
 import Database.Redis.Reply
 import Database.Redis.Request

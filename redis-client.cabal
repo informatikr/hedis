@@ -17,18 +17,19 @@ build-type:         Simple
 -- Extra-source-files:
 
 -- Constraint on the version of Cabal needed to build this package.
-Cabal-Version: >=1.2
+cabal-version: >=1.2
 
 
-Library
-  Hs-Source-Dirs:   src
-  Exposed-modules:  Database.Redis
-  Build-depends:    base >= 4,
+library
+  hs-source-dirs:   src
+  ghc-options:      -Wall -fno-warn-unused-do-bind
+  exposed-modules:  Database.Redis
+  build-depends:    base >= 4,
                     network >= 2,
                     bytestring >= 0.9,
                     mtl >= 2,
                     attoparsec >= 0.8
-  Other-modules:    Database.Redis.Internal,
+  other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
                     Database.Redis.Request

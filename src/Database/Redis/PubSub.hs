@@ -11,7 +11,6 @@ module Database.Redis.PubSub (
 import Control.Applicative
 import Control.Monad.Writer
 import qualified Data.ByteString.Char8 as B
-import Data.Maybe
 
 import Database.Redis.Reply
 import Database.Redis.Internal
@@ -45,8 +44,8 @@ punsubscribe :: B.ByteString -> PubSub ()
 punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
 pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
-pubSub (PubSub init) callback = do
-    liftIO (execWriterT init) >>= mapM_ send
+pubSub (PubSub p) callback = do
+    liftIO (execWriterT p) >>= mapM_ send
     reply <- recv
     case readMsg reply of
             Nothing                  -> undefined

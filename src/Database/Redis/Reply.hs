@@ -2,8 +2,6 @@
 module Database.Redis.Reply (Reply(..), parseReply) where
 
 import Prelude hiding (error, take)
-import Control.Applicative
-import Control.Concurrent
 import Data.Attoparsec.Char8
 import qualified Data.Attoparsec.Lazy as P
 import qualified Data.ByteString.Char8 as S
