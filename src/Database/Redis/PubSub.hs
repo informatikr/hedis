@@ -76,8 +76,8 @@ readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
 readMsg _ = Nothing
 
 maybeHead :: [a] -> Maybe a
-maybeHead (x:xs) = Just x
-maybeHead _      = Nothing
+maybeHead (x:_) = Just x
+maybeHead _     = Nothing
 
 fromBulk :: Reply -> Maybe B.ByteString
 fromBulk (Bulk s) = s

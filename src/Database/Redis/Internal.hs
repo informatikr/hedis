@@ -46,9 +46,9 @@ send req = Redis $ do
     
 recv :: Redis Reply
 recv = Redis $ do
-    (reply:rs) <- get
-    put rs
-    return reply
+    rs <- get
+    put $ tail rs
+    return $ head rs
 
 sendRequest :: [B.ByteString] -> Redis Reply
 sendRequest req = send req >> recv
