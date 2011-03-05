@@ -29,7 +29,7 @@ connectTo host port = Network.connectTo host port
 
 
 newtype Redis a = Redis (ReaderT Handle (StateT [Reply] IO) a)
-    deriving (Monad, MonadIO)
+    deriving (Monad, MonadIO, Functor)
 
 
 runRedis :: Connection -> Redis a -> IO a

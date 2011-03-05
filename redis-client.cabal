@@ -28,7 +28,8 @@ library
                     network >= 2,
                     bytestring >= 0.9,
                     mtl >= 2,
-                    attoparsec >= 0.8
+                    attoparsec >= 0.8,
+                    containers >= 0.3
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
