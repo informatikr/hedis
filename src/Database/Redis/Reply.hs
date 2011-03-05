@@ -27,7 +27,7 @@ parseReply input =
 -- Reply parsers
 --
 reply :: Parser Reply
-reply = choice [singleLine, error, integer, bulk, multiBulk, disconnect]
+reply = choice [singleLine, error, integer, bulk, multiBulk]
 
 singleLine :: Parser Reply
 singleLine = fmap SingleLine $ '+' `prefixing` line
@@ -51,9 +51,6 @@ multiBulk = fmap MultiBulk $ do
         if len < 0
             then return Nothing
             else fmap Just $ count len reply
-
-disconnect :: Parser Reply
-disconnect = P.endOfInput >> return Disconnect
 
 
 ------------------------------------------------------------------------------
