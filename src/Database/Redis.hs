@@ -10,6 +10,7 @@ module Database.Redis (
 
 import Control.Applicative
 import Data.ByteString
+import Database.Redis.CommandTemplates
 import Database.Redis.Internal
 import Database.Redis.PubSub
 import Database.Redis.Reply
@@ -18,8 +19,7 @@ import Database.Redis.Types
 ------------------------------------------------------------------------------
 -- Redis commands
 --
-exists :: RedisBool a => ByteString -> Redis (Maybe a)
-exists key = decodeBool <$> sendRequest ["EXISTS", key]
+cmd "exists" "key" bool
 
 incr :: RedisInt a => ByteString -> Redis (Maybe a)
 incr key = decodeInt <$> sendRequest ["INCR", key]
