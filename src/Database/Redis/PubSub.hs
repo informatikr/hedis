@@ -58,7 +58,7 @@ pubSub (PubSub p) callback = do
 -- Helpers
 --
 pubSubAction :: B.ByteString -> B.ByteString -> PubSub ()
-pubSubAction cmd chan = tell [(cmd : [chan])]
+pubSubAction cmd chan = tell [cmd : [chan]]
 
 readMsg :: Reply -> Maybe Message
 readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
