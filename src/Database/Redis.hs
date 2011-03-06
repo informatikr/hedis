@@ -5,7 +5,7 @@ module Database.Redis (
     module Database.Redis.Reply,
     module Database.Redis.PubSub,
     module Database.Redis.Types,
-    exists, incr, hgetall, lrange, sunion, ping
+    exists, incr, hgetall, lrange, sunion, ping, rename
 ) where
 
 import Control.Applicative
@@ -37,3 +37,6 @@ sunion keys = decodeSet <$> sendRequest ("SUNION" : keys)
 
 ping :: RedisStatus a => Redis (Maybe a)
 ping = decodeStatus <$> sendRequest ["PING"]
+
+rename :: RedisStatus a => ByteString -> ByteString -> Redis (Maybe a)
+rename k k' = decodeStatus <$> sendRequest ["RENAME", k, k']
