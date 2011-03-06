@@ -5,7 +5,7 @@ module Database.Redis (
     module Database.Redis.Reply,
     module Database.Redis.PubSub,
     module Database.Redis.Types,
-    exists, incr, hgetall, lrange, sunion
+    exists, incr, hgetall, lrange, sunion, ping
 ) where
 
 import Control.Applicative
@@ -35,3 +35,5 @@ lrange key start stop =
 sunion :: RedisSet a => [ByteString] -> Redis (Maybe a)
 sunion keys = decodeSet <$> sendRequest ("SUNION" : keys)
 
+ping :: RedisStatus a => Redis (Maybe a)
+ping = decodeStatus <$> sendRequest ["PING"]

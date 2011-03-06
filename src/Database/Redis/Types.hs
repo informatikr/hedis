@@ -1,10 +1,10 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances, TypeSynonymInstances #-}
 
 module Database.Redis.Types where
 
 import Control.Applicative
 import Control.Monad
-import Data.ByteString
+import Data.ByteString.Char8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Database.Redis.Reply
@@ -13,6 +13,9 @@ import Database.Redis.Reply
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
+class RedisStatus a where
+    decodeStatus :: Reply -> Maybe a
+
 class RedisBool a where
     decodeBool :: Reply -> Maybe a
 
@@ -33,6 +36,28 @@ class RedisSet a where
 
 class RedisHash a where
     decodeHash :: Reply -> Maybe a
+
+
+------------------------------------------------------------------------------
+-- RediStatus instances
+--
+data Status = Ok | Pong
+    deriving (Show, Eq)
+
+instance RedisStatus ByteString where
+    decodeStatus (SingleLine s) = Just s
+    decodeStatus _              = Nothing
+
+instance RedisStatus String where
+    decodeStatus = liftM unpack . decodeStatus
+
+instance RedisStatus Status where
+    decodeStatus r = do
+        s <- decodeStatus r
+        return $ case s of
+            "OK"   -> Ok
+            "PONG" -> Pong
+            _      -> error $ "unhandled status-code: " ++ s
 
 
 ------------------------------------------------------------------------------
