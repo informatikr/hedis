@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Database.Redis.CommandTemplates (
     ReturnType,
-    status,
-    bool,
-    int,
-    list,
-    set,
-    hash,
+    statusRT,
+    boolRT,
+    intRT,
+    keyRT,
+    valueRT,
+    listRT,
+    setRT,
+    hashRT,
     cmd,
     cmdVar
 ) where
@@ -24,13 +26,15 @@ import Language.Haskell.TH.Lib
 
 newtype ReturnType = Typ String
 
-status, bool, int, list, hash, set :: ReturnType
-status = Typ "Status"
-bool   = Typ "Bool"
-int    = Typ "Int"
-list   = Typ "List"
-hash   = Typ "Hash"
-set    = Typ "Set"
+statusRT, boolRT, intRT, keyRT, valueRT, listRT, hashRT, setRT :: ReturnType
+statusRT = Typ "Status"
+boolRT   = Typ "Bool"
+intRT    = Typ "Int"
+keyRT    = Typ "Key"
+valueRT  = Typ "Value"
+listRT   = Typ "List"
+hashRT   = Typ "Hash"
+setRT    = Typ "Set"
 
 cmd :: ReturnType -> String -> String -> Q [Dec]
 cmd typ name args = defCmd typ name args Nothing
