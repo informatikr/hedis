@@ -13,7 +13,7 @@ module Database.Redis (
     append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
     mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
     -- ** Other
-    hgetall, lrange, sunion, ping
+    hgetall, lrange, sunion, ping, flushall
 ) where
 
 import Control.Applicative
@@ -78,3 +78,5 @@ cmd listRT "lrange" "key start stop"
 
 {- |comment(sunion) -}
 cmdVar setRT "sunion" "" "ks"
+
+cmd statusRT "flushall" ""

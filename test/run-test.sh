@@ -2,7 +2,7 @@
 
 ghc --make -fforce-recomp -fhpc -isrc -outputdir /tmp  test/Test.hs 
 
-echo "----------------"
+echo "---------------"
 echo "program output:"
 echo "---------------"
 ./test/Test
