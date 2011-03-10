@@ -13,7 +13,7 @@ module Database.Redis (
     append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
     mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
     -- ** Other
-    hgetall, lrange, sunion, ping, flushall
+    hgetall, lrange, sunion, ping, flushall, hset, lpush, sadd, zadd
 ) where
 
 import Control.Applicative
@@ -45,10 +45,10 @@ cmd boolRT "renamenx" "key newkey"
 sort :: ()
 sort = undefined
 cmd intRT "ttl" "key"
--- TODO type
--- Renamed due to collision with keyword 'type'
-getType :: ()
-getType = undefined
+-- special handling: function name != command
+getType :: RedisStatus a => ByteString -> Redis (Maybe a)
+getType key = decodeStatus <$> sendRequest ["TYPE", key]
+
 
 cmd intRT "append" "key value"
 cmd intRT "decr" "key"
@@ -70,6 +70,10 @@ cmd intRT "setrange" "key offset value"
 cmd intRT "strlen" "key"
 
 
+cmd boolRT "hset" "key field value"
+cmd intRT "lpush" "key value"
+cmd boolRT "sadd" "key member"
+cmd boolRT "zadd" "key score member"
 
 -- TODO what about commands taking varArg _PAIRS_ (mset)
 

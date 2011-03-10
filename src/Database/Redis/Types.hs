@@ -41,7 +41,7 @@ class RedisHash a where
 ------------------------------------------------------------------------------
 -- RediStatus instances
 --
-data Status = Ok | Pong
+data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
 instance RedisStatus ByteString where
@@ -55,9 +55,15 @@ instance RedisStatus Status where
     decodeStatus r = do
         s <- decodeStatus r
         return $ case s of
-            "OK"   -> Ok
-            "PONG" -> Pong
-            _      -> error $ "unhandled status-code: " ++ s
+            "OK"     -> Ok
+            "PONG"   -> Pong
+            "none"   -> None
+            "string" -> String
+            "hash"   -> Hash
+            "list"   -> List
+            "set"    -> Set
+            "zset"   -> ZSet
+            _        -> error $ "unhandled status-code: " ++ s
 
 
 ------------------------------------------------------------------------------

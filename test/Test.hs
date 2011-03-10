@@ -2,6 +2,7 @@
 module Main (main) where
 
 import Control.Concurrent
+import Control.Monad
 import Control.Monad.Trans
 import Data.ByteString.Char8 (ByteString, pack)
 import System.Time
@@ -37,7 +38,8 @@ tests =
     [ testDel, testExists, testExpire, testExpireAt, testKeys, testMove
     , testPersist, testRandomkey, testRename, testRenamenx, testSort
     , testTtl, testGetType
-    , testPing, testSetGet]
+    , 
+     testPing, testSetGet]
 
 
 testDel :: Redis ()
@@ -128,8 +130,19 @@ testTtl = do
     ttl "key"         >>=? Just (42 :: Int)
 
 testGetType :: Redis ()
-testGetType = return () -- TODO needs getType implementation    
-
+testGetType = do
+    getType "key"     >>=? Just None    
+    forM_ ts $ \(setKey, typ) -> do
+        setKey
+        getType "key" >>=? Just typ
+        del ["key"]   >>=? Just (1 :: Int)
+  where 
+    ts = [ (set "key" "value"          >>=? Just Ok        , String)
+         , (hset "key" "field" "value" >>=? Just True      , Hash)
+         , (lpush "key" "value"        >>=? Just (1 :: Int), List)
+         , (sadd "key" "member"        >>=? Just True      , Set)
+         , (zadd "key" "42" "member"   >>=? Just True      , ZSet)
+         ]
 
 
 
