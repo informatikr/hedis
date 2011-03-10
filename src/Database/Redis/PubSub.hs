@@ -12,8 +12,9 @@ import Control.Applicative
 import Control.Monad.Writer
 import qualified Data.ByteString.Char8 as B
 
-import Database.Redis.Reply
 import Database.Redis.Internal
+import Database.Redis.Reply
+import Database.Redis.Types
 
 
 newtype PubSub a = PubSub (WriterT PuSubActions IO a)
@@ -62,27 +63,17 @@ pubSubAction cmd chan = tell [cmd : [chan]]
 
 readMsg :: Reply -> Maybe Message
 readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
-    kind <- fromBulk r0
-    case kind of
-        "message"  -> Message  <$> fromBulk r1 <*> fromBulk r2
-        "pmessage" -> PMessage <$> fromBulk r1
-                                        <*> fromBulk r2
-                                        <*> (maybeHead rs >>= fromBulk)
-        _          -> SubscriptionCnt <$>
-                        if kind `elem` [ "subscribe", "unsubscribe"
-                                       , "psubscribe", "punsubscribe"]
-                            then fromInt r2
-                            else Nothing
+    kind <- decodeValue r0
+    case kind :: B.ByteString of
+        "message"  -> Message  <$> decodeValue r1 <*> decodeValue r2
+        "pmessage" -> PMessage <$> decodeValue r1
+                                        <*> decodeValue r2
+                                        <*> (maybeHead rs >>= decodeValue)
+        -- kind `elem` ["subscribe","unsubscribe","psubscribe","punsubscribe"]
+        _          -> SubscriptionCnt <$> decodeInt r2                        
+                        
 readMsg _ = Nothing
 
 maybeHead :: [a] -> Maybe a
 maybeHead (x:_) = Just x
 maybeHead _     = Nothing
-
-fromBulk :: Reply -> Maybe B.ByteString
-fromBulk (Bulk s) = s
-fromBulk _        = Nothing
-
-fromInt :: Reply -> Maybe Integer
-fromInt (Integer i) = Just i
-fromInt _           = Nothing
