@@ -3,6 +3,7 @@ module Database.Redis.Internal (
     module Network,
     Connection,
     connectTo,
+    disconnect,
     Redis(..),
     runRedis,
     send,
@@ -16,38 +17,48 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Network (HostName, PortID(..), withSocketsDo)
 import qualified Network (connectTo)
-import System.IO (Handle, hFlush)
+import System.IO (Handle, hFlush, hClose)
 
 import Database.Redis.Reply
 import Database.Redis.Request
 
 
-type Connection = Handle
+data Connection = Connected Handle [Reply]
+                | Disconnected
+
 
 connectTo :: HostName -> PortID -> IO Connection
-connectTo host port = Network.connectTo host port
+connectTo host port = do
+    h <- Network.connectTo host port
+    return $ Connected h []
+
+disconnect :: Connection -> IO ()
+disconnect (Connected h _) = hClose h
+disconnect _               = return ()
 
 
-newtype Redis a = Redis (ReaderT Handle (StateT [Reply] IO) a)
+newtype Redis a = Redis (StateT Connection IO a)
     deriving (Monad, MonadIO, Functor)
 
 
 runRedis :: Connection -> Redis a -> IO a
-runRedis h (Redis r) = do
+runRedis Disconnected    _r        = error "Disconnected"
+runRedis (Connected h _) (Redis r) = do
     replies <- fmap parseReply $ LB.hGetContents h
-    evalStateT (runReaderT r h) replies
+    evalStateT r $ Connected h replies
 
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    h <- ask
+    (Connected h _) <- get
     liftIO $ B.hPut h $ renderRequest req
     liftIO $ hFlush h
     
+        
 recv :: Redis Reply
 recv = Redis $ do
-    rs <- get
-    put $ tail rs
+    (Connected h rs) <- get
+    put $ Connected h (tail rs)
     return $ head rs
 
 sendRequest :: [B.ByteString] -> Redis Reply

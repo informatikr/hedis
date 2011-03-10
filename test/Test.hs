@@ -4,12 +4,11 @@ module Main where
 import Control.Concurrent
 import Control.Monad.Trans
 import Data.ByteString.Char8 (ByteString, pack)
-import System.IO (hClose)
 import System.Time
-import Database.Redis
 import qualified Test.HUnit as Test
 import Test.HUnit (Assertion, Test(..), runTestTT)
 
+import Database.Redis
 
 ------------------------------------------------------------------------------
 -- Main and helpers
@@ -18,7 +17,7 @@ main :: IO ()
 main = withSocketsDo $ do
     c <- connectTo "127.0.0.1" (PortNumber 6379)
     runTestTT $ TestList $ map (TestCase . testCase c) tests
-    hClose c
+    disconnect c
 
 testCase :: Connection -> Redis () -> Assertion
 testCase conn r = runRedis conn $ flushall >>=? Just Ok >> r
