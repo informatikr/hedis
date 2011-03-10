@@ -8,7 +8,7 @@ module Database.Redis (
     -- * Commands
     -- ** Keys
     del, exists, expire, expireat, keys, move, persist, randomkey, rename,
-    renamex, ttl,
+    renamenx, sort, ttl, getType,
     -- ** Strings
     append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
     mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
@@ -40,8 +40,15 @@ cmd boolRT "move" "key db"
 cmd boolRT "persist" "key"
 cmd keyRT "randomkey" ""
 cmd statusRT "rename" "key newkey"
-cmd boolRT "renamex" "key newkey"
+cmd boolRT "renamenx" "key newkey"
+-- TODO sort
+sort :: ()
+sort = undefined
 cmd intRT "ttl" "key"
+-- TODO type
+-- Renamed due to collision with keyword 'type'
+getType :: ()
+getType = undefined
 
 cmd intRT "append" "key value"
 cmd intRT "decr" "key"
@@ -64,7 +71,6 @@ cmd intRT "strlen" "key"
 
 
 
--- TODO sort, type
 -- TODO what about commands taking varArg _PAIRS_ (mset)
 
 {- |comment(ping) -}
