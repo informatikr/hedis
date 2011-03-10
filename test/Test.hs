@@ -34,12 +34,14 @@ x @=? y = liftIO $ (Test.@=?) x y
 -- Tests
 --
 tests :: [Redis ()]
-tests =
+tests = testsKeys ++ [testPing, testSetGet]
+
+testsKeys :: [Redis ()]
+testsKeys =
     [ testDel, testExists, testExpire, testExpireAt, testKeys, testMove
     , testPersist, testRandomkey, testRename, testRenamenx, testSort
     , testTtl, testGetType
-    , 
-     testPing, testSetGet]
+    ]
 
 
 testDel :: Redis ()
