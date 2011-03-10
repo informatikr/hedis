@@ -2,6 +2,7 @@
 module Database.Redis.Reply (Reply(..), parseReply) where
 
 import Prelude hiding (error, take)
+import Control.Applicative
 import Data.Attoparsec.Char8
 import qualified Data.Attoparsec.Lazy as P
 import qualified Data.ByteString.Char8 as S
@@ -30,23 +31,23 @@ reply :: Parser Reply
 reply = choice [singleLine, error, integer, bulk, multiBulk]
 
 singleLine :: Parser Reply
-singleLine = fmap SingleLine $ '+' `prefixing` line
+singleLine = SingleLine <$> '+' `prefixing` line
 
 error :: Parser Reply
-error = fmap Error $ '-' `prefixing` line
+error = Error <$> '-' `prefixing` line
 
 integer :: Parser Reply
-integer = fmap Integer $ ':' `prefixing` signed decimal
+integer = Integer <$> ':' `prefixing` signed decimal
 
 bulk :: Parser Reply
-bulk = fmap Bulk $ do    
+bulk = Bulk <$> do    
     len <- '$' `prefixing` signed decimal
     if len < 0
         then return Nothing
         else fmap Just $ beforeCRLF (P.take len)
 
 multiBulk :: Parser Reply
-multiBulk = fmap MultiBulk $ do
+multiBulk = MultiBulk <$> do
         len <- '*' `prefixing` signed decimal
         if len < 0
             then return Nothing
