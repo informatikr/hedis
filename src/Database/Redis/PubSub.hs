@@ -48,21 +48,21 @@ pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
 pubSub (PubSub p) callback = do
     liftIO (execWriterT p) >>= mapM_ send
     reply <- recv
-    case readMsg reply of
-            Nothing                  -> undefined
-            Just (SubscriptionCnt 0) -> return ()
-            Just (SubscriptionCnt _) -> pubSub (return ()) callback
-            Just msg                 -> pubSub (callback msg) callback
+    case decodeMsg reply of
+        Nothing                  -> undefined
+        Just (SubscriptionCnt 0) -> return ()
+        Just (SubscriptionCnt _) -> pubSub (return ()) callback
+        Just msg                 -> pubSub (callback msg) callback
 
 
 ------------------------------------------------------------------------------
 -- Helpers
 --
 pubSubAction :: B.ByteString -> B.ByteString -> PubSub ()
-pubSubAction cmd chan = tell [cmd : [chan]]
+pubSubAction cmd chan = tell [[cmd, chan]]
 
-readMsg :: Reply -> Maybe Message
-readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
+decodeMsg :: Reply -> Maybe Message
+decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
     kind <- decodeValue r0
     case kind :: B.ByteString of
         "message"  -> Message  <$> decodeValue r1 <*> decodeValue r2
@@ -72,7 +72,7 @@ readMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
         -- kind `elem` ["subscribe","unsubscribe","psubscribe","punsubscribe"]
         _          -> SubscriptionCnt <$> decodeInt r2                        
                         
-readMsg _ = Nothing
+decodeMsg _ = Nothing
 
 maybeHead :: [a] -> Maybe a
 maybeHead (x:_) = Just x
