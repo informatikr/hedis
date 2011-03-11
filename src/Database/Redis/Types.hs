@@ -72,7 +72,7 @@ instance RedisStatus Status where
 instance RedisBool Bool where
     decodeBool (Integer 1) = Just True
     decodeBool (Integer 0) = Just False
-    decodeBool x           = error $ show x
+    decodeBool _           = Nothing
 
 instance (Num a) => (RedisBool a) where
     decodeBool (Integer 1) = Just 1
