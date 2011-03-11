@@ -39,15 +39,18 @@ x @=? y = liftIO $ (Test.@=?) x y
 -- Tests
 --
 tests :: [Test]
-tests = testsKeys ++ [testPing, testSetGet]
+tests = testsKeys ++ testsStrings ++ [testPing]
 
+
+------------------------------------------------------------------------------
+-- Keys
+--
 testsKeys :: [Test]
 testsKeys =
     [ testDel, testExists, testExpire, testExpireAt, testKeys, testMove
     , testPersist, testRandomkey, testRename, testRenamenx, testSort
     , testTtl, testGetType
     ]
-
 
 testDel :: Test
 testDel = testCase "del" $ do
@@ -67,9 +70,7 @@ testExpire = testCase "expire" $ do
     set "key" "value"     >>=? Just Ok
     expire "key" "1"      >>=? Just True
     expire "notAkey" "1"  >>=? Just False
-    -- TODO sleep in another thread?
-    liftIO $ threadDelay 2000000 -- 2.0s
-    get "key"             >>=? (Nothing :: Maybe ByteString)
+    ttl "key"             >>=? Just (1 :: Int)
     
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
@@ -78,19 +79,17 @@ testExpireAt = testCase "expireat" $ do
     let expiry = pack . show $ seconds + 1
     expireat "key" expiry     >>=? Just True
     expireat "notAkey" expiry >>=? Just False
-    -- TODO sleep in another thread?
-    liftIO $ threadDelay 2000000 -- 2.0s
-    get "key"                 >>=? (Nothing :: Maybe ByteString)
+    ttl "key"                 >>=? Just (1 :: Int)
 
 testKeys :: Test
 testKeys = testCase "keys" $ do
-    keys "key*"       >>=? Just ([] :: [ByteString])
+    keys "key*"       >>=? Just ([] :: [Maybe ByteString])
     set "key1" "val1" >>=? Just Ok
     set "key2" "val2" >>=? Just Ok
     Just ks <- keys "key*"
-    2    @=? length (ks :: [ByteString])
-    True @=? elem "key1" ks
-    True @=? elem "key2" ks
+    2    @=? length (ks :: [Maybe ByteString])
+    True @=? elem (Just "key1") ks
+    True @=? elem (Just "key2") ks
 
 testMove :: Test
 testMove = testCase "move" $ return () -- TODO requires ability to switch DBs
@@ -99,10 +98,9 @@ testPersist :: Test
 testPersist = testCase "persist" $ do
     set "key" "value" >>=? Just Ok
     expire "key" "1"  >>=? Just True
+    ttl "key"         >>=? Just (1 :: Int)
     persist "key"     >>=? Just True
-    -- TODO sleep in another thread?
-    liftIO $ threadDelay 2000000 -- 2.0s
-    get "key"         >>=? Just ("value" :: ByteString)
+    ttl "key"         >>=? Just (-1 :: Int)
 
 testRandomkey :: Test
 testRandomkey = testCase "randomkey" $ do
@@ -152,13 +150,145 @@ testGetType = testCase "getType" $ do
          ]
 
 
+------------------------------------------------------------------------------
+-- Strings
+--
+testsStrings :: [Test]
+testsStrings =
+    [ testAppend, testDecr, testDecrby, testGetbit, testGetrange, testGetset
+    , testIncr, testIncrby, testMget, testMset, testMsetnx, testSetbit
+    , testSetex, testSetnx, testSetrange, testStrlen, testSetAndGet
+    ]
 
+testAppend :: Test
+testAppend = testCase "append" $ do
+    set "key" "x"    >>=? Just Ok
+    append "key" "y" >>=? Just (2 :: Int)
+    get "key"        >>=? Just ("xy" :: ByteString)
 
-testPing :: Test
-testPing = testCase "ping" $ ping >>=? Just Pong
+testDecr :: Test
+testDecr = testCase "decr" $ do
+    set "key" "42" >>=? Just Ok
+    decr "key"     >>=? Just (41 :: Int)
 
-testSetGet :: Test
-testSetGet = testCase "set/get" $ do    
+testDecrby :: Test
+testDecrby = testCase "decrby" $ do
+    set "key" "42"   >>=? Just Ok
+    decrby "key" "2" >>=? Just (40 :: Int)
+
+testGetbit :: Test
+testGetbit = testCase "getbit" $ getbit "key" "42" >>=? Just (0 :: Int)
+
+testGetrange :: Test
+testGetrange = testCase "getrange" $ do
+    set "key" "value"       >>=? Just Ok
+    getrange "key" "1" "-2" >>=? Just ("alu" :: ByteString)
+
+testGetset :: Test
+testGetset = testCase "getset" $ do
+    getset "key" "v1" >>=? (Nothing :: Maybe ByteString)
+    getset "key" "v2" >>=? Just ("v1" :: ByteString)
+
+testIncr :: Test
+testIncr = testCase "incr" $ do
+    set "key" "42" >>=? Just Ok
+    incr "key"     >>=? Just (43 :: Int)
+
+testIncrby :: Test
+testIncrby = testCase "incrby" $ do
+    set "key" "42"   >>=? Just Ok
+    incrby "key" "2" >>=? Just (44 :: Int)
+
+testMget :: Test
+testMget = testCase "mget" $ do
+    set "key1" "v1"                  >>=? Just Ok
+    set "key2" "v2"                  >>=? Just Ok
+    mget ["key1", "key2", "notAKey"] >>=? Just [ Just "v1"
+                                               , Just ("v2" :: ByteString)
+                                               , Nothing
+                                               ]
+
+testMset :: Test
+testMset = testCase "mset" $ do
+    mset ["k1", "v1", "k2", "v2"] >>=? Just Ok
+    get "k1"                      >>=? Just ("v1" :: ByteString)
+    get "k2"                      >>=? Just ("v2" :: ByteString)
+
+testMsetnx :: Test
+testMsetnx = testCase "msetnx" $ do
+    msetnx ["k1", "v1", "k2", "v2"] >>=? Just True
+    msetnx ["k1", "v1", "k2", "v2"] >>=? Just False
+
+testSetbit :: Test
+testSetbit = testCase "setbit" $ do
+    setbit "key" "42" "1" >>=? Just (0 :: Int)
+    setbit "key" "42" "0" >>=? Just (1 :: Int)
+    
+testSetex :: Test
+testSetex = testCase "setex" $ do
+    setex "key" "1" "value" >>=? Just Ok
+    ttl "key"               >>=? Just (1 :: Int)
+
+testSetnx :: Test
+testSetnx = testCase "setnx" $ do
+    setnx "key" "v1" >>=? Just True
+    setnx "key" "v2" >>=? Just False
+
+testSetrange :: Test
+testSetrange = testCase "setrange" $ do
+    set "key" "value"        >>=? Just Ok
+    setrange "key" "1" "ers" >>=? Just (5 :: Int)
+    get "key"                >>=? Just ("verse" :: ByteString)
+
+testStrlen :: Test
+testStrlen = testCase "strlen" $ do
+    set "key" "value" >>=? Just Ok
+    strlen "key"      >>=? Just (5 :: Int)
+
+testSetAndGet :: Test
+testSetAndGet = testCase "set/get" $ do    
     get "key"         >>=? (Nothing :: Maybe ByteString)
     set "key" "value" >>=? Just Ok
     get "key"         >>=? Just ("value" :: ByteString)
+
+
+------------------------------------------------------------------------------
+-- Hashes
+--
+
+
+------------------------------------------------------------------------------
+-- Lists
+--
+
+
+------------------------------------------------------------------------------
+-- Sets
+--
+
+
+------------------------------------------------------------------------------
+-- Sorted Sets
+--
+
+
+------------------------------------------------------------------------------
+-- Pub/Sub
+--
+
+
+------------------------------------------------------------------------------
+-- Transaction
+--
+
+
+------------------------------------------------------------------------------
+-- Connection
+--
+testPing :: Test
+testPing = testCase "ping" $ ping >>=? Just Pong
+
+
+------------------------------------------------------------------------------
+-- Server
+--
