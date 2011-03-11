@@ -4,7 +4,8 @@ module Database.Redis.Types where
 
 import Control.Applicative
 import Control.Monad
-import Data.ByteString.Char8
+import Data.ByteString.Char8 (ByteString, unpack)
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Database.Redis.Reply
@@ -107,8 +108,8 @@ instance RedisValue ByteString where
 ------------------------------------------------------------------------------
 -- RedisList instances
 --
-instance RedisValue a => RedisList [a] where
-    decodeList (MultiBulk (Just rs)) = mapM decodeValue rs
+instance RedisValue a => RedisList [Maybe a] where
+    decodeList (MultiBulk (Just rs)) = Just $ map decodeValue rs
     decodeList _                     = Nothing
 
 
@@ -116,10 +117,10 @@ instance RedisValue a => RedisList [a] where
 -- RedisSet instances
 --
 instance (Ord a, RedisValue a) => RedisSet (Set.Set a) where
-    decodeSet = liftM Set.fromList . decodeList
+    decodeSet = liftM Set.fromList . decodeSet
 
 instance (RedisValue a) => RedisSet [a] where
-    decodeSet = decodeList
+    decodeSet r = catMaybes <$> decodeList r
 
 
 ------------------------------------------------------------------------------
