@@ -44,14 +44,14 @@ bulk = Bulk <$> do
     len <- '$' `prefixing` signed decimal
     if len < 0
         then return Nothing
-        else fmap Just $ beforeCRLF (P.take len)
+        else Just <$> beforeCRLF (P.take len)
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do
         len <- '*' `prefixing` signed decimal
         if len < 0
             then return Nothing
-            else fmap Just $ count len reply
+            else Just <$> count len reply
 
 
 ------------------------------------------------------------------------------
