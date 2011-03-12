@@ -39,7 +39,7 @@ x @=? y = liftIO $ (Test.@=?) x y
 -- Tests
 --
 tests :: [Test]
-tests = testsKeys ++ testsStrings ++ [testPing]
+tests = testsKeys ++ testsStrings ++ testsHashes ++ [testPing]
 
 
 ------------------------------------------------------------------------------
@@ -255,6 +255,79 @@ testSetAndGet = testCase "set/get" $ do
 ------------------------------------------------------------------------------
 -- Hashes
 --
+testsHashes :: [Test]
+testsHashes =
+    [ testHdel, testHexists,testHget, testHgetall, testHincrby, testHkeys
+    , testHlen, testHmget, testHmset, testHset, testHsetnx, testHvals
+    ]
+
+testHdel :: Test
+testHdel = testCase "hdel" $ do
+    hdel "key" "field"         >>=? Just False
+    hset "key" "field" "value" >>=? Just True
+    hdel "key" "field"         >>=? Just True
+
+testHexists :: Test
+testHexists = testCase "hexists" $ do
+    hexists "key" "field"      >>=? Just False
+    hset "key" "field" "value" >>=? Just True
+    hexists "key" "field"      >>=? Just True
+
+testHget :: Test
+testHget = testCase "hget" $ do
+    hget "key" "field"         >>=? (Nothing :: Maybe ByteString)
+    hset "key" "field" "value" >>=? Just True
+    hget "key" "field"         >>=? Just ("value" :: ByteString)
+
+testHgetall :: Test
+testHgetall = testCase "hgetall" $ do
+    hgetall "key" >>=? Just ([] :: [(ByteString, ByteString)])
+    hmset "key" ["f1", "v1", "f2", "v2"]
+                  >>=? Just Ok
+    hgetall "key" >>=? Just [ ("f1", "v1")
+                            , ("f2" :: ByteString, "v2" :: ByteString)
+                            ]
+    
+testHincrby :: Test
+testHincrby = testCase "hincrby" $ do
+    hset "key" "field" "42"    >>=? Just True
+    hincrby "key" "field" "-2" >>=? Just (40 :: Int)
+
+testHkeys :: Test
+testHkeys = testCase "hkeys" $ do
+    hset "key" "field" "value" >>=? Just True
+    hkeys "key"                >>=? Just ["field" :: ByteString]
+
+testHlen :: Test
+testHlen = testCase "hlen" $ do
+    hlen "key"                 >>=? Just (0 :: Int)
+    hset "key" "field" "value" >>=? Just True
+    hlen "key"                 >>=? Just (1 :: Int)
+
+testHmget :: Test
+testHmget = testCase "hmget" $ do
+    hmset "key" ["f1", "v1", "f2", "v2"] >>=? Just Ok
+    hmget "key" ["f1", "f2", "nofield"]  >>=?
+        Just [Just ("v1" :: ByteString), Just "v2", Nothing]
+
+testHmset :: Test
+testHmset = testCase "hmset" $ do
+    hmset "key" ["f1", "v1", "f2", "v2"] >>=? Just Ok
+
+testHset :: Test
+testHset = testCase "hset" $ do
+    hset "key" "field" "value" >>=? Just True
+    hset "key" "field" "value" >>=? Just False
+
+testHsetnx :: Test
+testHsetnx = testCase "hsetnx" $ do
+    hsetnx "key" "field" "value" >>=? Just True
+    hsetnx "key" "field" "value" >>=? Just False
+
+testHvals :: Test
+testHvals = testCase "hvals" $ do
+    hset "key" "field" "value" >>=? Just True
+    hvals "key"                >>=? Just ["value" :: ByteString]
 
 
 ------------------------------------------------------------------------------

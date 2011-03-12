@@ -12,8 +12,11 @@ module Database.Redis (
     -- ** Strings
     append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
     mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
+    -- ** Hashes
+    hdel, hexists, hget, hgetall, hincrby, hkeys, hlen, hmget, hmset, hset,
+    hsetnx, hvals,
     -- ** Other
-    hgetall, lrange, sunion, ping, flushall, hset, lpush, sadd, zadd
+    lrange, sunion, ping, flushall, lpush, sadd, zadd
 ) where
 
 import Control.Applicative
@@ -31,6 +34,9 @@ import Database.Redis.Types
 #define comment(cmd) Redis Command, see <http://redis.io/commands/cmd>
 
 
+------------------------------------------------------------------------------
+-- Keys
+--
 cmdVar intRT "del" "" "ks"
 cmd boolRT "exists" "key"
 cmd boolRT "expire" "key seconds"
@@ -50,6 +56,9 @@ getType :: RedisStatus a => ByteString -> Redis (Maybe a)
 getType key = decodeStatus <$> sendRequest ["TYPE", key]
 
 
+------------------------------------------------------------------------------
+-- Strings
+--
 cmd intRT "append" "key value"
 cmd intRT "decr" "key"
 cmd intRT "decrby" "key decrement"
@@ -70,23 +79,62 @@ cmd intRT "setrange" "key offset value"
 cmd intRT "strlen" "key"
 
 
-cmd boolRT "hset" "key field value"
-cmd intRT "lpush" "key value"
-cmd boolRT "sadd" "key member"
-cmd boolRT "zadd" "key score member"
-
--- TODO what about commands taking varArg _PAIRS_ (mset)
-
-{- |comment(ping) -}
-cmd statusRT "ping" ""
-
-{- |comment(hgetall) -}
+------------------------------------------------------------------------------
+-- Hashes
+--
+cmd boolRT "hdel" "key field"
+cmd boolRT "hexists" "key field"
+cmd valueRT "hget" "key field"
 cmd hashRT "hgetall" "key"
+cmd intRT "hincrby" "key field increment"
+cmd setRT "hkeys" "key"
+cmd intRT "hlen" "key"
+cmdVar listRT "hmget" "key" "fields"
+cmdVar statusRT "hmset" "key" "fieldsvalues"
+cmd boolRT "hset" "key field value"
+cmd boolRT "hsetnx" "key field value"
+cmd setRT "hvals" "key"
 
+
+------------------------------------------------------------------------------
+-- Lists
+--
+cmd intRT "lpush" "key value"
 {- |comment(lrange) -}
 cmd listRT "lrange" "key start stop"
 
+
+------------------------------------------------------------------------------
+-- Sets
+--
+cmd boolRT "sadd" "key member"
 {- |comment(sunion) -}
 cmdVar setRT "sunion" "" "ks"
 
+
+------------------------------------------------------------------------------
+-- Sorted Sets
+--
+cmd boolRT "zadd" "key score member"
+
+
+------------------------------------------------------------------------------
+-- Pub/Sub
+--
+
+
+------------------------------------------------------------------------------
+-- Transaction
+--
+
+
+------------------------------------------------------------------------------
+-- Connection
+--
+{- |comment(ping) -}
+cmd statusRT "ping" ""
+
+------------------------------------------------------------------------------
+-- Server
+--
 cmd statusRT "flushall" ""
