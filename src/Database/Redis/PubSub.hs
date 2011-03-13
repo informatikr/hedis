@@ -11,7 +11,7 @@ module Database.Redis.PubSub (
 import Control.Applicative
 import Control.Monad.Writer
 import qualified Data.ByteString.Char8 as B
-
+import Data.Maybe
 import Database.Redis.Internal (Redis)
 import qualified Database.Redis.Internal as Internal
 import Database.Redis.Reply
@@ -47,22 +47,21 @@ punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
 
 pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
-pubSub (PubSub p) callback = send p 0
+pubSub p callback = send p 0
   where
-    send action outstanding = do
+    send (PubSub action) outstanding = do
         cmds <- liftIO (execWriterT action)
         mapM_ Internal.send cmds
         recv (outstanding + length cmds)
-        
+
     recv outstanding = do
         reply <- Internal.recv
         case decodeMsg reply of
-            Just (SubscriptionCnt cnt)
+            SubscriptionCnt cnt
                 | cnt == 0 && outstanding == 0
                             -> return ()
                 | otherwise -> send (return ()) (outstanding -1)
-            Just msg        -> send (callback msg) callback
-            Nothing         -> undefined
+            msg             -> send (callback msg) outstanding
 
 
 ------------------------------------------------------------------------------
@@ -71,8 +70,8 @@ pubSub (PubSub p) callback = send p 0
 pubSubAction :: B.ByteString -> B.ByteString -> PubSub ()
 pubSubAction cmd chan = tell [[cmd, chan]]
 
-decodeMsg :: Reply -> Maybe Message
-decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
+decodeMsg :: Reply -> Message
+decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = fromJust $ do
     kind <- decodeValue r0
     case kind :: B.ByteString of
         "message"  -> Message  <$> decodeValue r1 <*> decodeValue r2
@@ -80,9 +79,8 @@ decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = do
                                         <*> decodeValue r2
                                         <*> (maybeHead rs >>= decodeValue)
         -- kind `elem` ["subscribe","unsubscribe","psubscribe","punsubscribe"]
-        _          -> SubscriptionCnt <$> decodeInt r2                        
-                        
-decodeMsg _ = Nothing
+        _          -> SubscriptionCnt <$> decodeInt r2                                                
+decodeMsg r = error $ "not a message: " ++ (show r)
 
 maybeHead :: [a] -> Maybe a
 maybeHead (x:_) = Just x
