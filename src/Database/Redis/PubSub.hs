@@ -12,7 +12,8 @@ import Control.Applicative
 import Control.Monad.Writer
 import qualified Data.ByteString.Char8 as B
 
-import Database.Redis.Internal
+import Database.Redis.Internal (Redis)
+import qualified Database.Redis.Internal as Internal
 import Database.Redis.Reply
 import Database.Redis.Types
 
@@ -44,15 +45,24 @@ psubscribe = pubSubAction "PSUBSCRIBE"
 punsubscribe :: B.ByteString -> PubSub ()
 punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
+
 pubSub :: PubSub () -> (Message -> PubSub ()) -> Redis ()
-pubSub (PubSub p) callback = do
-    liftIO (execWriterT p) >>= mapM_ send
-    reply <- recv
-    case decodeMsg reply of
-        Nothing                  -> undefined
-        Just (SubscriptionCnt 0) -> return ()
-        Just (SubscriptionCnt _) -> pubSub (return ()) callback
-        Just msg                 -> pubSub (callback msg) callback
+pubSub (PubSub p) callback = send p 0
+  where
+    send action outstanding = do
+        cmds <- liftIO (execWriterT action)
+        mapM_ Internal.send cmds
+        recv (outstanding + length cmds)
+        
+    recv outstanding = do
+        reply <- Internal.recv
+        case decodeMsg reply of
+            Just (SubscriptionCnt cnt)
+                | cnt == 0 && outstanding == 0
+                            -> return ()
+                | otherwise -> send (return ()) (outstanding -1)
+            Just msg        -> send (callback msg) callback
+            Nothing         -> undefined
 
 
 ------------------------------------------------------------------------------
