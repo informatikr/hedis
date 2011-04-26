@@ -39,7 +39,8 @@ x @=? y = liftIO $ (Test.@=?) x y
 -- Tests
 --
 tests :: [Test]
-tests = testsKeys ++ testsStrings ++ testsHashes ++ [testPing]
+tests = concat
+    [testsKeys, testsStrings, testsHashes, testsConnection, [testQuit]]
 
 
 ------------------------------------------------------------------------------
@@ -92,7 +93,12 @@ testKeys = testCase "keys" $ do
     True @=? elem (Just "key2") ks
 
 testMove :: Test
-testMove = testCase "move" $ return () -- TODO requires ability to switch DBs
+testMove = testCase "move" $ do
+    set "key" "value" >>=? Just Ok
+    move "key" "13"   >>=? Just True
+    get "key"         >>=? (Nothing :: Maybe ByteString)
+    select "13"       >>=? Just Ok
+    get "key"         >>=? Just ("value" :: ByteString)
 
 testPersist :: Test
 testPersist = testCase "persist" $ do
@@ -358,8 +364,25 @@ testHvals = testCase "hvals" $ do
 ------------------------------------------------------------------------------
 -- Connection
 --
+testsConnection :: [Test]
+testsConnection = [ testAuth, testEcho, testPing, testSelect ]
+
+testAuth :: Test
+testAuth = testCase "auth" $ return () -- TODO test auth
+
+testEcho :: Test
+testEcho = testCase "echo" $ echo "value" >>=? Just ("value" :: ByteString)
+
 testPing :: Test
 testPing = testCase "ping" $ ping >>=? Just Pong
+
+testQuit :: Test
+testQuit = testCase "quit" $ quit >>=? Just Ok
+
+testSelect :: Test
+testSelect = testCase "select" $ do
+    select "13" >>=? Just Ok
+    select "0"  >>=? Just Ok
 
 
 ------------------------------------------------------------------------------

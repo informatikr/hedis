@@ -42,10 +42,8 @@ newConnPool size host port = do
     return $ ConnPool size host port conns
 
 disconnectConnPool :: ConnPool -> IO ()
-disconnectConnPool (ConnPool size _ _ conns) = do
-    forM_ [1..size] $ \_ -> readChan conns >>= disconnect
-    writeList2Chan conns $ replicate size Disconnected
-
+disconnectConnPool (ConnPool size _ _ conns) =
+    replicateM_ size $ readChan conns >>= disconnect >>= writeChan conns
 
 connect :: HostName -> PortID -> Conn -> IO Conn
 connect host port Disconnected = do

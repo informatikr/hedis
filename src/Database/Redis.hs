@@ -15,8 +15,10 @@ module Database.Redis (
     -- ** Hashes
     hdel, hexists, hget, hgetall, hincrby, hkeys, hlen, hmget, hmset, hset,
     hsetnx, hvals,
+    -- ** Connection
+    auth, echo, ping, quit, select,
     -- ** Other
-    lrange, sunion, ping, flushall, lpush, sadd, zadd
+    lrange, sunion, flushall, lpush, sadd, zadd
 ) where
 
 import Control.Applicative
@@ -131,8 +133,12 @@ cmd boolRT "zadd" "key score member"
 ------------------------------------------------------------------------------
 -- Connection
 --
-{- |comment(ping) -}
+cmd statusRT "auth" "password"
+cmd valueRT "echo" "message"
 cmd statusRT "ping" ""
+cmd statusRT "quit" ""
+cmd statusRT "select" "index"
+
 
 ------------------------------------------------------------------------------
 -- Server
