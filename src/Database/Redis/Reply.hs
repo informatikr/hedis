@@ -44,7 +44,7 @@ bulk = Bulk <$> do
     len <- '$' `prefixing` signed decimal
     if len < 0
         then return Nothing
-        else Just <$> beforeCRLF (P.take len)
+        else Just <$> (P.take len <* crlf)
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do
@@ -58,13 +58,10 @@ multiBulk = MultiBulk <$> do
 -- Helpers & Combinators
 --
 prefixing :: Char -> Parser a -> Parser a
-c `prefixing` a = char c >> beforeCRLF a
+c `prefixing` a = char c *> a <* crlf
 
-beforeCRLF :: Parser a -> Parser a
-beforeCRLF a = do
-    x <- a
-    string "\r\n"
-    return x
+crlf :: Parser S.ByteString
+crlf = string "\r\n"
 
 line :: Parser S.ByteString
 line = takeTill (=='\r')
