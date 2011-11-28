@@ -22,7 +22,7 @@ cabal-version: >=1.2
 
 library
   hs-source-dirs:   src
-  ghc-options:      -Wall -fno-warn-unused-do-bind
+  ghc-options:      -Wall
   exposed-modules:  Database.Redis, Database.Redis.Types
   build-depends:    base >= 4,
                     network >= 2,
