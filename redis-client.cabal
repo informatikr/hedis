@@ -30,7 +30,8 @@ library
                     mtl >= 2,
                     attoparsec >= 0.8,
                     containers >= 0.3,
-                    template-haskell >= 2.5
+                    template-haskell >= 2.5 && <= 2.6
+
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
