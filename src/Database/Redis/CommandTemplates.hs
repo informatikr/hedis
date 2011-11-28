@@ -57,7 +57,7 @@ sig typ name args varArgs = sigD (mkName name) $
   where
     argsT   = replicate (length args) byteStringT
     varArgT = maybe [] (const [listT `appT` byteStringT]) varArgs
-    returnT = [nameT "Redis" `appT` (nameT "Maybe" `appT` (nameT "a"))]
+    returnT = [nameT "Redis" `appT` (nameT "Maybe" `appT` nameT "a")]
 
 
 fun :: String -> String -> [String] -> Maybe String -> DecQ
@@ -70,7 +70,7 @@ fun typ name args varArgs =
     argList  = maybe argList'
                 (infixApp argList' (nameE "++") . nameE)
                 varArgs
-    argList' = listE $ (cmdE name) : (map nameE args)    
+    argList' = listE $ cmdE name : map nameE args
 
 
 ------------------------------------------------------------------------------

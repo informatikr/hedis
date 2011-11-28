@@ -80,7 +80,7 @@ decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = fromJust $ do
                                         <*> (maybeHead rs >>= decodeValue)
         -- kind `elem` ["subscribe","unsubscribe","psubscribe","punsubscribe"]
         _          -> SubscriptionCnt <$> decodeInt r2                                                
-decodeMsg r = error $ "not a message: " ++ (show r)
+decodeMsg r = error $ "not a message: " ++ show r
 
 maybeHead :: [a] -> Maybe a
 maybeHead (x:_) = Just x
