@@ -151,7 +151,7 @@ testGetType = testCase "getType" $ do
     ts = [ (set "key" "value"          >>=? Just Ok        , String)
          , (hset "key" "field" "value" >>=? Just True      , Hash)
          , (lpush "key" "value"        >>=? Just (1 :: Int), List)
-         , (sadd "key" "member"        >>=? Just True      , Set)
+         , (sadd "key" ["member"]      >>=? Just True      , Set)
          , (zadd "key" "42" "member"   >>=? Just True      , ZSet)
          ]
 
@@ -269,9 +269,10 @@ testsHashes =
 
 testHdel :: Test
 testHdel = testCase "hdel" $ do
-    hdel "key" "field"         >>=? Just False
+    hdel "key" []              >>=? Nothing
+    hdel "key" ["field"]       >>=? Just False
     hset "key" "field" "value" >>=? Just True
-    hdel "key" "field"         >>=? Just True
+    hdel "key" ["field"]       >>=? Just True
 
 testHexists :: Test
 testHexists = testCase "hexists" $ do

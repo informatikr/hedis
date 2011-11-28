@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, CPP #-}
+{-# LANGUAGE OverloadedStrings, CPP #-}
 
 module Database.Redis (
     module Database.Redis.Internal,
@@ -7,8 +7,8 @@ module Database.Redis (
     module Database.Redis.Types,
     -- * Commands
     -- ** Keys
-    del, exists, expire, expireat, keys, move, persist, randomkey, rename,
-    renamenx, sort, ttl, getType,
+    del, exists, expire, expireat, keys, move, object, persist, randomkey,
+    rename, renamenx, sort, ttl, getType, eval,
     -- ** Strings
     append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
     mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
@@ -45,6 +45,9 @@ cmd boolRT "expire" "key seconds"
 cmd boolRT "expireat" "key timestamp"
 cmd listRT "keys" "pattern"
 cmd boolRT "move" "key db"
+-- TODO object
+object :: ()
+object = undefined
 cmd boolRT "persist" "key"
 cmd keyRT "randomkey" ""
 cmd statusRT "rename" "key newkey"
@@ -56,6 +59,9 @@ cmd intRT "ttl" "key"
 -- special handling: function name != command
 getType :: RedisStatus a => ByteString -> Redis (Maybe a)
 getType key = decodeStatus <$> sendRequest ["TYPE", key]
+-- TODO eval
+eval :: ()
+eval = undefined
 
 
 ------------------------------------------------------------------------------
@@ -84,7 +90,7 @@ cmd intRT "strlen" "key"
 ------------------------------------------------------------------------------
 -- Hashes
 --
-cmd boolRT "hdel" "key field"
+cmdVar boolRT "hdel" "key" "fields"
 cmd boolRT "hexists" "key field"
 cmd valueRT "hget" "key field"
 cmd hashRT "hgetall" "key"
@@ -101,6 +107,27 @@ cmd setRT "hvals" "key"
 ------------------------------------------------------------------------------
 -- Lists
 --
+-- blpop
+-- brpop
+-- brpoplpush
+-- lindex
+-- linsert
+-- llen
+-- lpop
+-- lpush
+-- lpushx
+-- lrange
+-- lrem
+-- lset
+-- ltrim
+-- rpop
+-- rpoplpush
+-- rpush
+-- rpushx
+
+
+
+
 cmd intRT "lpush" "key value"
 {- |comment(lrange) -}
 cmd listRT "lrange" "key start stop"
@@ -109,7 +136,7 @@ cmd listRT "lrange" "key start stop"
 ------------------------------------------------------------------------------
 -- Sets
 --
-cmd boolRT "sadd" "key member"
+cmdVar boolRT "sadd" "key" "vals"
 {- |comment(sunion) -}
 cmdVar setRT "sunion" "" "ks"
 
