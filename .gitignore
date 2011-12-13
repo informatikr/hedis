@@ -1,3 +1,5 @@
 redis
 dist
 test/coverage
+cabal-dev
+dump.rdb
