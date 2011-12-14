@@ -40,7 +40,7 @@ x @=? y = liftIO $ (Test.@=?) x y
 --
 tests :: [Test]
 tests = concat
-    [testsKeys, testsStrings, testsHashes, testsConnection, [testQuit]]
+    [testsKeys, testsStrings, testsHashes] -- , testsConnection, [testQuit]]
 
 
 ------------------------------------------------------------------------------
@@ -142,17 +142,17 @@ testTtl = testCase "ttl" $ do
 
 testGetType :: Test
 testGetType = testCase "getType" $ do
-    getType "key"     >>=? Just None    
+    getType "key"     >>=? Just None
     forM_ ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? Just typ
         del ["key"]   >>=? Just (1 :: Int)
-  where 
+  where
     ts = [ (set "key" "value"          >>=? Just Ok        , String)
          , (hset "key" "field" "value" >>=? Just True      , Hash)
-         , (lpush "key" "value"        >>=? Just (1 :: Int), List)
-         , (sadd "key" ["member"]      >>=? Just True      , Set)
-         , (zadd "key" "42" "member"   >>=? Just True      , ZSet)
+         , (lpush "key" ["value"]      >>=? Just (1 :: Int), List)
+         , (sadd "key" ["member"]      >>=? Just (1 :: Int), Set)
+         , (zadd "key" "42" "member"   >>=? Just (1 :: Int), ZSet)
          ]
 
 
@@ -216,14 +216,14 @@ testMget = testCase "mget" $ do
 
 testMset :: Test
 testMset = testCase "mset" $ do
-    mset ["k1", "v1", "k2", "v2"] >>=? Just Ok
-    get "k1"                      >>=? Just ("v1" :: ByteString)
-    get "k2"                      >>=? Just ("v2" :: ByteString)
+    mset [("k1","v1"), ("k2","v2")] >>=? Just Ok
+    get "k1"                        >>=? Just ("v1" :: ByteString)
+    get "k2"                        >>=? Just ("v2" :: ByteString)
 
 testMsetnx :: Test
 testMsetnx = testCase "msetnx" $ do
-    msetnx ["k1", "v1", "k2", "v2"] >>=? Just True
-    msetnx ["k1", "v1", "k2", "v2"] >>=? Just False
+    msetnx [("k1","v1"), ("k2","v2")] >>=? Just True
+    msetnx [("k1","v1"), ("k2","v2")] >>=? Just False
 
 testSetbit :: Test
 testSetbit = testCase "setbit" $ do
@@ -269,7 +269,7 @@ testsHashes =
 
 testHdel :: Test
 testHdel = testCase "hdel" $ do
-    hdel "key" []              >>=? Nothing
+    hdel "key" []              >>=? (Nothing :: Maybe Int)
     hdel "key" ["field"]       >>=? Just False
     hset "key" "field" "value" >>=? Just True
     hdel "key" ["field"]       >>=? Just True
@@ -289,7 +289,7 @@ testHget = testCase "hget" $ do
 testHgetall :: Test
 testHgetall = testCase "hgetall" $ do
     hgetall "key" >>=? Just ([] :: [(ByteString, ByteString)])
-    hmset "key" ["f1", "v1", "f2", "v2"]
+    hmset "key" [("f1","v1"), ("f2","v2")]
                   >>=? Just Ok
     hgetall "key" >>=? Just [ ("f1", "v1")
                             , ("f2" :: ByteString, "v2" :: ByteString)
@@ -313,13 +313,13 @@ testHlen = testCase "hlen" $ do
 
 testHmget :: Test
 testHmget = testCase "hmget" $ do
-    hmset "key" ["f1", "v1", "f2", "v2"] >>=? Just Ok
-    hmget "key" ["f1", "f2", "nofield"]  >>=?
+    hmset "key" [("f1","v1"), ("f2","v2")] >>=? Just Ok
+    hmget "key" ["f1", "f2", "nofield"]    >>=?
         Just [Just ("v1" :: ByteString), Just "v2", Nothing]
 
 testHmset :: Test
 testHmset = testCase "hmset" $ do
-    hmset "key" ["f1", "v1", "f2", "v2"] >>=? Just Ok
+    hmset "key" [("f1","v1"), ("f2","v2")] >>=? Just Ok
 
 testHset :: Test
 testHset = testCase "hset" $ do
@@ -341,7 +341,7 @@ testHvals = testCase "hvals" $ do
 -- Lists
 --
 
-
+{-
 ------------------------------------------------------------------------------
 -- Sets
 --
@@ -389,3 +389,4 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
+-}

@@ -15,10 +15,10 @@ echo "coverage report:"
 echo "----------------"
 hpc report Test.tix
 
-echo "------------------"
-echo "hlint suggestions:"
-echo "------------------"
-hlint src
+#echo "------------------"
+#echo "hlint suggestions:"
+#echo "------------------"
+#hlint src
 
 # cleanup
 rm test/Test

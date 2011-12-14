@@ -8,36 +8,35 @@ author:             Falko Peters
 maintainer:         falko.peters@gmail.com
 copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
-
 build-type:         Simple
+cabal-version:      >=1.8
 
-  
--- Extra files to be distributed with the package, such as examples or
--- a README.
--- Extra-source-files:
-
--- Constraint on the version of Cabal needed to build this package.
-cabal-version: >=1.2
-
+extra-source-files:
+    commands.json
 
 library
   hs-source-dirs:   src
   ghc-options:      -Wall
-  exposed-modules:  Database.Redis, Database.Redis.Types
-  build-depends:    base >= 4,
+  exposed-modules:  Database.Redis,
+                    Database.Redis.Types
+  build-depends:    aeson == 0.4.*,
+                    base >= 4,
                     network >= 2,
                     bytestring >= 0.9,
                     mtl >= 2,
                     attoparsec >= 0.8,
                     containers >= 0.3,
-                    template-haskell >= 2.5 && <= 2.6
+                    unordered-containers == 0.1.4.*,
+                    template-haskell >= 2.5,
+                    text == 0.11.1.*,
+                    vector == 0.9
 
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
                     Database.Redis.Request,
-                    Database.Redis.CommandTemplates
-
+                    Database.Redis.Commands,
+                    Database.Redis.ManualCommands
 
 source-repository head
   type:     git

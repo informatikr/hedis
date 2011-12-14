@@ -6,28 +6,19 @@ module Database.Redis (
     module Database.Redis.PubSub,
     module Database.Redis.Types,
     -- * Commands
-    -- ** Keys
-    del, exists, expire, expireat, keys, move, object, persist, randomkey,
-    rename, renamenx, sort, ttl, getType, eval,
-    -- ** Strings
-    append, decr, decrby, get, getbit, getrange, getset, incr, incrby, mget,
-    mset, msetnx, set, setbit, setex, setnx, setrange, strlen,
-    -- ** Hashes
-    hdel, hexists, hget, hgetall, hincrby, hkeys, hlen, hmget, hmset, hset,
-    hsetnx, hvals,
-    -- ** Connection
-    auth, echo, ping, quit, select,
-    -- ** Other
-    lrange, sunion, flushall, lpush, sadd, zadd
+	module Database.Redis.Commands
+
 ) where
 
-import Control.Applicative
-import Data.ByteString (ByteString)
-import Database.Redis.CommandTemplates
+--import Control.Applicative
+--import Data.ByteString (ByteString)
+--import Database.Redis.CommandTemplates
 import Database.Redis.Internal
 import Database.Redis.PubSub
 import Database.Redis.Reply
 import Database.Redis.Types
+
+import Database.Redis.Commands
 
 ------------------------------------------------------------------------------
 -- Redis commands
@@ -35,7 +26,7 @@ import Database.Redis.Types
 
 #define comment(cmd) Redis Command, see <http://redis.io/commands/cmd>
 
-
+{-
 ------------------------------------------------------------------------------
 -- Keys
 --
@@ -171,3 +162,4 @@ cmd statusRT "select" "index"
 -- Server
 --
 cmd statusRT "flushall" ""
+-}

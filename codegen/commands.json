@@ -12,7 +12,8 @@
       }
     ],
     "since": "1.3.3",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "AUTH": {
     "summary": "Authenticate to the server",
@@ -147,7 +148,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "DECRBY": {
     "summary": "Decrement the integer value of a key by the given number",
@@ -162,7 +164,9 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
+    
   },
   "DEL": {
     "summary": "Delete a key",
@@ -261,7 +265,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "string"
   },
   "GETBIT": {
     "summary": "Returns the bit value at offset in the string value stored at key",
@@ -276,7 +281,8 @@
       }
     ],
     "since": "2.1.8",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "GETRANGE": {
     "summary": "Get a substring of the string stored at a key",
@@ -295,7 +301,8 @@
       }
     ],
     "since": "1.3.4",
-    "group": "string"
+    "group": "string",
+    "returns": "string"
   },
   "GETSET": {
     "summary": "Set the string value of a key and return its old value",
@@ -310,7 +317,8 @@
       }
     ],
     "since": "0.091",
-    "group": "string"
+    "group": "string",
+    "returns": "string"
   },
   "HDEL": {
     "summary": "Delete one or more hash fields",
@@ -326,7 +334,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "bool"
   },
   "HEXISTS": {
     "summary": "Determine if a hash field exists",
@@ -341,7 +350,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "bool"
   },
   "HGET": {
     "summary": "Get the value of a hash field",
@@ -356,7 +366,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "string"
   },
   "HGETALL": {
     "summary": "Get all the fields and values in a hash",
@@ -367,7 +378,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "hash"
   },
   "HINCRBY": {
     "summary": "Increment the integer value of a hash field by the given number",
@@ -386,7 +398,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "integer"
   },
   "HKEYS": {
     "summary": "Get all the fields in a hash",
@@ -397,7 +410,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "set"
   },
   "HLEN": {
     "summary": "Get the number of fields in a hash",
@@ -408,7 +422,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "integer"
   },
   "HMGET": {
     "summary": "Get the values of all the given hash fields",
@@ -424,7 +439,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "list"
   },
   "HMSET": {
     "summary": "Set multiple hash fields to multiple values",
@@ -440,7 +456,8 @@
       }
     ],
     "since": "1.3.8",
-    "group": "hash"
+    "group": "hash",
+    "returns": "status"
   },
   "HSET": {
     "summary": "Set the string value of a hash field",
@@ -459,7 +476,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "bool"
   },
   "HSETNX": {
     "summary": "Set the value of a hash field, only if the field does not exist",
@@ -478,7 +496,8 @@
       }
     ],
     "since": "1.3.8",
-    "group": "hash"
+    "group": "hash",
+    "returns": "bool"
   },
   "HVALS": {
     "summary": "Get all the values in a hash",
@@ -489,7 +508,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "hash"
+    "group": "hash",
+    "returns": "set"
   },
   "INCR": {
     "summary": "Increment the integer value of a key by one",
@@ -500,7 +520,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "INCRBY": {
     "summary": "Increment the integer value of a key by the given number",
@@ -515,7 +536,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "INFO": {
     "summary": "Get information and statistics about the server",
@@ -717,7 +739,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "list"
   },
   "MONITOR": {
     "summary": "Listen for all requests received by the server in real time",
@@ -750,7 +773,8 @@
       }
     ],
     "since": "1.001",
-    "group": "string"
+    "group": "string",
+    "returns": "status"
   },
   "MSETNX": {
     "summary": "Set multiple keys to multiple values, only if none of the keys exist",
@@ -762,7 +786,8 @@
       }
     ],
     "since": "1.001",
-    "group": "string"
+    "group": "string",
+    "returns": "bool"
   },
   "MULTI": {
     "summary": "Mark the start of a transaction block",
@@ -1027,7 +1052,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "status"
   },
   "SETBIT": {
     "summary": "Sets or clears the bit at offset in the string value stored at key",
@@ -1046,7 +1072,8 @@
       }
     ],
     "since": "2.1.8",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "SETEX": {
     "summary": "Set the value and expiration of a key",
@@ -1065,7 +1092,8 @@
       }
     ],
     "since": "1.3.10",
-    "group": "string"
+    "group": "string",
+    "returns": "status"
   },
   "SETNX": {
     "summary": "Set the value of a key, only if the key does not exist",
@@ -1080,7 +1108,8 @@
       }
     ],
     "since": "0.07",
-    "group": "string"
+    "group": "string",
+    "returns": "bool"
   },
   "SETRANGE": {
     "summary": "Overwrite part of a string at key starting at the specified offset",
@@ -1099,7 +1128,8 @@
       }
     ],
     "since": "2.1.8",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "SHUTDOWN": {
     "summary": "Synchronously save the dataset to disk and then shut down the server",
@@ -1305,7 +1335,8 @@
       }
     ],
     "since": "2.1.2",
-    "group": "string"
+    "group": "string",
+    "returns": "integer"
   },
   "SUBSCRIBE": {
     "summary": "Listen for messages published to the given channels",

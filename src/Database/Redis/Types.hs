@@ -26,8 +26,8 @@ class RedisInt a where
 class RedisKey a where
     decodeKey :: Reply -> Maybe a
 
-class RedisValue a where
-    decodeValue :: Reply -> Maybe a
+class RedisString a where
+    decodeString :: Reply -> Maybe a
 
 class RedisList a where
     decodeList :: Reply -> Maybe a
@@ -100,33 +100,33 @@ instance RedisKey ByteString where
 ------------------------------------------------------------------------------
 -- RedisValue instances
 --
-instance RedisValue ByteString where
-    decodeValue (Bulk v) = v
-    decodeValue _        = Nothing
+instance RedisString ByteString where
+    decodeString (Bulk v) = v
+    decodeString _        = Nothing
 
 
 ------------------------------------------------------------------------------
 -- RedisList instances
 --
-instance RedisValue a => RedisList [Maybe a] where
-    decodeList (MultiBulk (Just rs)) = Just $ map decodeValue rs
+instance RedisString a => RedisList [Maybe a] where
+    decodeList (MultiBulk (Just rs)) = Just $ map decodeString rs
     decodeList _                     = Nothing
 
 
 ------------------------------------------------------------------------------
 -- RedisSet instances
 --
-instance (Ord a, RedisValue a) => RedisSet (Set.Set a) where
+instance (Ord a, RedisString a) => RedisSet (Set.Set a) where
     decodeSet = liftM Set.fromList . decodeSet
 
-instance (RedisValue a) => RedisSet [a] where
+instance (RedisString a) => RedisSet [a] where
     decodeSet r = catMaybes <$> decodeList r
 
 
 ------------------------------------------------------------------------------
 -- RedisHash instances
 --
-instance (RedisKey k, RedisValue v) => RedisHash [(k,v)] where
+instance (RedisKey k, RedisString v) => RedisHash [(k,v)] where
     decodeHash reply = 
         case reply of
             (MultiBulk (Just rs)) -> pairs rs
@@ -135,8 +135,8 @@ instance (RedisKey k, RedisValue v) => RedisHash [(k,v)] where
         pairs []         = Just []
         pairs (_:[])     = Nothing
         pairs (r1:r2:rs) =
-            let kv = (,) <$> decodeKey r1 <*> decodeValue r2
+            let kv = (,) <$> decodeKey r1 <*> decodeString r2
             in (:) <$> kv <*> pairs rs
 
-instance (Ord k , RedisKey k, RedisValue v) => RedisHash (Map.Map k v) where
+instance (Ord k , RedisKey k, RedisString v) => RedisHash (Map.Map k v) where
     decodeHash = liftM Map.fromList . decodeHash

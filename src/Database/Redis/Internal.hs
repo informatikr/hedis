@@ -8,7 +8,8 @@ module Database.Redis.Internal (
     runRedis,
     send,
     recv,
-    sendRequest
+    sendRequest,
+    flattenPairs
 ) where
 
 import Control.Applicative
@@ -88,3 +89,12 @@ recv = Redis $ do
 
 sendRequest :: [B.ByteString] -> Redis Reply
 sendRequest req = send req >> recv
+
+
+------------------------------------------------------------------------------
+-- HELPERS & UTILITIES
+--
+
+flattenPairs :: [(a,a)] -> [a]
+flattenPairs []          = []
+flattenPairs ((x,x'):xs) = x : x' : flattenPairs xs
