@@ -174,7 +174,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "integer"
   },
   "DISCARD": {
     "summary": "Discard all commands issued after MULTI",
@@ -206,7 +207,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "EXPIRE": {
     "summary": "Set a key's time to live in seconds",
@@ -221,7 +223,8 @@
       }
     ],
     "since": "0.09",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "EXPIREAT": {
     "summary": "Set the expiration for a key as a UNIX timestamp",
@@ -236,7 +239,8 @@
       }
     ],
     "since": "1.1",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "FLUSHALL": {
     "summary": "Remove all keys from all databases",
@@ -527,7 +531,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "list"
   },
   "LASTSAVE": {
     "summary": "Get the UNIX time stamp of the last successful save to disk",
@@ -732,7 +737,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "MSET": {
     "summary": "Set multiple keys to multiple values",
@@ -789,7 +795,8 @@
       }
     ],
     "since": "2.1.2",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "PING": {
     "summary": "Ping the server",
@@ -844,7 +851,8 @@
   "RANDOMKEY": {
     "summary": "Return a random key from the keyspace",
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "key"
   },
   "RENAME": {
     "summary": "Rename a key",
@@ -859,7 +867,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "status"
   },
   "RENAMENX": {
     "summary": "Rename a key, only if the new key does not exist",
@@ -874,7 +883,8 @@
       }
     ],
     "since": "0.07",
-    "group": "generic"
+    "group": "generic",
+    "returns": "bool"
   },
   "RPOP": {
     "summary": "Remove and get the last element in a list",
@@ -1351,7 +1361,8 @@
       }
     ],
     "since": "0.100",
-    "group": "generic"
+    "group": "generic",
+    "returns": "integer"
   },
   "TYPE": {
     "summary": "Determine the type stored at key",
