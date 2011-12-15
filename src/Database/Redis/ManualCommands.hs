@@ -7,22 +7,22 @@ import Data.ByteString
 import Database.Redis.Types
 import Database.Redis.Internal
 
-objectRefcount :: (RedisInt a)
+objectRefcount :: (RedisReturnInt a)
     => ByteString -- ^ key
     -> Redis (Maybe a)
 objectRefcount key = decodeInt <$> sendRequest ["OBJECT", "refcount", key]
 
-objectIdletime :: (RedisInt a)
+objectIdletime :: (RedisReturnInt a)
     => ByteString -- ^ key
     -> Redis (Maybe a)
 objectIdletime key = decodeInt <$> sendRequest ["OBJECT", "idletime", key]
 
-objectEncoding :: (RedisString a)
+objectEncoding :: (RedisReturnString a)
     => ByteString -- ^ key
     -> Redis (Maybe a)
 objectEncoding key = decodeString <$> sendRequest ["OBJECT", "encoding", key]
 
-linsertBefore :: (RedisInt a)
+linsertBefore :: (RedisReturnInt a)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
@@ -30,7 +30,7 @@ linsertBefore :: (RedisInt a)
 linsertBefore key pivot value =
     decodeInt <$> sendRequest ["INSERT", key, "BEFORE", pivot, value]
 
-linsertAfter :: (RedisInt a)
+linsertAfter :: (RedisReturnInt a)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
@@ -38,7 +38,7 @@ linsertAfter :: (RedisInt a)
 linsertAfter key pivot value =
         decodeInt <$> sendRequest ["INSERT", key, "AFTER", pivot, value]
 
-getType :: (RedisStatus a)
+getType :: (RedisReturnStatus a)
         => ByteString -- ^ key
         -> Redis (Maybe a)
 getType key = decodeStatus <$> sendRequest ["TYPE", key]

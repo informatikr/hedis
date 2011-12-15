@@ -15,51 +15,51 @@ import Database.Redis.Reply
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
-class RedisStatus a where
+class RedisReturnStatus a where
     decodeStatus :: Reply -> Maybe a
 
-class RedisBool a where
+class RedisReturnBool a where
     decodeBool :: Reply -> Maybe a
 
-class RedisInt a where
+class RedisReturnInt a where
     decodeInt :: Reply -> Maybe a
 
-class RedisDouble a where
+class RedisReturnDouble a where
     decodeDouble :: Reply -> Maybe a
 
-class RedisKey a where
+class RedisReturnKey a where
     decodeKey :: Reply -> Maybe a
 
-class RedisString a where
+class RedisReturnString a where
     decodeString :: Reply -> Maybe a
 
-class RedisList a where
+class RedisReturnList a where
     decodeList :: Reply -> Maybe a
 
-class RedisSet a where
+class RedisReturnSet a where
     decodeSet :: Reply -> Maybe a
 
-class RedisHash a where
+class RedisReturnHash a where
     decodeHash :: Reply -> Maybe a
 
-class RedisPair a where
+class RedisReturnPair a where
     decodePair :: Reply -> Maybe a
 
 
 ------------------------------------------------------------------------------
--- RediStatus instances
+-- RediReturnStatus instances
 --
 data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
-instance RedisStatus ByteString where
+instance RedisReturnStatus ByteString where
     decodeStatus (SingleLine s) = Just s
     decodeStatus _              = Nothing
 
-instance RedisStatus String where
+instance RedisReturnStatus String where
     decodeStatus = liftM unpack . decodeStatus
 
-instance RedisStatus Status where
+instance RedisReturnStatus Status where
     decodeStatus r = do
         s <- decodeStatus r
         return $ case s of
@@ -75,71 +75,72 @@ instance RedisStatus Status where
 
 
 ------------------------------------------------------------------------------
--- RedisBool instances
+-- RedisReturnBool instances
 --
-instance RedisBool Bool where
+instance RedisReturnBool Bool where
     decodeBool (Integer 1) = Just True
     decodeBool (Integer 0) = Just False
     decodeBool _           = Nothing
 
-instance (Num a) => (RedisBool a) where
+instance (Num a) => (RedisReturnBool a) where
     decodeBool (Integer 1) = Just 1
     decodeBool (Integer 0) = Just 0
     decodeBool _           = Nothing
 
 
 ------------------------------------------------------------------------------
--- RedisInt instances
+-- RedisReturnInt instances
 --
-instance (Integral a) => RedisInt a where
+instance (Integral a) => RedisReturnInt a where
     decodeInt (Integer i) = Just $ fromIntegral i
     decodeInt _           = Nothing
 
     ------------------------------------------------------------------------------
--- RedisDouble instances
+-- RedisReturnDouble instances
 --
-instance RedisDouble Double where
+instance RedisReturnDouble Double where
     decodeDouble s = fst <$> (readDouble =<< decodeString s)
 
 
 ------------------------------------------------------------------------------
--- RedisKey instances
+-- RedisReturnKey instances
 --
-instance RedisKey ByteString where
+instance RedisReturnKey ByteString where
     decodeKey (Bulk k) = k
     decodeKey _        = Nothing
 
 
 ------------------------------------------------------------------------------
--- RedisValue instances
+-- RedisReturnString instances
 --
-instance RedisString ByteString where
+instance RedisReturnString ByteString where
     decodeString (Bulk v) = v
     decodeString _        = Nothing
 
 
 ------------------------------------------------------------------------------
--- RedisList instances
+-- RedisReturnList instances
 --
-instance RedisString a => RedisList [Maybe a] where
+instance RedisReturnString a => RedisReturnList [Maybe a] where
     decodeList (MultiBulk (Just rs)) = Just $ map decodeString rs
     decodeList _                     = Nothing
 
 
 ------------------------------------------------------------------------------
--- RedisSet instances
+-- RedisReturnSet instances
 --
-instance (Ord a, RedisString a) => RedisSet (Set.Set a) where
+instance (Ord a, RedisReturnString a) => RedisReturnSet (Set.Set a) where
     decodeSet = liftM Set.fromList . decodeSet
 
-instance (RedisString a) => RedisSet [a] where
+instance (RedisReturnString a) => RedisReturnSet [a] where
     decodeSet r = catMaybes <$> decodeList r
 
 
 ------------------------------------------------------------------------------
--- RedisHash instances
+-- RedisReturnHash instances
 --
-instance (RedisKey k, RedisString v) => RedisHash [(k,v)] where
+instance (RedisReturnKey k, RedisReturnString v) =>
+        RedisReturnHash [(k,v)] where
     decodeHash reply = 
         case reply of
             (MultiBulk (Just rs)) -> pairs rs
@@ -151,13 +152,15 @@ instance (RedisKey k, RedisString v) => RedisHash [(k,v)] where
             let kv = (,) <$> decodeKey r1 <*> decodeString r2
             in (:) <$> kv <*> pairs rs
 
-instance (Ord k , RedisKey k, RedisString v) => RedisHash (Map.Map k v) where
+instance (Ord k , RedisReturnKey k, RedisReturnString v) =>
+        RedisReturnHash (Map.Map k v) where
     decodeHash = liftM Map.fromList . decodeHash
 
     ------------------------------------------------------------------------------
--- RedisPair instances
+-- RedisReturnPair instances
 --
-instance (RedisString a, RedisString b) => RedisPair (a,b) where
+instance (RedisReturnString a, RedisReturnString b) =>
+        RedisReturnPair (a,b) where
     decodePair (MultiBulk (Just [x, y])) =
         (,) <$> decodeString x <*> decodeString y
     decodePair _          = Nothing

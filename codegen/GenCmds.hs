@@ -240,7 +240,7 @@ fromCmd cmd@Cmd{..}
   where
     sig = mconcat
             [ fromString name, fromString " :: ("
-            , fromString "Redis", retType cmd, fromString " a"
+            , fromString "RedisReturn", retType cmd, fromString " a"
             , fromString ")\n    => "
             , mconcat $ map argumentType cmdArgs
             , fromString "Redis (Maybe a)"
