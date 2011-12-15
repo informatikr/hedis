@@ -48,16 +48,18 @@ groupCmds (Cmds cmds) =
 -- |Blacklisted commands, optionally paired with the name of their
 --  implementation in the "Database.Redis.ManualCommands" module.
 blacklist :: [(String, Maybe [String])]
-blacklist = [ ("OBJECT" , Nothing)
-            , ("TYPE"   , Just ["getType"])
-            , ("EVAL"   , Nothing)
-            , ("SORT"   , Nothing)
-            , ("LINSERT", Nothing)
-            , ("MONITOR", Nothing)
-            , ("DEBUG OBJECT", Nothing)
-            , ("DEBUG SEGFAULT", Nothing)
+blacklist = [ ("OBJECT", Just ["objectRefcount"
+                              ,"objectEncoding"
+                              ,"objectIdletime"])
+            , ("TYPE", Just ["getType"])
+            , ("EVAL", Nothing)           -- not part of Redis 2.4
+            , ("SORT", Nothing)
+            , ("LINSERT", Just ["linsertBefore", "linsertAfter"])
+            , ("MONITOR", Nothing)        -- debugging command
+            , ("DEBUG OBJECT", Nothing)   -- debugging command
+            , ("DEBUG SEGFAULT", Nothing) -- debugging command
             , ("SLOWLOG", Nothing)
-            , ("SYNC", Nothing)
+            , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Nothing)
             , ("ZRANGE", Nothing)
             , ("ZRANGEBYSCORE", Nothing)
@@ -159,24 +161,21 @@ exportList cmds =
         sortBy (comparing cmdGroup) cmds
   where
     exportGroup group = mconcat
-        [ fromString "-- ** ", fromString $ translateGroup (head group)
+        [ newline
+        , fromString "-- ** ", fromString $ translateGroup (head group)
         , newline
         , mconcat . map exportCmd $ sortBy (comparing cmdName) group
         ]
     exportCmd cmd@Cmd{..}
-        | implemented cmd = mconcat $
-            map (\name -> fromString name `mappend` fromString ",\n")
-                (translateCmdName cmd)
-            -- fromString (translateCmdName cmd) `mappend` fromString ",\n"
-        | otherwise = mempty
-    implemented Cmd{..}      = case lookup cmdName blacklist of
-                                Nothing       -> True
-                                Just (Just _) -> True
-                                Just Nothing  -> False
-    translateCmdName Cmd{..} = case lookup cmdName blacklist of
-                                Nothing       -> [camelCase cmdName]
-                                Just (Just s) -> s
-                                Just Nothing  -> error "unhandled"
+        | implemented cmd = exportCmdNames cmd
+        | otherwise       = mempty
+    
+    implemented Cmd{..} =
+        case lookup cmdName blacklist of
+            Nothing       -> True
+            Just (Just _) -> True
+            Just Nothing  -> False
+    
     translateGroup Cmd{..} = case cmdGroup of
         "generic"      -> "Keys"
         "string"       -> "Strings"
@@ -189,8 +188,31 @@ exportList cmds =
         "connection"   -> "Connection"
         "server"       -> "Server"
         _              -> error $ "untranslated group: " ++ cmdGroup
-        
 
+exportCmdNames :: Cmd -> Builder
+exportCmdNames Cmd{..} = mconcat $ flip map names
+    (\name -> mconcat [fromString name, fromString ", ", haddock, newline])
+  where
+    names = case lookup cmdName blacklist of
+        Nothing       -> [camelCase cmdName]
+        Just (Just s) -> s
+        Just Nothing  -> error "unhandled"
+    haddock = mconcat
+        [ fromString "-- |", fromString cmdSummary
+        , fromString " (<http://redis.io/commands/"
+        , fromString $
+            map (\c -> if isSpace c then '-' else toLower c) cmdName
+        , fromString ">)."
+        , if length names > 1
+            then mconcat
+                [ fromString " The Redis command @"
+                , fromString cmdName
+                , fromString "@ is split up into '"
+                , mconcat . map fromString $ intersperse "', '" names
+                , fromString "'."
+                ]
+            else mempty
+        ]
 
 newline :: Builder
 newline = fromChar '\n'
@@ -214,16 +236,8 @@ blackListed Cmd{..} = isJust $ lookup cmdName blacklist
 fromCmd :: Cmd -> Builder
 fromCmd cmd@Cmd{..}
     | blackListed cmd = mempty
-    | otherwise       =
-        mconcat [haddock, newline, sig, newline, fun, newline, newline]
+    | otherwise       = mconcat [sig, newline, fun, newline, newline]
   where
-    haddock = mconcat
-            [ fromString "-- |", fromString cmdSummary
-            , fromString " (<http://redis.io/commands/"
-            , fromString $
-                map (\c -> if isSpace c then '-' else toLower c) cmdName
-            , fromString ">)."
-            ]
     sig = mconcat
             [ fromString name, fromString " :: ("
             , fromString "Redis", retType cmd, fromString " a"

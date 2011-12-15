@@ -2,6 +2,7 @@
 
 ## Certainly
 
+- Manual implementation of blacklisted commands
 - Type classes for arguments
 - Add instances Redis* instances for
     - containers
