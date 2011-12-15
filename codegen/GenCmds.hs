@@ -25,6 +25,44 @@ import Data.Text.Encoding (encodeUtf8)
 -- TODO Pairs with different types, both can be transformed to ByteString
 --      (RedisString a, RedisFoobar b) => (a,b)
 
+--------------------------------------------------------------------------------
+-- README
+--
+-- * New groups have to be listed in cmdGroups below.
+-- * The command blacklist allows to specify the name of a manual
+--   implementation.
+
+-- |Whitelist for the command groups
+groupCmds :: Cmds -> Cmds
+groupCmds (Cmds cmds) =
+    Cmds [cmd | cmd <- cmds, group <- groups, cmdGroup cmd == group]
+  where
+    groups = [ "generic"
+             , "string"
+             , "list"
+             , "set"
+             -- , "sorted_set"
+             , "hash"
+             -- , "pubsub"
+             -- , "transactions"
+             , "connection"
+             , "server"
+             ]
+
+-- |Blacklisted commands, optionally paired with the name of their
+--  implementation in the "Database.Redis.ManualCommands" module.
+blacklist :: [(String, Maybe String)]
+blacklist = [ ("OBJECT" , Nothing)
+            , ("TYPE"   , Just "getType")
+            , ("EVAL"   , Nothing)
+            , ("SORT"   , Nothing)
+            , ("LINSERT", Nothing)
+            , ("MONITOR", Nothing)
+            , ("DEBUG OBJECT", Nothing)
+            , ("DEBUG SEGFAULT", Nothing)
+            , ("SLOWLOG", Nothing)
+            , ("SYNC", Nothing)
+            ]
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.
 main :: IO ()
@@ -98,24 +136,7 @@ instance FromJSON Arg where
         parseEnum = do
             enum <- arg .: "enum"
             return $ Enum enum
-            
 
--- Whitelist for the command groups
-groupCmds :: Cmds -> Cmds
-groupCmds (Cmds cmds) =
-    Cmds [cmd | cmd <- cmds, group <- groups, cmdGroup cmd == group]
-  where
-    groups = [ "generic"
-             , "string"
-             , "list"
-             , "set"
-             -- , "sorted_set"
-             , "hash"
-             -- , "pubsub"
-             -- , "transactions"
-             , "connection"
-             , "server"
-             ]
 
 -- Generate source code for Haskell module exporting the given commands.
 hsFile :: Cmds -> Builder
@@ -184,20 +205,6 @@ imprts = mconcat $ flip map moduls (\modul ->
 blackListed :: Cmd -> Bool
 blackListed Cmd{..} = isJust $ lookup cmdName blacklist
 
--- |Blacklisten commands, paired with the name of their implementation
---  in the "Database.Redis.ManualCommands" module.
-blacklist :: [(String, Maybe String)]
-blacklist = [ ("OBJECT" , Nothing)
-            , ("TYPE"   , Just "getType")
-            , ("EVAL"   , Nothing)
-            , ("SORT"   , Nothing)
-            , ("LINSERT", Nothing)
-            , ("MONITOR", Nothing)
-            , ("DEBUG OBJECT", Nothing)
-            , ("DEBUG SEGFAULT", Nothing)
-            , ("SLOWLOG", Nothing)
-            , ("SYNC", Nothing)
-            ]
 
 fromCmd :: Cmd -> Builder
 fromCmd cmd@Cmd{..}
