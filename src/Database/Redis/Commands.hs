@@ -29,6 +29,23 @@ hmset,
 hset,
 hsetnx,
 hvals,
+-- ** Lists
+blpop,
+brpop,
+brpoplpush,
+lindex,
+llen,
+lpop,
+lpush,
+lpushx,
+lrange,
+lrem,
+lset,
+ltrim,
+rpop,
+rpoplpush,
+rpush,
+rpushx,
 -- ** Strings
 append,
 decr,
@@ -57,238 +74,393 @@ import Database.Redis.Types
 import Database.Redis.Internal
 
 -- |Delete one or more hash fields (<http://redis.io/commands/hdel>).
-hdel :: (RedisBool a) => ByteString -- ^  key
- -> [ByteString] -- ^  field
- -> Redis (Maybe a)
-hdel key field = decodeBool <$> sendRequest (["HDEL", key] ++  field ++ [])
+hdel :: (RedisBool a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ field
+    -> Redis (Maybe a)
+hdel key field = decodeBool <$> sendRequest (["HDEL"] ++ [key] ++ field )
 
 -- |Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>).
-hincrby :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  field
- -> ByteString -- ^  increment
- -> Redis (Maybe a)
-hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY", key, field, increment])
+hincrby :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ increment
+    -> Redis (Maybe a)
+hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY"] ++ [key] ++ [field] ++ [increment] )
 
 -- |Delete a key (<http://redis.io/commands/del>).
-del :: (RedisInt a) => [ByteString] -- ^  key
- -> Redis (Maybe a)
-del key = decodeInt <$> sendRequest (["DEL"] ++  key ++ [])
+del :: (RedisInt a)
+    => [ByteString] -- ^ key
+    -> Redis (Maybe a)
+del key = decodeInt <$> sendRequest (["DEL"] ++ key )
+
+-- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>).
+brpoplpush :: (RedisString a)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> ByteString -- ^ timeout
+    -> Redis (Maybe a)
+brpoplpush source destination timeout = decodeString <$> sendRequest (["BRPOPLPUSH"] ++ [source] ++ [destination] ++ [timeout] )
 
 -- |Increment the integer value of a key by the given number (<http://redis.io/commands/incrby>).
-incrby :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  increment
- -> Redis (Maybe a)
-incrby key increment = decodeInt <$> sendRequest (["INCRBY", key, increment])
+incrby :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ increment
+    -> Redis (Maybe a)
+incrby key increment = decodeInt <$> sendRequest (["INCRBY"] ++ [key] ++ [increment] )
+
+-- |Remove and get the last element in a list (<http://redis.io/commands/rpop>).
+rpop :: (RedisString a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+rpop key = decodeString <$> sendRequest (["RPOP"] ++ [key] )
 
 -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>).
-setrange :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  offset
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-setrange key offset value = decodeInt <$> sendRequest (["SETRANGE", key, offset, value])
+setrange :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ offset
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+setrange key offset value = decodeInt <$> sendRequest (["SETRANGE"] ++ [key] ++ [offset] ++ [value] )
 
 -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>).
-setbit :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  offset
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-setbit key offset value = decodeInt <$> sendRequest (["SETBIT", key, offset, value])
+setbit :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ offset
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+setbit key offset value = decodeInt <$> sendRequest (["SETBIT"] ++ [key] ++ [offset] ++ [value] )
+
+-- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>).
+blpop :: (RedisPair a)
+    => [ByteString] -- ^ key
+    -> ByteString -- ^ timeout
+    -> Redis (Maybe a)
+blpop key timeout = decodePair <$> sendRequest (["BLPOP"] ++ key ++ [timeout] )
 
 -- |Move a key to another database (<http://redis.io/commands/move>).
-move :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  db
- -> Redis (Maybe a)
-move key db = decodeBool <$> sendRequest (["MOVE", key, db])
+move :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ db
+    -> Redis (Maybe a)
+move key db = decodeBool <$> sendRequest (["MOVE"] ++ [key] ++ [db] )
 
 -- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>).
-getrange :: (RedisString a) => ByteString -- ^  key
- -> ByteString -- ^  start
- -> ByteString -- ^  end
- -> Redis (Maybe a)
-getrange key start end = decodeString <$> sendRequest (["GETRANGE", key, start, end])
+getrange :: (RedisString a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ start
+    -> ByteString -- ^ end
+    -> Redis (Maybe a)
+getrange key start end = decodeString <$> sendRequest (["GETRANGE"] ++ [key] ++ [start] ++ [end] )
 
 -- |Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>).
-getbit :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  offset
- -> Redis (Maybe a)
-getbit key offset = decodeInt <$> sendRequest (["GETBIT", key, offset])
+getbit :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ offset
+    -> Redis (Maybe a)
+getbit key offset = decodeInt <$> sendRequest (["GETBIT"] ++ [key] ++ [offset] )
 
 -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
-msetnx :: (RedisBool a) => [(ByteString,ByteString)] -- ^  keyValue
- -> Redis (Maybe a)
-msetnx keyValue = decodeBool <$> sendRequest (["MSETNX"] ++ flattenPairs keyValue ++ [])
+msetnx :: (RedisBool a)
+    => [(ByteString,ByteString)] -- ^ keyValue
+    -> Redis (Maybe a)
+msetnx keyValue = decodeBool <$> sendRequest (["MSETNX"] ++ flattenPairs keyValue )
 
 -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>).
-hmset :: (RedisStatus a) => ByteString -- ^  key
- -> [(ByteString,ByteString)] -- ^  fieldValue
- -> Redis (Maybe a)
-hmset key fieldValue = decodeStatus <$> sendRequest (["HMSET", key] ++ flattenPairs fieldValue ++ [])
+hmset :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> [(ByteString,ByteString)] -- ^ fieldValue
+    -> Redis (Maybe a)
+hmset key fieldValue = decodeStatus <$> sendRequest (["HMSET"] ++ [key] ++ flattenPairs fieldValue )
 
 -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>).
-mset :: (RedisStatus a) => [(ByteString,ByteString)] -- ^  keyValue
- -> Redis (Maybe a)
-mset keyValue = decodeStatus <$> sendRequest (["MSET"] ++ flattenPairs keyValue ++ [])
+mset :: (RedisStatus a)
+    => [(ByteString,ByteString)] -- ^ keyValue
+    -> Redis (Maybe a)
+mset keyValue = decodeStatus <$> sendRequest (["MSET"] ++ flattenPairs keyValue )
+
+-- |Remove the last element in a list, append it to another list and return it (<http://redis.io/commands/rpoplpush>).
+rpoplpush :: (RedisString a)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> Redis (Maybe a)
+rpoplpush source destination = decodeString <$> sendRequest (["RPOPLPUSH"] ++ [source] ++ [destination] )
 
 -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>).
-hlen :: (RedisInt a) => ByteString -- ^  key
- -> Redis (Maybe a)
-hlen key = decodeInt <$> sendRequest (["HLEN", key])
+hlen :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+hlen key = decodeInt <$> sendRequest (["HLEN"] ++ [key] )
 
 -- |Set the value and expiration of a key (<http://redis.io/commands/setex>).
-setex :: (RedisStatus a) => ByteString -- ^  key
- -> ByteString -- ^  seconds
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-setex key seconds value = decodeStatus <$> sendRequest (["SETEX", key, seconds, value])
+setex :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ seconds
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+setex key seconds value = decodeStatus <$> sendRequest (["SETEX"] ++ [key] ++ [seconds] ++ [value] )
+
+-- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
+brpop :: (RedisPair a)
+    => [ByteString] -- ^ key
+    -> ByteString -- ^ timeout
+    -> Redis (Maybe a)
+brpop key timeout = decodePair <$> sendRequest (["BRPOP"] ++ key ++ [timeout] )
 
 -- |Get all the fields and values in a hash (<http://redis.io/commands/hgetall>).
-hgetall :: (RedisHash a) => ByteString -- ^  key
- -> Redis (Maybe a)
-hgetall key = decodeHash <$> sendRequest (["HGETALL", key])
+hgetall :: (RedisHash a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+hgetall key = decodeHash <$> sendRequest (["HGETALL"] ++ [key] )
+
+-- |Remove and get the first element in a list (<http://redis.io/commands/lpop>).
+lpop :: (RedisString a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+lpop key = decodeString <$> sendRequest (["LPOP"] ++ [key] )
 
 -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>).
-hmget :: (RedisList a) => ByteString -- ^  key
- -> [ByteString] -- ^  field
- -> Redis (Maybe a)
-hmget key field = decodeList <$> sendRequest (["HMGET", key] ++  field ++ [])
+hmget :: (RedisList a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ field
+    -> Redis (Maybe a)
+hmget key field = decodeList <$> sendRequest (["HMGET"] ++ [key] ++ field )
+
+-- |Get a range of elements from a list (<http://redis.io/commands/lrange>).
+lrange :: (RedisList a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ start
+    -> ByteString -- ^ stop
+    -> Redis (Maybe a)
+lrange key start stop = decodeList <$> sendRequest (["LRANGE"] ++ [key] ++ [start] ++ [stop] )
 
 -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>).
-expire :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  seconds
- -> Redis (Maybe a)
-expire key seconds = decodeBool <$> sendRequest (["EXPIRE", key, seconds])
+expire :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ seconds
+    -> Redis (Maybe a)
+expire key seconds = decodeBool <$> sendRequest (["EXPIRE"] ++ [key] ++ [seconds] )
+
+-- |Get the length of a list (<http://redis.io/commands/llen>).
+llen :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+llen key = decodeInt <$> sendRequest (["LLEN"] ++ [key] )
 
 -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>).
-decrby :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  decrement
- -> Redis (Maybe a)
-decrby key decrement = decodeInt <$> sendRequest (["DECRBY", key, decrement])
+decrby :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ decrement
+    -> Redis (Maybe a)
+decrby key decrement = decodeInt <$> sendRequest (["DECRBY"] ++ [key] ++ [decrement] )
 
 -- |Get the values of all the given keys (<http://redis.io/commands/mget>).
-mget :: (RedisList a) => [ByteString] -- ^  key
- -> Redis (Maybe a)
-mget key = decodeList <$> sendRequest (["MGET"] ++  key ++ [])
+mget :: (RedisList a)
+    => [ByteString] -- ^ key
+    -> Redis (Maybe a)
+mget key = decodeList <$> sendRequest (["MGET"] ++ key )
 
 -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>).
-keys :: (RedisList a) => ByteString -- ^  pattern
- -> Redis (Maybe a)
-keys pattern = decodeList <$> sendRequest (["KEYS", pattern])
+keys :: (RedisList a)
+    => ByteString -- ^ pattern
+    -> Redis (Maybe a)
+keys pattern = decodeList <$> sendRequest (["KEYS"] ++ [pattern] )
 
 -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>).
-getset :: (RedisString a) => ByteString -- ^  key
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-getset key value = decodeString <$> sendRequest (["GETSET", key, value])
+getset :: (RedisString a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+getset key value = decodeString <$> sendRequest (["GETSET"] ++ [key] ++ [value] )
+
+-- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>).
+rpushx :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+rpushx key value = decodeInt <$> sendRequest (["RPUSHX"] ++ [key] ++ [value] )
 
 -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>).
-setnx :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-setnx key value = decodeBool <$> sendRequest (["SETNX", key, value])
+setnx :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+setnx key value = decodeBool <$> sendRequest (["SETNX"] ++ [key] ++ [value] )
 
 -- |Get the time to live for a key (<http://redis.io/commands/ttl>).
-ttl :: (RedisInt a) => ByteString -- ^  key
- -> Redis (Maybe a)
-ttl key = decodeInt <$> sendRequest (["TTL", key])
+ttl :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+ttl key = decodeInt <$> sendRequest (["TTL"] ++ [key] )
 
 -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>).
-hkeys :: (RedisSet a) => ByteString -- ^  key
- -> Redis (Maybe a)
-hkeys key = decodeSet <$> sendRequest (["HKEYS", key])
+hkeys :: (RedisSet a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+hkeys key = decodeSet <$> sendRequest (["HKEYS"] ++ [key] )
+
+-- |Append one or multiple values to a list (<http://redis.io/commands/rpush>).
+rpush :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> Redis (Maybe a)
+rpush key value = decodeInt <$> sendRequest (["RPUSH"] ++ [key] ++ value )
 
 -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>).
-randomkey :: (RedisKey a) => Redis (Maybe a)
-randomkey = decodeKey <$> sendRequest (["RANDOMKEY"])
+randomkey :: (RedisKey a)
+    => Redis (Maybe a)
+randomkey  = decodeKey <$> sendRequest (["RANDOMKEY"] )
 
 -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>).
-hsetnx :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  field
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-hsetnx key field value = decodeBool <$> sendRequest (["HSETNX", key, field, value])
+hsetnx :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+hsetnx key field value = decodeBool <$> sendRequest (["HSETNX"] ++ [key] ++ [field] ++ [value] )
 
 -- |Get all the values in a hash (<http://redis.io/commands/hvals>).
-hvals :: (RedisSet a) => ByteString -- ^  key
- -> Redis (Maybe a)
-hvals key = decodeSet <$> sendRequest (["HVALS", key])
+hvals :: (RedisSet a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+hvals key = decodeSet <$> sendRequest (["HVALS"] ++ [key] )
 
 -- |Determine if a key exists (<http://redis.io/commands/exists>).
-exists :: (RedisBool a) => ByteString -- ^  key
- -> Redis (Maybe a)
-exists key = decodeBool <$> sendRequest (["EXISTS", key])
+exists :: (RedisBool a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+exists key = decodeBool <$> sendRequest (["EXISTS"] ++ [key] )
 
 -- |Rename a key (<http://redis.io/commands/rename>).
-rename :: (RedisStatus a) => ByteString -- ^  key
- -> ByteString -- ^  newkey
- -> Redis (Maybe a)
-rename key newkey = decodeStatus <$> sendRequest (["RENAME", key, newkey])
+rename :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ newkey
+    -> Redis (Maybe a)
+rename key newkey = decodeStatus <$> sendRequest (["RENAME"] ++ [key] ++ [newkey] )
 
 -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>).
-decr :: (RedisInt a) => ByteString -- ^  key
- -> Redis (Maybe a)
-decr key = decodeInt <$> sendRequest (["DECR", key])
+decr :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+decr key = decodeInt <$> sendRequest (["DECR"] ++ [key] )
 
 -- |Determine if a hash field exists (<http://redis.io/commands/hexists>).
-hexists :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  field
- -> Redis (Maybe a)
-hexists key field = decodeBool <$> sendRequest (["HEXISTS", key, field])
+hexists :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Redis (Maybe a)
+hexists key field = decodeBool <$> sendRequest (["HEXISTS"] ++ [key] ++ [field] )
 
 -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
-renamenx :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  newkey
- -> Redis (Maybe a)
-renamenx key newkey = decodeBool <$> sendRequest (["RENAMENX", key, newkey])
+renamenx :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ newkey
+    -> Redis (Maybe a)
+renamenx key newkey = decodeBool <$> sendRequest (["RENAMENX"] ++ [key] ++ [newkey] )
 
 -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
-expireat :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  timestamp
- -> Redis (Maybe a)
-expireat key timestamp = decodeBool <$> sendRequest (["EXPIREAT", key, timestamp])
+expireat :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ timestamp
+    -> Redis (Maybe a)
+expireat key timestamp = decodeBool <$> sendRequest (["EXPIREAT"] ++ [key] ++ [timestamp] )
 
 -- |Get the value of a key (<http://redis.io/commands/get>).
-get :: (RedisString a) => ByteString -- ^  key
- -> Redis (Maybe a)
-get key = decodeString <$> sendRequest (["GET", key])
+get :: (RedisString a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+get key = decodeString <$> sendRequest (["GET"] ++ [key] )
+
+-- |Remove elements from a list (<http://redis.io/commands/lrem>).
+lrem :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ count
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+lrem key count value = decodeInt <$> sendRequest (["LREM"] ++ [key] ++ [count] ++ [value] )
 
 -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>).
-incr :: (RedisInt a) => ByteString -- ^  key
- -> Redis (Maybe a)
-incr key = decodeInt <$> sendRequest (["INCR", key])
+incr :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+incr key = decodeInt <$> sendRequest (["INCR"] ++ [key] )
+
+-- |Trim a list to the specified range (<http://redis.io/commands/ltrim>).
+ltrim :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ start
+    -> ByteString -- ^ stop
+    -> Redis (Maybe a)
+ltrim key start stop = decodeStatus <$> sendRequest (["LTRIM"] ++ [key] ++ [start] ++ [stop] )
 
 -- |Append a value to a key (<http://redis.io/commands/append>).
-append :: (RedisInt a) => ByteString -- ^  key
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-append key value = decodeInt <$> sendRequest (["APPEND", key, value])
+append :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+append key value = decodeInt <$> sendRequest (["APPEND"] ++ [key] ++ [value] )
+
+-- |Set the value of an element in a list by its index (<http://redis.io/commands/lset>).
+lset :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ index
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+lset key index value = decodeStatus <$> sendRequest (["LSET"] ++ [key] ++ [index] ++ [value] )
 
 -- |Get the value of a hash field (<http://redis.io/commands/hget>).
-hget :: (RedisString a) => ByteString -- ^  key
- -> ByteString -- ^  field
- -> Redis (Maybe a)
-hget key field = decodeString <$> sendRequest (["HGET", key, field])
+hget :: (RedisString a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Redis (Maybe a)
+hget key field = decodeString <$> sendRequest (["HGET"] ++ [key] ++ [field] )
 
 -- |Set the string value of a key (<http://redis.io/commands/set>).
-set :: (RedisStatus a) => ByteString -- ^  key
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-set key value = decodeStatus <$> sendRequest (["SET", key, value])
+set :: (RedisStatus a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+set key value = decodeStatus <$> sendRequest (["SET"] ++ [key] ++ [value] )
+
+-- |Prepend one or multiple values to a list (<http://redis.io/commands/lpush>).
+lpush :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> Redis (Maybe a)
+lpush key value = decodeInt <$> sendRequest (["LPUSH"] ++ [key] ++ value )
+
+-- |Get an element from a list by its index (<http://redis.io/commands/lindex>).
+lindex :: (RedisString a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ index
+    -> Redis (Maybe a)
+lindex key index = decodeString <$> sendRequest (["LINDEX"] ++ [key] ++ [index] )
 
 -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>).
-strlen :: (RedisInt a) => ByteString -- ^  key
- -> Redis (Maybe a)
-strlen key = decodeInt <$> sendRequest (["STRLEN", key])
+strlen :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+strlen key = decodeInt <$> sendRequest (["STRLEN"] ++ [key] )
 
 -- |Set the string value of a hash field (<http://redis.io/commands/hset>).
-hset :: (RedisBool a) => ByteString -- ^  key
- -> ByteString -- ^  field
- -> ByteString -- ^  value
- -> Redis (Maybe a)
-hset key field value = decodeBool <$> sendRequest (["HSET", key, field, value])
+hset :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+hset key field value = decodeBool <$> sendRequest (["HSET"] ++ [key] ++ [field] ++ [value] )
+
+-- |Prepend a value to a list, only if the list exists (<http://redis.io/commands/lpushx>).
+lpushx :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+lpushx key value = decodeInt <$> sendRequest (["LPUSHX"] ++ [key] ++ [value] )
 
 -- |Remove the expiration from a key (<http://redis.io/commands/persist>).
-persist :: (RedisBool a) => ByteString -- ^  key
- -> Redis (Maybe a)
-persist key = decodeBool <$> sendRequest (["PERSIST", key])
+persist :: (RedisBool a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+persist key = decodeBool <$> sendRequest (["PERSIST"] ++ [key] )
 
 

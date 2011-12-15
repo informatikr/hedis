@@ -38,6 +38,9 @@ class RedisSet a where
 class RedisHash a where
     decodeHash :: Reply -> Maybe a
 
+class RedisPair a where
+    decodePair :: Reply -> Maybe a
+
 
 ------------------------------------------------------------------------------
 -- RediStatus instances
@@ -140,3 +143,11 @@ instance (RedisKey k, RedisString v) => RedisHash [(k,v)] where
 
 instance (Ord k , RedisKey k, RedisString v) => RedisHash (Map.Map k v) where
     decodeHash = liftM Map.fromList . decodeHash
+
+    ------------------------------------------------------------------------------
+-- RedisPair instances
+--
+instance (RedisString a, RedisString b) => RedisPair (a,b) where
+    decodePair (MultiBulk (Just [x, y])) =
+        (,) <$> decodeString x <*> decodeString y
+    decodePair _          = Nothing

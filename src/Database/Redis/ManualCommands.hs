@@ -19,9 +19,6 @@ flushall = decodeStatus <$> sendRequest ["FLUSHALL"]
 select :: (RedisStatus a) => ByteString -> Redis (Maybe a)
 select db = decodeStatus <$> sendRequest ["SELECT", db]
 
-lpush :: (RedisInt a) => ByteString -> [ByteString] -> Redis (Maybe a)
-lpush key values = decodeInt <$> sendRequest (["LPUSH", key] ++ values)
-
 sadd :: (RedisInt a) => ByteString -> [ByteString] -> Redis (Maybe a)
 sadd key members = decodeInt <$> sendRequest (["SADD", key] ++ members)
 
