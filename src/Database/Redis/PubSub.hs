@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.PubSub (
-    PubSub,
+    PubSub(),
     Message(Message, PMessage),
     pubSub,
     subscribe, unsubscribe,
