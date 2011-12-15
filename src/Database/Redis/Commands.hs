@@ -113,6 +113,7 @@ setrange,
 strlen,
 ) where
 
+import Prelude hiding (min,max)
 import Control.Applicative
 import Data.ByteString (ByteString)
 import Database.Redis.ManualCommands

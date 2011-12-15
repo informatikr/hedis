@@ -47,9 +47,9 @@ groupCmds (Cmds cmds) =
 
 -- |Blacklisted commands, optionally paired with the name of their
 --  implementation in the "Database.Redis.ManualCommands" module.
-blacklist :: [(String, Maybe String)]
+blacklist :: [(String, Maybe [String])]
 blacklist = [ ("OBJECT" , Nothing)
-            , ("TYPE"   , Just "getType")
+            , ("TYPE"   , Just ["getType"])
             , ("EVAL"   , Nothing)
             , ("SORT"   , Nothing)
             , ("LINSERT", Nothing)
@@ -164,15 +164,17 @@ exportList cmds =
         , mconcat . map exportCmd $ sortBy (comparing cmdName) group
         ]
     exportCmd cmd@Cmd{..}
-        | implemented cmd =
-            fromString (translateCmdName cmd) `mappend` fromString ",\n"
+        | implemented cmd = mconcat $
+            map (\name -> fromString name `mappend` fromString ",\n")
+                (translateCmdName cmd)
+            -- fromString (translateCmdName cmd) `mappend` fromString ",\n"
         | otherwise = mempty
     implemented Cmd{..}      = case lookup cmdName blacklist of
                                 Nothing       -> True
                                 Just (Just _) -> True
                                 Just Nothing  -> False
     translateCmdName Cmd{..} = case lookup cmdName blacklist of
-                                Nothing       -> camelCase cmdName
+                                Nothing       -> [camelCase cmdName]
                                 Just (Just s) -> s
                                 Just Nothing  -> error "unhandled"
     translateGroup Cmd{..} = case cmdGroup of
@@ -197,7 +199,8 @@ imprts :: Builder
 imprts = mconcat $ flip map moduls (\modul ->
     fromString "import " `mappend` fromString modul `mappend`newline)
   where
-    moduls = [ "Control.Applicative"
+    moduls = [ "Prelude hiding (min,max)" -- get rid of name-shadowing warnings
+             , "Control.Applicative"
              , "Data.ByteString (ByteString)"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
