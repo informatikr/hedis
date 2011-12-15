@@ -152,7 +152,8 @@ testGetType = testCase "getType" $ do
          , (hset "key" "field" "value"   >>=? Just True      , Hash)
          , (lpush "key" ["value"]        >>=? Just (1 :: Int), List)
          , (sadd "key" ["member"]        >>=? Just (1 :: Int), Set)
-         , (zadd "key" [("42","member")] >>=? Just (1 :: Int), ZSet)
+         , (zadd "key" [("42","member")
+                       ,("12.3","mem2")] >>=? Just (2 :: Int), ZSet)
          ]
 
 

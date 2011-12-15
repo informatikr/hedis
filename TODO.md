@@ -2,14 +2,16 @@
 
 ## Certainly
 
-- Compare Doc/Reality for ZADD: multiple args?
 - Type classes for arguments
 - Add instances Redis* instances for
     - containers
     - unordered-containers
     - vector
 
-- Can RedisHash be implemented in term of RedisPair?
+- use pool library by bos for connection pooling
+- AUTH when connecting
 
 
 ## Maybe
+
+- Can RedisHash be implemented in term of RedisPair?
