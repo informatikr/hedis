@@ -114,7 +114,7 @@ groupCmds (Cmds cmds) =
              -- , "pubsub"
              -- , "transactions"
              , "connection"
-             -- , "server"
+             , "server"
              ]
 
 -- Generate source code for Haskell module exporting the given commands.
@@ -162,7 +162,7 @@ exportList cmds =
         -- "pubsub"       ->
         -- "transactions" ->
         "connection"   -> "Connection"
-        -- "server"       -> "Server"
+        "server"       -> "Server"
         _              -> error $ "untranslated group: " ++ cmdGroup
         
 
@@ -192,6 +192,11 @@ blacklist = [ ("OBJECT" , Nothing)
             , ("EVAL"   , Nothing)
             , ("SORT"   , Nothing)
             , ("LINSERT", Nothing)
+            , ("MONITOR", Nothing)
+            , ("DEBUG OBJECT", Nothing)
+            , ("DEBUG SEGFAULT", Nothing)
+            , ("SLOWLOG", Nothing)
+            , ("SYNC", Nothing)
             ]
 
 fromCmd :: Cmd -> Builder

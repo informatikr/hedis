@@ -52,6 +52,20 @@ rpop,
 rpoplpush,
 rpush,
 rpushx,
+-- ** Server
+bgrewriteaof,
+bgsave,
+configGet,
+configResetstat,
+configSet,
+dbsize,
+flushall,
+flushdb,
+info,
+lastsave,
+save,
+shutdown,
+slaveof,
 -- ** Sets
 sadd,
 scard,
@@ -94,6 +108,11 @@ import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Internal
 
+-- |Remove all keys from all databases (<http://redis.io/commands/flushall>).
+flushall :: (RedisStatus a)
+    => Redis (Maybe a)
+flushall  = decodeStatus <$> sendRequest (["FLUSHALL"] )
+
 -- |Delete one or more hash fields (<http://redis.io/commands/hdel>).
 hdel :: (RedisBool a)
     => ByteString -- ^ key
@@ -108,6 +127,11 @@ hincrby :: (RedisInt a)
     -> ByteString -- ^ increment
     -> Redis (Maybe a)
 hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY"] ++ [key] ++ [field] ++ [increment] )
+
+-- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>).
+configResetstat :: (RedisStatus a)
+    => Redis (Maybe a)
+configResetstat  = decodeStatus <$> sendRequest (["CONFIG RESETSTAT"] )
 
 -- |Delete a key (<http://redis.io/commands/del>).
 del :: (RedisInt a)
@@ -151,6 +175,11 @@ setbit :: (RedisInt a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 setbit key offset value = decodeInt <$> sendRequest (["SETBIT"] ++ [key] ++ [offset] ++ [value] )
+
+-- |Synchronously save the dataset to disk (<http://redis.io/commands/save>).
+save :: (RedisStatus a)
+    => Redis (Maybe a)
+save  = decodeStatus <$> sendRequest (["SAVE"] )
 
 -- |Echo the given string (<http://redis.io/commands/echo>).
 echo :: (RedisString a)
@@ -219,6 +248,11 @@ sismember :: (RedisBool a)
     -> Redis (Maybe a)
 sismember key member = decodeBool <$> sendRequest (["SISMEMBER"] ++ [key] ++ [member] )
 
+-- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>).
+bgrewriteaof :: (RedisStatus a)
+    => Redis (Maybe a)
+bgrewriteaof  = decodeStatus <$> sendRequest (["BGREWRITEAOF"] )
+
 -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>).
 hmset :: (RedisStatus a)
     => ByteString -- ^ key
@@ -285,6 +319,11 @@ hgetall :: (RedisHash a)
     -> Redis (Maybe a)
 hgetall key = decodeHash <$> sendRequest (["HGETALL"] ++ [key] )
 
+-- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>).
+dbsize :: (RedisInt a)
+    => Redis (Maybe a)
+dbsize  = decodeInt <$> sendRequest (["DBSIZE"] )
+
 -- |Remove and get the first element in a list (<http://redis.io/commands/lpop>).
 lpop :: (RedisString a)
     => ByteString -- ^ key
@@ -313,6 +352,11 @@ expire :: (RedisBool a)
     -> Redis (Maybe a)
 expire key seconds = decodeBool <$> sendRequest (["EXPIRE"] ++ [key] ++ [seconds] )
 
+-- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>).
+lastsave :: (RedisInt a)
+    => Redis (Maybe a)
+lastsave  = decodeInt <$> sendRequest (["LASTSAVE"] )
+
 -- |Get the length of a list (<http://redis.io/commands/llen>).
 llen :: (RedisInt a)
     => ByteString -- ^ key
@@ -337,6 +381,18 @@ keys :: (RedisList a)
     => ByteString -- ^ pattern
     -> Redis (Maybe a)
 keys pattern = decodeList <$> sendRequest (["KEYS"] ++ [pattern] )
+
+-- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>).
+bgsave :: (RedisStatus a)
+    => Redis (Maybe a)
+bgsave  = decodeStatus <$> sendRequest (["BGSAVE"] )
+
+-- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>).
+slaveof :: (RedisStatus a)
+    => ByteString -- ^ host
+    -> ByteString -- ^ port
+    -> Redis (Maybe a)
+slaveof host port = decodeStatus <$> sendRequest (["SLAVEOF"] ++ [host] ++ [port] )
 
 -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>).
 getset :: (RedisString a)
@@ -396,6 +452,12 @@ hsetnx :: (RedisBool a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 hsetnx key field value = decodeBool <$> sendRequest (["HSETNX"] ++ [key] ++ [field] ++ [value] )
+
+-- |Get the value of a configuration parameter (<http://redis.io/commands/config-get>).
+configGet :: (RedisHash a)
+    => ByteString -- ^ parameter
+    -> Redis (Maybe a)
+configGet parameter = decodeHash <$> sendRequest (["CONFIG GET"] ++ [parameter] )
 
 -- |Get all the values in a hash (<http://redis.io/commands/hvals>).
 hvals :: (RedisSet a)
@@ -465,6 +527,18 @@ sinterstore :: (RedisInt a)
     -> Redis (Maybe a)
 sinterstore destination key = decodeInt <$> sendRequest (["SINTERSTORE"] ++ [destination] ++ key )
 
+-- |Synchronously save the dataset to disk and then shut down the server (<http://redis.io/commands/shutdown>).
+shutdown :: (RedisStatus a)
+    => Redis (Maybe a)
+shutdown  = decodeStatus <$> sendRequest (["SHUTDOWN"] )
+
+-- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>).
+configSet :: (RedisStatus a)
+    => ByteString -- ^ parameter
+    -> ByteString -- ^ value
+    -> Redis (Maybe a)
+configSet parameter value = decodeStatus <$> sendRequest (["CONFIG SET"] ++ [parameter] ++ [value] )
+
 -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
 renamenx :: (RedisBool a)
     => ByteString -- ^ key
@@ -522,6 +596,11 @@ lset :: (RedisStatus a)
     -> Redis (Maybe a)
 lset key index value = decodeStatus <$> sendRequest (["LSET"] ++ [key] ++ [index] ++ [value] )
 
+-- |Get information and statistics about the server (<http://redis.io/commands/info>).
+info :: (RedisString a)
+    => Redis (Maybe a)
+info  = decodeString <$> sendRequest (["INFO"] )
+
 -- |Get the value of a hash field (<http://redis.io/commands/hget>).
 hget :: (RedisString a)
     => ByteString -- ^ key
@@ -542,6 +621,11 @@ smove :: (RedisBool a)
     -> ByteString -- ^ member
     -> Redis (Maybe a)
 smove source destination member = decodeBool <$> sendRequest (["SMOVE"] ++ [source] ++ [destination] ++ [member] )
+
+-- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
+flushdb :: (RedisStatus a)
+    => Redis (Maybe a)
+flushdb  = decodeStatus <$> sendRequest (["FLUSHDB"] )
 
 -- |Set the string value of a key (<http://redis.io/commands/set>).
 set :: (RedisStatus a)

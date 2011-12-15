@@ -30,12 +30,14 @@
   "BGREWRITEAOF": {
     "summary": "Asynchronously rewrite the append-only file",
     "since": "1.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "BGSAVE": {
     "summary": "Asynchronously save the dataset to disk",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "BLPOP": {
     "summary": "Remove and get the first element in a list, or block until one is available",
@@ -100,7 +102,8 @@
       }
     ],
     "since": "2.0",
-    "group": "server"
+    "group": "server",
+    "returns": "hash"
   },
   "CONFIG SET": {
     "summary": "Set a configuration parameter to the given value",
@@ -115,17 +118,20 @@
       }
     ],
     "since": "2.0",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "CONFIG RESETSTAT": {
     "summary": "Reset the stats returned by INFO",
     "since": "2.0",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "DBSIZE": {
     "summary": "Return the number of keys in the selected database",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "integer"
   },
   "DEBUG OBJECT": {
     "summary": "Get debugging information about a key",
@@ -136,12 +142,14 @@
       }
     ],
     "since": "0.101",
-    "group": "server"
+    "group": "server",
+    "returns": "string"
   },
   "DEBUG SEGFAULT": {
     "summary": "Make the server crash",
     "since": "0.101",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "DECR": {
     "summary": "Decrement the integer value of a key by one",
@@ -254,12 +262,14 @@
   "FLUSHALL": {
     "summary": "Remove all keys from all databases",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "FLUSHDB": {
     "summary": "Remove all keys from the current database",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "GET": {
     "summary": "Get the value of a key",
@@ -547,7 +557,8 @@
   "INFO": {
     "summary": "Get information and statistics about the server",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "string"
   },
   "KEYS": {
     "summary": "Find all keys matching the given pattern",
@@ -564,7 +575,8 @@
   "LASTSAVE": {
     "summary": "Get the UNIX time stamp of the last successful save to disk",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "integer"
   },
   "LINDEX": {
     "summary": "Get an element from a list by its index",
@@ -1008,7 +1020,8 @@
   "SAVE": {
     "summary": "Synchronously save the dataset to disk",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "SCARD": {
     "summary": "Get the number of members in a set",
@@ -1159,7 +1172,8 @@
   "SHUTDOWN": {
     "summary": "Synchronously save the dataset to disk and then shut down the server",
     "since": "0.07",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "SINTER": {
     "summary": "Intersect multiple sets",
@@ -1220,7 +1234,8 @@
       }
     ],
     "since": "0.100",
-    "group": "server"
+    "group": "server",
+    "returns": "status"
   },
   "SLOWLOG": {
     "summary": "Manages the Redis slow queries log",
