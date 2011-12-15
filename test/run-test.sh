@@ -15,10 +15,10 @@ echo "coverage report:"
 echo "----------------"
 hpc report Test.tix
 
-#echo "------------------"
-#echo "hlint suggestions:"
-#echo "------------------"
-#hlint src
+echo "------------------"
+echo "hlint suggestions:"
+echo "------------------"
+find src ! -name 'Commands.hs' ! -type d | xargs hlint
 
 # cleanup
 rm test/Test
