@@ -4,7 +4,7 @@ module Database.Redis.Types where
 
 import Control.Applicative
 import Control.Monad
-import Data.ByteString.Char8 (ByteString, unpack)
+import Data.ByteString.Char8 (ByteString, unpack, pack)
 import Data.ByteString.Lex.Double (readDouble)
 import Data.Maybe
 import qualified Data.Map as Map
@@ -15,6 +15,14 @@ import Database.Redis.Reply
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
+
+class RedisArgString a where
+    encodeString :: a -> ByteString
+
+class RedisArgInt a where
+    encodeInt :: a -> ByteString
+
+
 class RedisReturnStatus a where
     decodeStatus :: Reply -> Maybe a
 
@@ -47,7 +55,21 @@ class RedisReturnPair a where
 
 
 ------------------------------------------------------------------------------
--- RediReturnStatus instances
+-- RedisArgString instances
+--
+instance RedisArgString ByteString where
+    encodeString = id
+
+
+------------------------------------------------------------------------------
+-- RedisArgInt instances
+--
+instance (Integral a) => RedisArgInt a where
+    encodeInt = pack . show . toInteger
+
+
+------------------------------------------------------------------------------
+-- RedisReturnStatus instances
 --
 data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
