@@ -20,10 +20,6 @@ import Data.Monoid
 import Data.Ord (comparing)
 import Data.Text.Encoding (encodeUtf8)
 
--- TODO optional commands, also optional AND multiple
--- TODO TypeClasses for arguments?
--- TODO Pairs with different types, both can be transformed to ByteString
---      (RedisString a, RedisFoobar b) => (a,b)
 
 --------------------------------------------------------------------------------
 -- README

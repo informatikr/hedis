@@ -36,21 +36,18 @@ cmd boolRT "expire" "key seconds"
 cmd boolRT "expireat" "key timestamp"
 cmd listRT "keys" "pattern"
 cmd boolRT "move" "key db"
--- TODO object
 object :: ()
 object = undefined
 cmd boolRT "persist" "key"
 cmd keyRT "randomkey" ""
 cmd statusRT "rename" "key newkey"
 cmd boolRT "renamenx" "key newkey"
--- TODO sort
 sort :: ()
 sort = undefined
 cmd intRT "ttl" "key"
 -- special handling: function name != command
 getType :: RedisStatus a => ByteString -> Redis (Maybe a)
 getType key = decodeStatus <$> sendRequest ["TYPE", key]
--- TODO eval
 eval :: ()
 eval = undefined
 
