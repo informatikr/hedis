@@ -40,7 +40,7 @@ x @=? y = liftIO $ (Test.@=?) x y
 --
 tests :: [Test]
 tests = concat
-    [testsKeys, testsStrings, testsHashes] -- , testsConnection, [testQuit]]
+    [testsKeys, testsStrings, testsHashes, testsConnection, [testQuit]]
 
 
 ------------------------------------------------------------------------------
@@ -148,11 +148,11 @@ testGetType = testCase "getType" $ do
         getType "key" >>=? Just typ
         del ["key"]   >>=? Just (1 :: Int)
   where
-    ts = [ (set "key" "value"          >>=? Just Ok        , String)
-         , (hset "key" "field" "value" >>=? Just True      , Hash)
-         , (lpush "key" ["value"]      >>=? Just (1 :: Int), List)
-         , (sadd "key" ["member"]      >>=? Just (1 :: Int), Set)
-         , (zadd "key" "42" "member"   >>=? Just (1 :: Int), ZSet)
+    ts = [ (set "key" "value"            >>=? Just Ok        , String)
+         , (hset "key" "field" "value"   >>=? Just True      , Hash)
+         , (lpush "key" ["value"]        >>=? Just (1 :: Int), List)
+         , (sadd "key" ["member"]        >>=? Just (1 :: Int), Set)
+         , (zadd "key" [("42","member")] >>=? Just (1 :: Int), ZSet)
          ]
 
 
@@ -341,7 +341,7 @@ testHvals = testCase "hvals" $ do
 -- Lists
 --
 
-{-
+
 ------------------------------------------------------------------------------
 -- Sets
 --
@@ -389,4 +389,3 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
--}

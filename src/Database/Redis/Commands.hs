@@ -81,6 +81,17 @@ srandmember,
 srem,
 sunion,
 sunionstore,
+-- ** Sorted Sets
+zadd,
+zcard,
+zcount,
+zincrby,
+zrank,
+zrem,
+zremrangebyrank,
+zremrangebyscore,
+zrevrank,
+zscore,
 -- ** Strings
 append,
 decr,
@@ -138,6 +149,13 @@ del :: (RedisInt a)
     => [ByteString] -- ^ key
     -> Redis (Maybe a)
 del key = decodeInt <$> sendRequest (["DEL"] ++ key )
+
+-- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>).
+zrevrank :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+zrevrank key member = decodeInt <$> sendRequest (["ZREVRANK"] ++ [key] ++ [member] )
 
 -- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>).
 brpoplpush :: (RedisString a)
@@ -230,6 +248,14 @@ getbit :: (RedisInt a)
     -> Redis (Maybe a)
 getbit key offset = decodeInt <$> sendRequest (["GETBIT"] ++ [key] ++ [offset] )
 
+-- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>).
+zcount :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ min
+    -> ByteString -- ^ max
+    -> Redis (Maybe a)
+zcount key min max = decodeInt <$> sendRequest (["ZCOUNT"] ++ [key] ++ [min] ++ [max] )
+
 -- |Close the connection (<http://redis.io/commands/quit>).
 quit :: (RedisStatus a)
     => Redis (Maybe a)
@@ -265,6 +291,14 @@ scard :: (RedisInt a)
     => ByteString -- ^ key
     -> Redis (Maybe a)
 scard key = decodeInt <$> sendRequest (["SCARD"] ++ [key] )
+
+-- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>).
+zincrby :: (RedisDouble a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ increment
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+zincrby key increment member = decodeDouble <$> sendRequest (["ZINCRBY"] ++ [key] ++ [increment] ++ [member] )
 
 -- |Intersect multiple sets (<http://redis.io/commands/sinter>).
 sinter :: (RedisSet a)
@@ -376,6 +410,13 @@ mget :: (RedisList a)
     -> Redis (Maybe a)
 mget key = decodeList <$> sendRequest (["MGET"] ++ key )
 
+-- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>).
+zadd :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [(ByteString,ByteString)] -- ^ scoreMember
+    -> Redis (Maybe a)
+zadd key scoreMember = decodeInt <$> sendRequest (["ZADD"] ++ [key] ++ flattenPairs scoreMember )
+
 -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>).
 keys :: (RedisList a)
     => ByteString -- ^ pattern
@@ -414,6 +455,21 @@ setnx :: (RedisBool a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 setnx key value = decodeBool <$> sendRequest (["SETNX"] ++ [key] ++ [value] )
+
+-- |Determine the index of a member in a sorted set (<http://redis.io/commands/zrank>).
+zrank :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+zrank key member = decodeInt <$> sendRequest (["ZRANK"] ++ [key] ++ [member] )
+
+-- |Remove all members in a sorted set within the given scores (<http://redis.io/commands/zremrangebyscore>).
+zremrangebyscore :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ min
+    -> ByteString -- ^ max
+    -> Redis (Maybe a)
+zremrangebyscore key min max = decodeInt <$> sendRequest (["ZREMRANGEBYSCORE"] ++ [key] ++ [min] ++ [max] )
 
 -- |Get the time to live for a key (<http://redis.io/commands/ttl>).
 ttl :: (RedisInt a)
@@ -476,6 +532,13 @@ sunion :: (RedisSet a)
     => [ByteString] -- ^ key
     -> Redis (Maybe a)
 sunion key = decodeSet <$> sendRequest (["SUNION"] ++ key )
+
+-- |Remove one or more members from a sorted set (<http://redis.io/commands/zrem>).
+zrem :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Maybe a)
+zrem key member = decodeInt <$> sendRequest (["ZREM"] ++ [key] ++ member )
 
 -- |Get all the members in a set (<http://redis.io/commands/smembers>).
 smembers :: (RedisSet a)
@@ -573,6 +636,12 @@ incr :: (RedisInt a)
     -> Redis (Maybe a)
 incr key = decodeInt <$> sendRequest (["INCR"] ++ [key] )
 
+-- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>).
+zcard :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+zcard key = decodeInt <$> sendRequest (["ZCARD"] ++ [key] )
+
 -- |Trim a list to the specified range (<http://redis.io/commands/ltrim>).
 ltrim :: (RedisStatus a)
     => ByteString -- ^ key
@@ -634,6 +703,14 @@ set :: (RedisStatus a)
     -> Redis (Maybe a)
 set key value = decodeStatus <$> sendRequest (["SET"] ++ [key] ++ [value] )
 
+-- |Remove all members in a sorted set within the given indexes (<http://redis.io/commands/zremrangebyrank>).
+zremrangebyrank :: (RedisInt a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ start
+    -> ByteString -- ^ stop
+    -> Redis (Maybe a)
+zremrangebyrank key start stop = decodeInt <$> sendRequest (["ZREMRANGEBYRANK"] ++ [key] ++ [start] ++ [stop] )
+
 -- |Add one or more members to a set (<http://redis.io/commands/sadd>).
 sadd :: (RedisInt a)
     => ByteString -- ^ key
@@ -654,6 +731,13 @@ lindex :: (RedisString a)
     -> ByteString -- ^ index
     -> Redis (Maybe a)
 lindex key index = decodeString <$> sendRequest (["LINDEX"] ++ [key] ++ [index] )
+
+-- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>).
+zscore :: (RedisDouble a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+zscore key member = decodeDouble <$> sendRequest (["ZSCORE"] ++ [key] ++ [member] )
 
 -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>).
 strlen :: (RedisInt a)

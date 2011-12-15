@@ -5,6 +5,7 @@ module Database.Redis.Types where
 import Control.Applicative
 import Control.Monad
 import Data.ByteString.Char8 (ByteString, unpack)
+import Data.ByteString.Lex.Double (readDouble)
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -22,6 +23,9 @@ class RedisBool a where
 
 class RedisInt a where
     decodeInt :: Reply -> Maybe a
+
+class RedisDouble a where
+    decodeDouble :: Reply -> Maybe a
 
 class RedisKey a where
     decodeKey :: Reply -> Maybe a
@@ -90,6 +94,12 @@ instance (Num a) => (RedisBool a) where
 instance (Integral a) => RedisInt a where
     decodeInt (Integer i) = Just $ fromIntegral i
     decodeInt _           = Nothing
+
+    ------------------------------------------------------------------------------
+-- RedisDouble instances
+--
+instance RedisDouble Double where
+    decodeDouble s = fst <$> (readDouble =<< decodeString s)
 
 
 ------------------------------------------------------------------------------

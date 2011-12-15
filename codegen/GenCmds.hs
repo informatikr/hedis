@@ -37,7 +37,7 @@ groupCmds (Cmds cmds) =
              , "string"
              , "list"
              , "set"
-             -- , "sorted_set"
+             , "sorted_set"
              , "hash"
              -- , "pubsub"
              -- , "transactions"
@@ -58,6 +58,12 @@ blacklist = [ ("OBJECT" , Nothing)
             , ("DEBUG SEGFAULT", Nothing)
             , ("SLOWLOG", Nothing)
             , ("SYNC", Nothing)
+            , ("ZINTERSTORE", Nothing)
+            , ("ZRANGE", Nothing)
+            , ("ZRANGEBYSCORE", Nothing)
+            , ("ZREVRANGE", Nothing)
+            , ("ZREVRANGEBYSCORE", Nothing)
+            , ("ZUNIONSTORE", Nothing)
             ]
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.
@@ -174,7 +180,7 @@ exportList cmds =
         "string"       -> "Strings"
         "list"         -> "Lists"
         "set"          -> "Sets"
-        -- "sorted_set"   -> "Sorted Sets"
+        "sorted_set"   -> "Sorted Sets"
         "hash"         -> "Hashes"
         -- "pubsub"       ->
         -- "transactions" ->
@@ -278,6 +284,7 @@ retType Cmd{..} = maybe err translate cmdRetType
         "hash"    -> "Hash"
         "set"     -> "Set"
         "pair"    -> "Pair"
+        "double"  -> "Double"
         _         -> error $ "can not translate: " ++ t
 
 --------------------------------------------------------------------------------

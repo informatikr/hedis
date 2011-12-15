@@ -1494,26 +1494,14 @@
         "type": "key"
       },
       {
-        "name": "score",
-        "type": "double"
-      },
-      {
-        "name": "member",
-        "type": "string"
-      },
-      {
-        "name": "score",
-        "type": "double",
-        "optional": true
-      },
-      {
-        "name": "member",
-        "type": "string",
-        "optional": true
+        "name": ["score", "member"],
+        "type": ["double", "string"],
+        "multiple": true
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZCARD": {
     "summary": "Get the number of members in a sorted set",
@@ -1524,7 +1512,8 @@
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZCOUNT": {
     "summary": "Count the members in a sorted set with scores within the given values",
@@ -1543,7 +1532,8 @@
       }
     ],
     "since": "1.3.3",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZINCRBY": {
     "summary": "Increment the score of a member in a sorted set",
@@ -1562,7 +1552,8 @@
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "double"
   },
   "ZINTERSTORE": {
     "summary": "Intersect multiple sorted sets and store the resulting sorted set in a new key",
@@ -1667,7 +1658,8 @@
       }
     ],
     "since": "1.3.4",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZREM": {
     "summary": "Remove one or more members from a sorted set",
@@ -1683,7 +1675,8 @@
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZREMRANGEBYRANK": {
     "summary": "Remove all members in a sorted set within the given indexes",
@@ -1702,7 +1695,8 @@
       }
     ],
     "since": "1.3.4",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZREMRANGEBYSCORE": {
     "summary": "Remove all members in a sorted set within the given scores",
@@ -1721,7 +1715,8 @@
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZREVRANGE": {
     "summary": "Return a range of members in a sorted set, by index, with scores ordered from high to low",
@@ -1792,7 +1787,8 @@
       }
     ],
     "since": "1.3.4",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "integer"
   },
   "ZSCORE": {
     "summary": "Get the score associated with the given member in a sorted set",
@@ -1807,7 +1803,8 @@
       }
     ],
     "since": "1.1",
-    "group": "sorted_set"
+    "group": "sorted_set",
+    "returns": "double"
   },
   "ZUNIONSTORE": {
     "summary": "Add multiple sorted sets and store the resulting sorted set in a new key",
