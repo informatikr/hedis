@@ -16,9 +16,6 @@ getType key = decodeStatus <$> sendRequest ["TYPE", key]
 flushall :: (RedisStatus a) => Redis (Maybe a)
 flushall = decodeStatus <$> sendRequest ["FLUSHALL"]
 
-select :: (RedisStatus a) => ByteString -> Redis (Maybe a)
-select db = decodeStatus <$> sendRequest ["SELECT", db]
-
 -- TODO supports multiple args
 zadd :: (RedisInt a) => ByteString -> ByteString -> ByteString -> Redis (Maybe a)
 zadd key score member = decodeInt <$> sendRequest ["ZADD", key, score, member]

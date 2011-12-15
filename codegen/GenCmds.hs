@@ -20,9 +20,9 @@ import Data.Monoid
 import Data.Ord (comparing)
 import Data.Text.Encoding (encodeUtf8)
 
--- TODO
--- optional commands, also optional AND multiple
--- Pairs with different types, both can be transformed to ByteString
+-- TODO optional commands, also optional AND multiple
+-- TODO TypeClasses for arguments?
+-- TODO Pairs with different types, both can be transformed to ByteString
 --      (RedisString a, RedisFoobar b) => (a,b)
 
 
@@ -99,7 +99,6 @@ instance FromJSON Arg where
             enum <- arg .: "enum"
             return $ Enum enum
             
-            
 
 -- Whitelist for the command groups
 groupCmds :: Cmds -> Cmds
@@ -114,7 +113,7 @@ groupCmds (Cmds cmds) =
              , "hash"
              -- , "pubsub"
              -- , "transactions"
-             -- , "connection"
+             , "connection"
              -- , "server"
              ]
 
@@ -162,7 +161,7 @@ exportList cmds =
         "hash"         -> "Hashes"
         -- "pubsub"       ->
         -- "transactions" ->
-        -- "connection"   -> "Connection"
+        "connection"   -> "Connection"
         -- "server"       -> "Server"
         _              -> error $ "untranslated group: " ++ cmdGroup
         

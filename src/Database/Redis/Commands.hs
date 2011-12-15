@@ -3,6 +3,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Redis.Commands (
+-- ** Connection
+auth,
+echo,
+ping,
+quit,
+select,
 -- ** Keys
 del,
 exists,
@@ -146,6 +152,12 @@ setbit :: (RedisInt a)
     -> Redis (Maybe a)
 setbit key offset value = decodeInt <$> sendRequest (["SETBIT"] ++ [key] ++ [offset] ++ [value] )
 
+-- |Echo the given string (<http://redis.io/commands/echo>).
+echo :: (RedisString a)
+    => ByteString -- ^ message
+    -> Redis (Maybe a)
+echo message = decodeString <$> sendRequest (["ECHO"] ++ [message] )
+
 -- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>).
 blpop :: (RedisPair a)
     => [ByteString] -- ^ key
@@ -188,6 +200,11 @@ getbit :: (RedisInt a)
     -> ByteString -- ^ offset
     -> Redis (Maybe a)
 getbit key offset = decodeInt <$> sendRequest (["GETBIT"] ++ [key] ++ [offset] )
+
+-- |Close the connection (<http://redis.io/commands/quit>).
+quit :: (RedisStatus a)
+    => Redis (Maybe a)
+quit  = decodeStatus <$> sendRequest (["QUIT"] )
 
 -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
 msetnx :: (RedisBool a)
@@ -404,6 +421,11 @@ smembers :: (RedisSet a)
     -> Redis (Maybe a)
 smembers key = decodeSet <$> sendRequest (["SMEMBERS"] ++ [key] )
 
+-- |Ping the server (<http://redis.io/commands/ping>).
+ping :: (RedisStatus a)
+    => Redis (Maybe a)
+ping  = decodeStatus <$> sendRequest (["PING"] )
+
 -- |Rename a key (<http://redis.io/commands/rename>).
 rename :: (RedisStatus a)
     => ByteString -- ^ key
@@ -417,12 +439,24 @@ decr :: (RedisInt a)
     -> Redis (Maybe a)
 decr key = decodeInt <$> sendRequest (["DECR"] ++ [key] )
 
+-- |Change the selected database for the current connection (<http://redis.io/commands/select>).
+select :: (RedisStatus a)
+    => ByteString -- ^ index
+    -> Redis (Maybe a)
+select index = decodeStatus <$> sendRequest (["SELECT"] ++ [index] )
+
 -- |Determine if a hash field exists (<http://redis.io/commands/hexists>).
 hexists :: (RedisBool a)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> Redis (Maybe a)
 hexists key field = decodeBool <$> sendRequest (["HEXISTS"] ++ [key] ++ [field] )
+
+-- |Authenticate to the server (<http://redis.io/commands/auth>).
+auth :: (RedisStatus a)
+    => ByteString -- ^ password
+    -> Redis (Maybe a)
+auth password = decodeStatus <$> sendRequest (["AUTH"] ++ [password] )
 
 -- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>).
 sinterstore :: (RedisInt a)
