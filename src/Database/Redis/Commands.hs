@@ -46,6 +46,21 @@ rpop,
 rpoplpush,
 rpush,
 rpushx,
+-- ** Sets
+sadd,
+scard,
+sdiff,
+sdiffstore,
+sinter,
+sinterstore,
+sismember,
+smembers,
+smove,
+spop,
+srandmember,
+srem,
+sunion,
+sunionstore,
 -- ** Strings
 append,
 decr,
@@ -138,6 +153,13 @@ blpop :: (RedisPair a)
     -> Redis (Maybe a)
 blpop key timeout = decodePair <$> sendRequest (["BLPOP"] ++ key ++ [timeout] )
 
+-- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>).
+sdiffstore :: (RedisInt a)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sdiffstore destination key = decodeInt <$> sendRequest (["SDIFFSTORE"] ++ [destination] ++ key )
+
 -- |Move a key to another database (<http://redis.io/commands/move>).
 move :: (RedisBool a)
     => ByteString -- ^ key
@@ -153,6 +175,13 @@ getrange :: (RedisString a)
     -> Redis (Maybe a)
 getrange key start end = decodeString <$> sendRequest (["GETRANGE"] ++ [key] ++ [start] ++ [end] )
 
+-- |Remove one or more members from a set (<http://redis.io/commands/srem>).
+srem :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Maybe a)
+srem key member = decodeInt <$> sendRequest (["SREM"] ++ [key] ++ member )
+
 -- |Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>).
 getbit :: (RedisInt a)
     => ByteString -- ^ key
@@ -166,12 +195,31 @@ msetnx :: (RedisBool a)
     -> Redis (Maybe a)
 msetnx keyValue = decodeBool <$> sendRequest (["MSETNX"] ++ flattenPairs keyValue )
 
+-- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>).
+sismember :: (RedisBool a)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+sismember key member = decodeBool <$> sendRequest (["SISMEMBER"] ++ [key] ++ [member] )
+
 -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>).
 hmset :: (RedisStatus a)
     => ByteString -- ^ key
     -> [(ByteString,ByteString)] -- ^ fieldValue
     -> Redis (Maybe a)
 hmset key fieldValue = decodeStatus <$> sendRequest (["HMSET"] ++ [key] ++ flattenPairs fieldValue )
+
+-- |Get the number of members in a set (<http://redis.io/commands/scard>).
+scard :: (RedisInt a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+scard key = decodeInt <$> sendRequest (["SCARD"] ++ [key] )
+
+-- |Intersect multiple sets (<http://redis.io/commands/sinter>).
+sinter :: (RedisSet a)
+    => [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sinter key = decodeSet <$> sendRequest (["SINTER"] ++ key )
 
 -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>).
 mset :: (RedisStatus a)
@@ -199,6 +247,13 @@ setex :: (RedisStatus a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 setex key seconds value = decodeStatus <$> sendRequest (["SETEX"] ++ [key] ++ [seconds] ++ [value] )
+
+-- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>).
+sunionstore :: (RedisInt a)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sunionstore destination key = decodeInt <$> sendRequest (["SUNIONSTORE"] ++ [destination] ++ key )
 
 -- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
 brpop :: (RedisPair a)
@@ -311,6 +366,12 @@ randomkey :: (RedisKey a)
     => Redis (Maybe a)
 randomkey  = decodeKey <$> sendRequest (["RANDOMKEY"] )
 
+-- |Remove and return a random member from a set (<http://redis.io/commands/spop>).
+spop :: (RedisString a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+spop key = decodeString <$> sendRequest (["SPOP"] ++ [key] )
+
 -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>).
 hsetnx :: (RedisBool a)
     => ByteString -- ^ key
@@ -331,6 +392,18 @@ exists :: (RedisBool a)
     -> Redis (Maybe a)
 exists key = decodeBool <$> sendRequest (["EXISTS"] ++ [key] )
 
+-- |Add multiple sets (<http://redis.io/commands/sunion>).
+sunion :: (RedisSet a)
+    => [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sunion key = decodeSet <$> sendRequest (["SUNION"] ++ key )
+
+-- |Get all the members in a set (<http://redis.io/commands/smembers>).
+smembers :: (RedisSet a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+smembers key = decodeSet <$> sendRequest (["SMEMBERS"] ++ [key] )
+
 -- |Rename a key (<http://redis.io/commands/rename>).
 rename :: (RedisStatus a)
     => ByteString -- ^ key
@@ -350,6 +423,13 @@ hexists :: (RedisBool a)
     -> ByteString -- ^ field
     -> Redis (Maybe a)
 hexists key field = decodeBool <$> sendRequest (["HEXISTS"] ++ [key] ++ [field] )
+
+-- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>).
+sinterstore :: (RedisInt a)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sinterstore destination key = decodeInt <$> sendRequest (["SINTERSTORE"] ++ [destination] ++ key )
 
 -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
 renamenx :: (RedisBool a)
@@ -415,12 +495,33 @@ hget :: (RedisString a)
     -> Redis (Maybe a)
 hget key field = decodeString <$> sendRequest (["HGET"] ++ [key] ++ [field] )
 
+-- |Subtract multiple sets (<http://redis.io/commands/sdiff>).
+sdiff :: (RedisSet a)
+    => [ByteString] -- ^ key
+    -> Redis (Maybe a)
+sdiff key = decodeSet <$> sendRequest (["SDIFF"] ++ key )
+
+-- |Move a member from one set to another (<http://redis.io/commands/smove>).
+smove :: (RedisBool a)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> ByteString -- ^ member
+    -> Redis (Maybe a)
+smove source destination member = decodeBool <$> sendRequest (["SMOVE"] ++ [source] ++ [destination] ++ [member] )
+
 -- |Set the string value of a key (<http://redis.io/commands/set>).
 set :: (RedisStatus a)
     => ByteString -- ^ key
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 set key value = decodeStatus <$> sendRequest (["SET"] ++ [key] ++ [value] )
+
+-- |Add one or more members to a set (<http://redis.io/commands/sadd>).
+sadd :: (RedisInt a)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Maybe a)
+sadd key member = decodeInt <$> sendRequest (["SADD"] ++ [key] ++ member )
 
 -- |Prepend one or multiple values to a list (<http://redis.io/commands/lpush>).
 lpush :: (RedisInt a)
@@ -456,6 +557,12 @@ lpushx :: (RedisInt a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 lpushx key value = decodeInt <$> sendRequest (["LPUSHX"] ++ [key] ++ [value] )
+
+-- |Get a random member from a set (<http://redis.io/commands/srandmember>).
+srandmember :: (RedisString a)
+    => ByteString -- ^ key
+    -> Redis (Maybe a)
+srandmember key = decodeString <$> sendRequest (["SRANDMEMBER"] ++ [key] )
 
 -- |Remove the expiration from a key (<http://redis.io/commands/persist>).
 persist :: (RedisBool a)

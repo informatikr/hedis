@@ -998,7 +998,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "SAVE": {
     "summary": "Synchronously save the dataset to disk",
@@ -1014,7 +1015,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "SDIFF": {
     "summary": "Subtract multiple sets",
@@ -1026,7 +1028,8 @@
       }
     ],
     "since": "0.100",
-    "group": "set"
+    "group": "set",
+    "returns": "set"
   },
   "SDIFFSTORE": {
     "summary": "Subtract multiple sets and store the resulting set in a key",
@@ -1042,7 +1045,8 @@
       }
     ],
     "since": "0.100",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "SELECT": {
     "summary": "Change the selected database for the current connection",
@@ -1162,7 +1166,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "set"
   },
   "SINTERSTORE": {
     "summary": "Intersect multiple sets and store the resulting set in a key",
@@ -1178,7 +1183,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "SISMEMBER": {
     "summary": "Determine if a given value is a member of a set",
@@ -1193,7 +1199,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "bool"
   },
   "SLAVEOF": {
     "summary": "Make the server a slave of another instance, or promote it as master",
@@ -1235,7 +1242,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "set"
   },
   "SMOVE": {
     "summary": "Move a member from one set to another",
@@ -1254,7 +1262,8 @@
       }
     ],
     "since": "0.091",
-    "group": "set"
+    "group": "set",
+    "returns": "bool"
   },
   "SORT": {
     "summary": "Sort the elements in a list, set or sorted set",
@@ -1313,7 +1322,8 @@
       }
     ],
     "since": "0.101",
-    "group": "set"
+    "group": "set",
+    "returns": "string"
   },
   "SRANDMEMBER": {
     "summary": "Get a random member from a set",
@@ -1324,7 +1334,8 @@
       }
     ],
     "since": "1.001",
-    "group": "set"
+    "group": "set",
+    "returns": "string"
   },
   "SREM": {
     "summary": "Remove one or more members from a set",
@@ -1340,7 +1351,8 @@
       }
     ],
     "since": "0.07",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "STRLEN": {
     "summary": "Get the length of the value stored in a key",
@@ -1376,7 +1388,8 @@
       }
     ],
     "since": "0.091",
-    "group": "set"
+    "group": "set",
+    "returns": "set"
   },
   "SUNIONSTORE": {
     "summary": "Add multiple sets and store the resulting set in a key",
@@ -1392,7 +1405,8 @@
       }
     ],
     "since": "0.091",
-    "group": "set"
+    "group": "set",
+    "returns": "integer"
   },
   "SYNC": {
     "summary": "Internal command used for replication",

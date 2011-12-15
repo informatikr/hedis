@@ -109,7 +109,7 @@ groupCmds (Cmds cmds) =
     groups = [ "generic"
              , "string"
              , "list"
-             -- , "set"
+             , "set"
              -- , "sorted_set"
              , "hash"
              -- , "pubsub"
@@ -157,7 +157,7 @@ exportList cmds =
         "generic"      -> "Keys"
         "string"       -> "Strings"
         "list"         -> "Lists"
-        -- "set"          -> "Sets"
+        "set"          -> "Sets"
         -- "sorted_set"   -> "Sorted Sets"
         "hash"         -> "Hashes"
         -- "pubsub"       ->
