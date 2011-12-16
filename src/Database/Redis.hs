@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 
 module Database.Redis (
-    module R,
+    module Database.Redis.Internal,
+    module Database.Redis.PubSub,
+    module Database.Redis.Reply,
+    module Database.Redis.Types,
     -- * Commands
-	module R.Commands
+	module Database.Redis.Commands
 ) where
 
-import Database.Redis.Internal as R
-import Database.Redis.PubSub as R
-import Database.Redis.Reply as R
-import Database.Redis.Types as R
+import Database.Redis.Internal
+import Database.Redis.PubSub
+import Database.Redis.Reply
+import Database.Redis.Types
 
-import Database.Redis.Commands as R.Commands
+import Database.Redis.Commands

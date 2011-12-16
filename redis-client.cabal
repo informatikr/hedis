@@ -1,6 +1,6 @@
 name:               redis-client
 version:            0.1
-synopsis:           A client for the Redis datastore.
+synopsis:           A client library for the Redis datastore.
 Description:        TODO cabal description
 license:            BSD3
 license-file:       LICENSE

@@ -28,7 +28,7 @@ linsertBefore :: (RedisReturnInt a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 linsertBefore key pivot value =
-    decodeInt <$> sendRequest ["INSERT", key, "BEFORE", pivot, value]
+    decodeInt <$> sendRequest ["LINSERT", key, "BEFORE", pivot, value]
 
 linsertAfter :: (RedisReturnInt a)
     => ByteString -- ^ key
@@ -36,7 +36,7 @@ linsertAfter :: (RedisReturnInt a)
     -> ByteString -- ^ value
     -> Redis (Maybe a)
 linsertAfter key pivot value =
-        decodeInt <$> sendRequest ["INSERT", key, "AFTER", pivot, value]
+        decodeInt <$> sendRequest ["LINSERT", key, "AFTER", pivot, value]
 
 getType :: (RedisReturnStatus a)
         => ByteString -- ^ key

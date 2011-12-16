@@ -42,7 +42,9 @@ x @=? y = liftIO $ (Test.@=?) x y
 --
 tests :: [Test]
 tests = concat
-    [testsKeys, testsStrings, testsHashes, testsConnection, [testQuit]]
+    [ testsKeys, testsStrings, testsHashes, testsLists, testsConnection
+    , testsServer, [testQuit]
+    ]
 
 
 ------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ testsKeys :: [Test]
 testsKeys =
     [ testDel, testExists, testExpire, testExpireAt, testKeys, testMove
     , testPersist, testRandomkey, testRename, testRenamenx, testSort
-    , testTtl, testGetType
+    , testTtl, testGetType, testObject
     ]
 
 testDel :: Test
@@ -169,6 +171,13 @@ testGetType = testCase "getType" $ do
          , (zadd k [(42,mem),(12.3 :: Double,v)] >>=? Just (2 :: Int), ZSet)
          ]
 
+testObject :: Test
+testObject = testCase "object" $ do
+    let [k,v] = ["key","value"] :: [BS]
+    set k v          >>=? Just Ok
+    objectRefcount k >>=? Just 1
+    Just _ <- objectEncoding k :: Redis (Maybe BS)
+    objectIdletime k >>=? Just 0
 
 ------------------------------------------------------------------------------
 -- Strings
@@ -384,12 +393,66 @@ testHvals = testCase "hvals" $ do
 ------------------------------------------------------------------------------
 -- Lists
 --
+testsLists :: [Test]
+testsLists =
+    [testBlpop, testBrpoplpush, testLpop, testLinsert, testLpushx, testLset]
 
+testBlpop :: Test
+testBlpop = testCase "blpop/brpop" $ do
+    let [k,notAKey,v1,v2,v3] = ["key","notAKey","v1","v2","v3"] :: [BS]
+    lpush k [v3,v2,v1]  >>=? Just 3
+    blpop [notAKey,k] 1 >>=? Just ("key" :: BS, "v1" :: BS)
+    brpop [notAKey,k] 1 >>=? Just ("key" :: BS, "v3" :: BS)
+
+testBrpoplpush :: Test
+testBrpoplpush = testCase "brpoplpush/rpoplpush" $ do
+    let [k1,k2,v1,v2] = ["k1","k2","v1","v2"] :: [BS]
+    rpush k1 [v1,v2]   >>=? Just 2
+    brpoplpush k1 k2 1 >>=? Just ("v2" :: BS)
+    rpoplpush k1 k2    >>=? Just ("v1" :: BS)
+    llen k2            >>=? Just 2
+    llen k1            >>=? Just 0
+
+testLpop :: Test
+testLpop = testCase "lpop/rpop" $ do
+    let [k,v1,v2,v3] = ["key","v1","v2","v3"] :: [BS]
+    lpush k [v3,v2,v1] >>=? Just 3
+    lpop k             >>=? Just ("v1" :: BS)
+    llen k             >>=? Just 2
+    rpop k             >>=? Just ("v3" :: BS)
+
+testLinsert :: Test
+testLinsert = testCase "linsert" $ do
+    let [k,notAVal,v1,v2,v3] = ["key","notAVal","v1","v2","v3"] :: [BS]
+    rpush k [v2]               >>=? Just 1
+    linsertBefore k v2 v1      >>=? Just 2
+    linsertBefore k notAVal v3 >>=? Just (-1)
+    linsertAfter k v2 v3       >>=? Just 3    
+    linsertAfter k notAVal v3  >>=? Just (-1)
+    lindex k 0                 >>=? Just ("v1" :: BS)
+    lindex k 2                 >>=? Just ("v3" :: BS)
+
+testLpushx :: Test
+testLpushx = testCase "lpushx/rpushx" $ do
+    let [k,notAKey,v1,v2,v3] = ["key","notAKey","v1","v2","v3"] :: [BS]
+    lpushx notAKey v1 >>=? Just 0
+    lpush k [v2]      >>=? Just 1
+    lpushx k v1       >>=? Just 2
+    rpushx k v3       >>=? Just 3
+
+testLset :: Test
+testLset = testCase "lset/lrem/ltrim" $ do
+    let [k,v1,v2,v3] = ["key","v1","v2","v3"] :: [BS]
+    lpush k [v3,v2,v2,v1,v1] >>=? Just 5
+    lset k 1 v2              >>=? Just Ok
+    lrem k 2 v2              >>=? Just 2
+    llen k                   >>=? Just 3
+    ltrim k 0 1              >>=? Just Ok
+    lrange k 0 1             >>=? Just [Just "v1", Just ("v2" :: BS)]
 
 ------------------------------------------------------------------------------
 -- Sets
 --
-
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
@@ -400,20 +463,15 @@ testHvals = testCase "hvals" $ do
 -- Pub/Sub
 --
 
-
 ------------------------------------------------------------------------------
 -- Transaction
 --
-
 
 ------------------------------------------------------------------------------
 -- Connection
 --
 testsConnection :: [Test]
 testsConnection = [ testAuth, testEcho, testPing, testSelect ]
-
-testAuth :: Test
-testAuth = testCase "auth" $ return () -- TODO test auth
 
 testEcho :: Test
 testEcho = testCase "echo" $
@@ -434,3 +492,30 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
+testsServer = [testBgrewriteaof, testFlushall, testInfo, testConfig]
+
+testBgrewriteaof :: Test
+testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
+    save >>=? Just Ok
+    -- TODO return types not as documented
+    -- bgsave       >>=? Just BgSaveStarted
+    -- bgrewriteaof >>=? Just BgAOFRewriteStarted
+
+testConfig :: Test
+testConfig = testCase "config/auth" $ do
+    let [requirepass,pass,nil] = ["requirepass","pass",""] :: [BS]
+    configSet requirepass pass >>=? Just Ok
+    auth pass                  >>=? Just Ok
+    configSet requirepass nil  >>=? Just Ok
+    
+testFlushall :: Test
+testFlushall = testCase "flushall/flushdb" $ do
+    flushall >>=? Just Ok
+    flushdb  >>=? Just Ok
+
+testInfo :: Test
+testInfo = testCase "info/lastsave/dbsize" $ do
+    Just (_ :: BS)      <- info
+    Just (_ :: Integer) <- lastsave
+    dbsize          >>=? Just 0
+    configResetstat >>=? Just Ok

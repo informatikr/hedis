@@ -251,11 +251,15 @@ fromCmd cmd@Cmd{..}
             , fromString " = "
             , fromString "decode", retType cmd, fromString " <$> "
             , fromString "sendRequest ([\""
-            , fromString cmdName, fromString "\"]"
+            , mconcat $ map fromString $ intersperse "\",\"" $ words cmdName
+            , fromString "\"]"
             , mconcat $ map argumentList cmdArgs
             , fromString " )"
             ]
     name = camelCase cmdName
+    
+    
+    
 
 argumentList :: Arg -> Builder
 argumentList a = fromString " ++ " `mappend` go a

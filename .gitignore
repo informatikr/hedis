@@ -4,3 +4,4 @@
 /test/coverage
 /cabal-dev/
 dump.rdb
+appendonly.aof

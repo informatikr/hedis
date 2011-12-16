@@ -151,7 +151,7 @@ hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY"] ++ [encodeS
 
 configResetstat :: (RedisReturnStatus a)
     => Redis (Maybe a)
-configResetstat  = decodeStatus <$> sendRequest (["CONFIG RESETSTAT"] )
+configResetstat  = decodeStatus <$> sendRequest (["CONFIG","RESETSTAT"] )
 
 del :: (RedisArgString key, RedisReturnInt a)
     => [key] -- ^ 
@@ -466,7 +466,7 @@ hsetnx key field value = decodeBool <$> sendRequest (["HSETNX"] ++ [encodeString
 configGet :: (RedisArgString parameter, RedisReturnHash a)
     => parameter -- ^ 
     -> Redis (Maybe a)
-configGet parameter = decodeHash <$> sendRequest (["CONFIG GET"] ++ [encodeString parameter] )
+configGet parameter = decodeHash <$> sendRequest (["CONFIG","GET"] ++ [encodeString parameter] )
 
 hvals :: (RedisArgString key, RedisReturnSet a)
     => key -- ^ 
@@ -539,7 +539,7 @@ configSet :: (RedisArgString parameter, RedisArgString value, RedisReturnStatus 
     => parameter -- ^ 
     -> value -- ^ 
     -> Redis (Maybe a)
-configSet parameter value = decodeStatus <$> sendRequest (["CONFIG SET"] ++ [encodeString parameter] ++ [encodeString value] )
+configSet parameter value = decodeStatus <$> sendRequest (["CONFIG","SET"] ++ [encodeString parameter] ++ [encodeString value] )
 
 renamenx :: (RedisArgString key, RedisArgString newkey, RedisReturnBool a)
     => key -- ^ 

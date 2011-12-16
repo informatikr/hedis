@@ -4,7 +4,7 @@
 
 - Manual implementation of blacklisted commands
 - More instances for argument type classes
-- Add instances Redis* instances for
+- Add Redis* instances for
     - containers
     - unordered-containers
     - vector
