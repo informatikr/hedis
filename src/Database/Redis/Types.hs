@@ -15,9 +15,6 @@ import Database.Redis.Reply
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
-class RedisEncode a where
-    encode :: a -> ByteString
-
 class RedisArgString a where
     encodeString :: a -> ByteString
 
@@ -26,12 +23,6 @@ class RedisArgInt a where
 
 class RedisArgDouble a where
     encodeDouble :: a -> ByteString
-
-class RedisArgList f where
-    encodeList :: f -> [ByteString]
-
-class RedisArgHash f where
-    encodeHash :: f -> [ByteString]
 
 
 class RedisReturnStatus a where
@@ -69,45 +60,21 @@ class RedisReturnPair a where
 -- RedisArgString instances
 --
 instance RedisArgString ByteString where
-    encodeString = encode
-instance RedisEncode ByteString where
-    encode = id
+    encodeString = id
 
 
 ------------------------------------------------------------------------------
 -- RedisArgInt instances
 --
 instance (Integral a) => RedisArgInt a where
-    encodeInt = encode
-instance (Integral a) => RedisEncode a where
-    encode = pack . show . toInteger
+    encodeInt = pack . show . toInteger
 
 
 ------------------------------------------------------------------------------
 -- RedisArgDouble instances
 --
 instance RedisArgDouble Double where
-    encodeDouble = encode
-instance RedisEncode Double where
-    encode = pack . show
-
-
-------------------------------------------------------------------------------
--- RedisArgList instances
---
-instance (RedisEncode a) => RedisArgList [a] where
-    encodeList = map encode
-
-
-------------------------------------------------------------------------------
--- RedisArgHash instances
---
-instance (RedisEncode a, RedisEncode b) => RedisArgHash [(a,b)] where
-    encodeHash []          = []
-    encodeHash ((x,y):xys) = encode x : encode y : encodeHash xys
-
-instance (RedisEncode a, RedisEncode b) => RedisArgHash (Map.Map a b) where
-    encodeHash = encodeHash . Map.assocs
+    encodeDouble = pack . show
 
 
 ------------------------------------------------------------------------------

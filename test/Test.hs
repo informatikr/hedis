@@ -11,6 +11,9 @@ import Test.HUnit (runTestTT, (~:))
 
 import Database.Redis
 
+
+type BS = ByteString
+
 ------------------------------------------------------------------------------
 -- Main and helpers
 --
@@ -19,7 +22,6 @@ main = withSocketsDo $ do
     c <- newConnPool 1 "127.0.0.1" (PortNumber 6379)
     runTestTT $ Test.TestList $ map ($c) tests
     disconnectConnPool c
-
 
 type Test = ConnPool -> Test.Test
 
@@ -55,105 +57,116 @@ testsKeys =
 
 testDel :: Test
 testDel = testCase "del" $ do
-    set "key" "value" >>=? Just Ok
-    get "key"         >>=? Just ("value" :: ByteString)
-    del ["key"]       >>=? Just (1 :: Int)
-    get "key"         >>=? (Nothing :: Maybe ByteString)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v >>=? Just Ok
+    get k   >>=? Just ("value" :: BS)
+    del [k] >>=? Just (1 :: Int)
+    get k   >>=? (Nothing :: Maybe ByteString)
 
 testExists :: Test
 testExists = testCase "exists" $ do
-    exists "key"      >>=? Just False
-    set "key" "value" >>=? Just Ok
-    exists "key"      >>=? Just True
+    let [k,v] = ["key","value"] :: [BS]
+    exists k >>=? Just False
+    set k v  >>=? Just Ok
+    exists k >>=? Just True
 
 testExpire :: Test
 testExpire = testCase "expire" $ do
-    set "key" "value"     >>=? Just Ok
-    expire "key" "1"      >>=? Just True
-    expire "notAkey" "1"  >>=? Just False
-    ttl "key"             >>=? Just (1 :: Int)
+    let [k,v,notAKey] = ["key","value","notAKey"] :: [BS]
+    set k v          >>=? Just Ok
+    expire k 1       >>=? Just True
+    expire notAKey 1 >>=? Just False
+    ttl k            >>=? Just (1 :: Int)
     
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
-    set "key" "value"         >>=? Just Ok
+    let [k,v,notAKey] = ["key","value","notAKey"] :: [BS]
+    set k v                 >>=? Just Ok
     TOD seconds _ <- liftIO getClockTime
     let expiry = seconds + 1
-    expireat "key" expiry     >>=? Just True
-    expireat "notAkey" expiry >>=? Just False
-    ttl "key"                 >>=? Just (1 :: Int)
+    expireat k expiry       >>=? Just True
+    expireat notAKey expiry >>=? Just False
+    ttl k                   >>=? Just (1 :: Int)
 
 testKeys :: Test
 testKeys = testCase "keys" $ do
-    keys "key*"       >>=? Just ([] :: [Maybe ByteString])
-    set "key1" "val1" >>=? Just Ok
-    set "key2" "val2" >>=? Just Ok
-    Just ks <- keys "key*"
+    let [k1,k2,v,pat] = ["key1","key2","val","key*"] :: [BS]
+    keys pat >>=? Just ([] :: [Maybe ByteString])
+    set k1 v >>=? Just Ok
+    set k2 v >>=? Just Ok
+    Just ks <- keys pat
     2    @=? length (ks :: [Maybe ByteString])
     True @=? elem (Just "key1") ks
     True @=? elem (Just "key2") ks
 
 testMove :: Test
 testMove = testCase "move" $ do
-    set "key" "value" >>=? Just Ok
-    move "key" "13"   >>=? Just True
-    get "key"         >>=? (Nothing :: Maybe ByteString)
-    select "13"       >>=? Just Ok
-    get "key"         >>=? Just ("value" :: ByteString)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v   >>=? Just Ok
+    move k 13 >>=? Just True
+    get k     >>=? (Nothing :: Maybe ByteString)
+    select 13 >>=? Just Ok
+    get k     >>=? Just ("value" :: BS)
 
 testPersist :: Test
 testPersist = testCase "persist" $ do
-    set "key" "value" >>=? Just Ok
-    expire "key" "1"  >>=? Just True
-    ttl "key"         >>=? Just (1 :: Int)
-    persist "key"     >>=? Just True
-    ttl "key"         >>=? Just (-1 :: Int)
+    let [k,v] = ["key","val"] :: [BS]
+    set k v    >>=? Just Ok
+    expire k 1 >>=? Just True
+    ttl k      >>=? Just (1 :: Int)
+    persist k  >>=? Just True
+    ttl k      >>=? Just (-1 :: Int)
 
 testRandomkey :: Test
 testRandomkey = testCase "randomkey" $ do
-    set "key1" "v1" >>=? Just Ok
-    set "key2" "v2" >>=? Just Ok
+    let [k1,k2,v] = ["k1","k2","value"] :: [BS]
+    set k1 v >>=? Just Ok
+    set k2 v >>=? Just Ok
     Just k <- randomkey
-    True @=? ((k :: ByteString) `elem` ["key1", "key2"])
+    True @=? ((k :: BS) `elem` ["k1", "k2"])
 
 testRename :: Test
 testRename = testCase "rename" $ do
-    set "key1" "value"   >>=? Just Ok
-    rename "key1" "key2" >>=? Just Ok
-    get "key1"           >>=? (Nothing :: Maybe ByteString)
-    get "key2"           >>=? Just ("value" :: ByteString)
+    let [k1,k2,v] = ["k1","k2","value"] :: [BS]
+    set k1 v     >>=? Just Ok
+    rename k1 k2 >>=? Just Ok
+    get k1       >>=? (Nothing :: Maybe ByteString)
+    get k2       >>=? Just ("value" :: BS)
 
 testRenamenx :: Test
 testRenamenx = testCase "renamenx" $ do
-    set "key1" "value1"    >>=? Just Ok
-    set "key2" "value2"    >>=? Just Ok
-    renamenx "key1" "key2" >>=? Just False
-    renamenx "key1" "key3" >>=? Just True
+    let [k1,k2,k3,v] = ["k1","k2","k3","value"] :: [BS]
+    set k1 v       >>=? Just Ok
+    set k2 v       >>=? Just Ok
+    renamenx k1 k2 >>=? Just False
+    renamenx k1 k3 >>=? Just True
 
 testSort :: Test
 testSort = testCase "sort" $ return () -- TODO needs sort-implementation
 
 testTtl :: Test
 testTtl = testCase "ttl" $ do
-    set "key" "value" >>=? Just Ok
-    ttl "notAKey"     >>=? Just (-1 :: Int)
-    ttl "key"         >>=? Just (-1 :: Int)
-    expire "key" "42" >>=? Just True
-    ttl "key"         >>=? Just (42 :: Int)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v >>=? Just Ok
+    ttl ("notAKey" :: BS) >>=? Just (-1 :: Int)
+    ttl k                 >>=? Just (-1 :: Int)
+    expire k 42           >>=? Just True
+    ttl k                 >>=? Just (42 :: Int)
 
 testGetType :: Test
 testGetType = testCase "getType" $ do
-    getType "key"     >>=? Just None
+    getType k     >>=? Just None
     forM_ ts $ \(setKey, typ) -> do
         setKey
-        getType "key" >>=? Just typ
-        del ["key"]   >>=? Just (1 :: Int)
+        getType k >>=? Just typ
+        del [k]   >>=? Just (1 :: Int)
   where
-    ts = [ (set "key" "value"            >>=? Just Ok        , String)
-         , (hset "key" "field" "value"   >>=? Just True      , Hash)
-         , (lpush "key" ["value"]        >>=? Just (1 :: Int), List)
-         , (sadd "key" ["member"]        >>=? Just (1 :: Int), Set)
-         , (zadd "key" [(42 :: Double,"member" :: ByteString)
-                       ,(12.3,"mem2")] >>=? Just (2 :: Int), ZSet)
+    [k,v,f,mem] = ["key","value","field","member"] :: [BS]
+    ts = [ (set k v      >>=? Just Ok        , String)
+         , (hset k f v   >>=? Just True      , Hash)
+         , (lpush k [v]  >>=? Just (1 :: Int), List)
+         , (sadd k [mem] >>=? Just (1 :: Int), Set)
+         , (zadd k [(42,mem),(12.3 :: Double,v)] >>=? Just (2 :: Int), ZSet)
          ]
 
 
@@ -169,94 +182,110 @@ testsStrings =
 
 testAppend :: Test
 testAppend = testCase "append" $ do
-    set "key" "x"    >>=? Just Ok
-    append "key" "y" >>=? Just (2 :: Int)
-    get "key"        >>=? Just ("xy" :: ByteString)
+    let [k,hello,world] = ["key","hello","world"] :: [BS]
+    set k hello    >>=? Just Ok
+    append k world >>=? Just (10 :: Int)
+    get k          >>=? Just ("helloworld" :: BS)
 
 testDecr :: Test
 testDecr = testCase "decr" $ do
-    set "key" "42" >>=? Just Ok
-    decr "key"     >>=? Just (41 :: Int)
+    let k = "key" :: BS
+    set k ("42" :: BS) >>=? Just Ok
+    decr k             >>=? Just (41 :: Int)
 
 testDecrby :: Test
 testDecrby = testCase "decrby" $ do
-    set "key" "42"   >>=? Just Ok
-    decrby "key" "2" >>=? Just (40 :: Int)
+    let k = "key" :: BS
+    set k ("42" :: BS) >>=? Just Ok
+    decrby k 2         >>=? Just (40 :: Int)
 
 testGetbit :: Test
-testGetbit = testCase "getbit" $ getbit "key" "42" >>=? Just (0 :: Int)
+testGetbit = testCase "getbit" $ getbit ("key" :: BS) 42 >>=? Just (0 :: Int)
 
 testGetrange :: Test
 testGetrange = testCase "getrange" $ do
-    set "key" "value"       >>=? Just Ok
-    getrange "key" "1" "-2" >>=? Just ("alu" :: ByteString)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v           >>=? Just Ok
+    getrange k 1 (-2) >>=? Just ("alu" :: BS)
 
 testGetset :: Test
 testGetset = testCase "getset" $ do
-    getset "key" "v1" >>=? (Nothing :: Maybe ByteString)
-    getset "key" "v2" >>=? Just ("v1" :: ByteString)
+    let [k,v1,v2] = ["key","v1","v2"] :: [BS]
+    getset k v1 >>=? (Nothing :: Maybe ByteString)
+    getset k v2 >>=? Just ("v1" :: BS)
 
 testIncr :: Test
 testIncr = testCase "incr" $ do
-    set "key" "42" >>=? Just Ok
-    incr "key"     >>=? Just (43 :: Int)
+    let k = "key" :: BS
+    set k ("42" :: BS) >>=? Just Ok
+    incr k             >>=? Just (43 :: Int)
 
 testIncrby :: Test
 testIncrby = testCase "incrby" $ do
-    set "key" "42"   >>=? Just Ok
-    incrby "key" "2" >>=? Just (44 :: Int)
+    let k = "key" :: BS
+    set k ("40" :: BS) >>=? Just Ok
+    incrby k 2         >>=? Just (42 :: Int)
 
 testMget :: Test
 testMget = testCase "mget" $ do
-    set "key1" "v1"                  >>=? Just Ok
-    set "key2" "v2"                  >>=? Just Ok
-    mget ["key1", "key2", "notAKey"] >>=? Just [ Just "v1"
-                                               , Just ("v2" :: ByteString)
-                                               , Nothing
-                                               ]
+    let [k1,k2,v1,v2] = ["k1","k2","v1","v2"] :: [BS]
+    set k1 v1                    >>=? Just Ok
+    set k2 v2                    >>=? Just Ok
+    mget [k1,k2,"notAKey" :: BS] >>=? Just [ Just "v1"
+                                           , Just ("v2" :: BS)
+                                           , Nothing
+                                           ]
 
 testMset :: Test
 testMset = testCase "mset" $ do
-    mset [("k1","v1"), ("k2","v2")] >>=? Just Ok
-    get "k1"                        >>=? Just ("v1" :: ByteString)
-    get "k2"                        >>=? Just ("v2" :: ByteString)
+    let [k1,k2,v1,v2] = ["k1","k2","v1","v2"] :: [BS]
+    mset [(k1,v1), (k2,v2)] >>=? Just Ok
+    get k1                  >>=? Just ("v1" :: BS)
+    get k2                  >>=? Just ("v2" :: BS)
 
 testMsetnx :: Test
 testMsetnx = testCase "msetnx" $ do
-    msetnx [("k1","v1"), ("k2","v2")] >>=? Just True
-    msetnx [("k1","v1"), ("k2","v2")] >>=? Just False
+    let [k1,k2,v1,v2] = ["k1","k2","v1","v2"] :: [BS]
+    msetnx [(k1,v1), (k2,v2)] >>=? Just True
+    msetnx [(k1,v1), (k2,v2)] >>=? Just False
 
 testSetbit :: Test
 testSetbit = testCase "setbit" $ do
-    setbit "key" "42" "1" >>=? Just (0 :: Int)
-    setbit "key" "42" "0" >>=? Just (1 :: Int)
+    let [k,one,zero] = ["key","1","0"] :: [BS]
+    setbit k 42 one  >>=? Just (0 :: Int)
+    setbit k 42 zero >>=? Just (1 :: Int)
     
 testSetex :: Test
 testSetex = testCase "setex" $ do
-    setex "key" "1" "value" >>=? Just Ok
-    ttl "key"               >>=? Just (1 :: Int)
+    let [k,v] = ["key","value"] :: [BS]
+    setex k 1 v >>=? Just Ok
+    ttl k       >>=? Just (1 :: Int)
 
 testSetnx :: Test
 testSetnx = testCase "setnx" $ do
-    setnx "key" "v1" >>=? Just True
-    setnx "key" "v2" >>=? Just False
+    let [k,v1,v2] = ["key","v1","v2"] :: [BS]
+    setnx k v1 >>=? Just True
+    setnx k v2 >>=? Just False
 
 testSetrange :: Test
 testSetrange = testCase "setrange" $ do
-    set "key" "value"        >>=? Just Ok
-    setrange "key" "1" "ers" >>=? Just (5 :: Int)
-    get "key"                >>=? Just ("verse" :: ByteString)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v                    >>=? Just Ok
+    setrange k 1 ("ers" :: BS) >>=? Just (5 :: Int)
+    get k                      >>=? Just ("verse" :: BS)
 
 testStrlen :: Test
 testStrlen = testCase "strlen" $ do
-    set "key" "value" >>=? Just Ok
-    strlen "key"      >>=? Just (5 :: Int)
+    let [k,v] = ["key","value"] :: [BS]
+    set k v  >>=? Just Ok
+    strlen k >>=? Just (5 :: Int)
 
 testSetAndGet :: Test
-testSetAndGet = testCase "set/get" $ do    
-    get "key"         >>=? (Nothing :: Maybe ByteString)
-    set "key" "value" >>=? Just Ok
-    get "key"         >>=? Just ("value" :: ByteString)
+testSetAndGet = testCase "set/get" $ do
+    let [k,v] = ["key","value"] :: [BS]
+    get k   >>=? (Nothing :: Maybe ByteString)
+    set k v >>=? Just Ok
+    get k   >>=? Just ("value" :: BS)
 
 
 ------------------------------------------------------------------------------
@@ -270,74 +299,86 @@ testsHashes =
 
 testHdel :: Test
 testHdel = testCase "hdel" $ do
-    hdel "key" []              >>=? (Nothing :: Maybe Int)
-    hdel "key" ["field"]       >>=? Just False
-    hset "key" "field" "value" >>=? Just True
-    hdel "key" ["field"]       >>=? Just True
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hdel k ([] :: [BS])  >>=? (Nothing :: Maybe Int)
+    hdel k [f]           >>=? Just False
+    hset k f v           >>=? Just True
+    hdel k [f]           >>=? Just True
 
 testHexists :: Test
 testHexists = testCase "hexists" $ do
-    hexists "key" "field"      >>=? Just False
-    hset "key" "field" "value" >>=? Just True
-    hexists "key" "field"      >>=? Just True
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hexists k f >>=? Just False
+    hset k f v  >>=? Just True
+    hexists k f >>=? Just True
 
 testHget :: Test
 testHget = testCase "hget" $ do
-    hget "key" "field"         >>=? (Nothing :: Maybe ByteString)
-    hset "key" "field" "value" >>=? Just True
-    hget "key" "field"         >>=? Just ("value" :: ByteString)
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hget k f   >>=? (Nothing :: Maybe ByteString)
+    hset k f v >>=? Just True
+    hget k f   >>=? Just ("value" :: BS)
 
 testHgetall :: Test
 testHgetall = testCase "hgetall" $ do
-    hgetall "key" >>=? Just ([] :: [(ByteString, ByteString)])
-    hmset "key" [("f1","v1"), ("f2","v2")]
-                  >>=? Just Ok
-    hgetall "key" >>=? Just [ ("f1", "v1")
-                            , ("f2" :: ByteString, "v2" :: ByteString)
-                            ]
+    let k          = "key" :: BS
+        fieldsVals = [("f1","v1"), ("f2","v2")] :: [(BS,BS)]
+    
+    hgetall k          >>=? Just ([] :: [(ByteString, ByteString)])
+    hmset k fieldsVals >>=? Just Ok
+    hgetall k          >>=? Just [ ("f1", "v1")
+                                 , ("f2" :: BS, "v2" :: BS)
+                                 ]
     
 testHincrby :: Test
 testHincrby = testCase "hincrby" $ do
-    hset "key" "field" "42"    >>=? Just True
-    hincrby "key" "field" "-2" >>=? Just (40 :: Int)
+    let [k,f,v] = ["key","field","40"] :: [BS]
+    hset k f v    >>=? Just True
+    hincrby k f 2 >>=? Just (42 :: Int)
 
 testHkeys :: Test
 testHkeys = testCase "hkeys" $ do
-    hset "key" "field" "value" >>=? Just True
-    hkeys "key"                >>=? Just ["field" :: ByteString]
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hset k f v >>=? Just True
+    hkeys k    >>=? Just ["field" :: BS]
 
 testHlen :: Test
 testHlen = testCase "hlen" $ do
-    hlen "key"                 >>=? Just (0 :: Int)
-    hset "key" "field" "value" >>=? Just True
-    hlen "key"                 >>=? Just (1 :: Int)
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hlen k     >>=? Just (0 :: Int)
+    hset k f v >>=? Just True
+    hlen k     >>=? Just (1 :: Int)
 
 testHmget :: Test
 testHmget = testCase "hmget" $ do
-    hmset "key" [("f1","v1"), ("f2","v2")] >>=? Just Ok
-    hmget "key" ["f1", "f2", "nofield"]    >>=?
-        Just [Just ("v1" :: ByteString), Just "v2", Nothing]
+    let fieldsVals = [("f1","v1"), ("f2","v2")] :: [(BS,BS)]
+        k          = "key" :: BS
+    hmset k fieldsVals                    >>=? Just Ok
+    hmget k ["f1", "f2", "nofield" :: BS] >>=?
+        Just [Just ("v1" :: BS), Just "v2", Nothing]
 
 testHmset :: Test
 testHmset = testCase "hmset" $ do
-    let m :: [(ByteString,ByteString)]
-        m = [("f1","v1"), ("f2","v2")]
-    hmset "key" m >>=? Just Ok
+    let fieldsVals = [("f1","v1"), ("f2","v2")] :: [(BS,BS)]
+    hmset ("key" :: BS) fieldsVals >>=? Just Ok
 
 testHset :: Test
 testHset = testCase "hset" $ do
-    hset "key" "field" "value" >>=? Just True
-    hset "key" "field" "value" >>=? Just False
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hset k f v >>=? Just True
+    hset k f v >>=? Just False
 
 testHsetnx :: Test
 testHsetnx = testCase "hsetnx" $ do
-    hsetnx "key" "field" "value" >>=? Just True
-    hsetnx "key" "field" "value" >>=? Just False
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hsetnx k f v >>=? Just True
+    hsetnx k f v >>=? Just False
 
 testHvals :: Test
 testHvals = testCase "hvals" $ do
-    hset "key" "field" "value" >>=? Just True
-    hvals "key"                >>=? Just ["value" :: ByteString]
+    let [k,f,v] = ["key","field","value"] :: [BS]
+    hset k f v  >>=? Just True
+    hvals k     >>=? Just [v]
 
 
 ------------------------------------------------------------------------------
@@ -375,7 +416,8 @@ testAuth :: Test
 testAuth = testCase "auth" $ return () -- TODO test auth
 
 testEcho :: Test
-testEcho = testCase "echo" $ echo "value" >>=? Just ("value" :: ByteString)
+testEcho = testCase "echo" $
+    echo ("value" :: BS) >>=? Just ("value" :: BS)
 
 testPing :: Test
 testPing = testCase "ping" $ ping >>=? Just Pong
@@ -385,8 +427,8 @@ testQuit = testCase "quit" $ quit >>=? Just Ok
 
 testSelect :: Test
 testSelect = testCase "select" $ do
-    select "13" >>=? Just Ok
-    select "0"  >>=? Just Ok
+    select 13 >>=? Just Ok
+    select 0  >>=? Just Ok
 
 
 ------------------------------------------------------------------------------

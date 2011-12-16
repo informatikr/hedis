@@ -260,14 +260,22 @@ fromCmd cmd@Cmd{..}
 argumentList :: Arg -> Builder
 argumentList a = fromString " ++ " `mappend` go a
   where
-    go (Multiple p@(Pair a a')) =
-        fromString "encodeHash " `mappend` argumentName p
-    go (Multiple a) =
-        fromString "encodeList " `mappend` argumentName a
-    go a@Arg{..} =
-        mconcat [ fromString "[encode"
-                , translateArgType a, fromString " "
-                , argumentName a, fromString "]" ]
+    go (Multiple p@(Pair a a')) = mconcat
+        [ fromString "concatMap (\\(x,y) -> ["
+        , fromString "encode", translateArgType a, fromString " x"
+        , fromString ","
+        , fromString "encode", translateArgType a', fromString " y"
+        , fromString "])"
+        , argumentName p
+        ]
+    go (Multiple a)             = mconcat
+        [ fromString "map encode"
+        , translateArgType a
+        , fromString " ", argumentName a
+        ]
+    go a@Arg{..}                = mconcat
+        [ fromString "[encode", translateArgType a
+        , fromString " ", argumentName a, fromString "]" ]
 
 argumentName :: Arg -> Builder
 argumentName a = go a
@@ -283,35 +291,19 @@ argumentType a = mconcat [ go a
                          , fromString "\n    -> "
                          ]
   where
-      go (Multiple (Pair a a')) = mconcat [ fromString "f "
-                                          , go a
-                                          , fromString " "
-                                          , go a']
-      go (Multiple a)           = mconcat [fromString "f ", go a]
-      go a@Arg{..}              = argumentName a
+      go (Multiple a) =
+          mconcat [fromString "[", go a, fromString "]"]
+      go (Pair a a')  =
+          mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
+      go a@Arg{..}    = argumentName a
 
 argTypeClass :: Arg -> Builder
-argTypeClass (Multiple (Pair a a')) =
-    mconcat [ fromString "RedisArgHash (f "
-            , argumentName a, fromString " "
-            , argumentName a'
-            , fromString "), "
-            , argTypeClass a
-            , argTypeClass a'
-            ]
-argTypeClass (Multiple a) =
-    mconcat [ fromString "RedisArgList (f "
-            , argumentName a
-            , fromString "), "
-            , argTypeClass a
-            ]
-argTypeClass a@Arg{..} =
-    mconcat [ fromString "RedisArg"
-            , translateArgType a
-            , fromString " "
-            , argumentName a
-            , fromString ", "
-            ]
+argTypeClass (Multiple (Pair a a')) = argTypeClass a `mappend` argTypeClass a'
+argTypeClass (Multiple a)           = argTypeClass a
+argTypeClass a@Arg{..}              = mconcat
+    [ fromString "RedisArg", translateArgType a, fromString " "
+    , argumentName a, fromString ", "
+    ]
 
 translateArgType :: Arg -> Builder
 translateArgType Arg{..} = fromString $ case argType of
