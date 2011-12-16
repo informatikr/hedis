@@ -3,7 +3,7 @@
 ## Certainly
 
 - Manual implementation of blacklisted commands
-- Type classes for arguments
+- More instances for argument type classes
 - Add instances Redis* instances for
     - containers
     - unordered-containers

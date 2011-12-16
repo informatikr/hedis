@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances #-}
 
 module Database.Redis.Types where
 
@@ -15,12 +15,23 @@ import Database.Redis.Reply
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
+class RedisEncode a where
+    encode :: a -> ByteString
 
 class RedisArgString a where
     encodeString :: a -> ByteString
 
 class RedisArgInt a where
     encodeInt :: a -> ByteString
+
+class RedisArgDouble a where
+    encodeDouble :: a -> ByteString
+
+class RedisArgList f where
+    encodeList :: f -> [ByteString]
+
+class RedisArgHash f where
+    encodeHash :: f -> [ByteString]
 
 
 class RedisReturnStatus a where
@@ -58,14 +69,45 @@ class RedisReturnPair a where
 -- RedisArgString instances
 --
 instance RedisArgString ByteString where
-    encodeString = id
+    encodeString = encode
+instance RedisEncode ByteString where
+    encode = id
 
 
 ------------------------------------------------------------------------------
 -- RedisArgInt instances
 --
 instance (Integral a) => RedisArgInt a where
-    encodeInt = pack . show . toInteger
+    encodeInt = encode
+instance (Integral a) => RedisEncode a where
+    encode = pack . show . toInteger
+
+
+------------------------------------------------------------------------------
+-- RedisArgDouble instances
+--
+instance RedisArgDouble Double where
+    encodeDouble = encode
+instance RedisEncode Double where
+    encode = pack . show
+
+
+------------------------------------------------------------------------------
+-- RedisArgList instances
+--
+instance (RedisEncode a) => RedisArgList [a] where
+    encodeList = map encode
+
+
+------------------------------------------------------------------------------
+-- RedisArgHash instances
+--
+instance (RedisEncode a, RedisEncode b) => RedisArgHash [(a,b)] where
+    encodeHash []          = []
+    encodeHash ((x,y):xys) = encode x : encode y : encodeHash xys
+
+instance (RedisEncode a, RedisEncode b) => RedisArgHash (Map.Map a b) where
+    encodeHash = encodeHash . Map.assocs
 
 
 ------------------------------------------------------------------------------
@@ -117,7 +159,8 @@ instance (Integral a) => RedisReturnInt a where
     decodeInt (Integer i) = Just $ fromIntegral i
     decodeInt _           = Nothing
 
-    ------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
 -- RedisReturnDouble instances
 --
 instance RedisReturnDouble Double where
@@ -178,7 +221,8 @@ instance (Ord k , RedisReturnKey k, RedisReturnString v) =>
         RedisReturnHash (Map.Map k v) where
     decodeHash = liftM Map.fromList . decodeHash
 
-    ------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
 -- RedisReturnPair instances
 --
 instance (RedisReturnString a, RedisReturnString b) =>

@@ -77,7 +77,7 @@ testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
     set "key" "value"         >>=? Just Ok
     TOD seconds _ <- liftIO getClockTime
-    let expiry = pack . show $ seconds + 1
+    let expiry = seconds + 1
     expireat "key" expiry     >>=? Just True
     expireat "notAkey" expiry >>=? Just False
     ttl "key"                 >>=? Just (1 :: Int)
@@ -152,8 +152,8 @@ testGetType = testCase "getType" $ do
          , (hset "key" "field" "value"   >>=? Just True      , Hash)
          , (lpush "key" ["value"]        >>=? Just (1 :: Int), List)
          , (sadd "key" ["member"]        >>=? Just (1 :: Int), Set)
-         , (zadd "key" [("42","member")
-                       ,("12.3","mem2")] >>=? Just (2 :: Int), ZSet)
+         , (zadd "key" [(42 :: Double,"member" :: ByteString)
+                       ,(12.3,"mem2")] >>=? Just (2 :: Int), ZSet)
          ]
 
 
@@ -320,7 +320,9 @@ testHmget = testCase "hmget" $ do
 
 testHmset :: Test
 testHmset = testCase "hmset" $ do
-    hmset "key" [("f1","v1"), ("f2","v2")] >>=? Just Ok
+    let m :: [(ByteString,ByteString)]
+        m = [("f1","v1"), ("f2","v2")]
+    hmset "key" m >>=? Just Ok
 
 testHset :: Test
 testHset = testCase "hset" $ do

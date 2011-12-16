@@ -128,7 +128,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 
 import Prelude hiding (min,max)
 import Control.Applicative
-import Data.ByteString (ByteString)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Internal
@@ -137,554 +136,554 @@ flushall :: (RedisReturnStatus a)
     => Redis (Maybe a)
 flushall  = decodeStatus <$> sendRequest (["FLUSHALL"] )
 
-hdel :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ field
+hdel :: (RedisArgString key, RedisArgList (f field), RedisArgString field, RedisReturnBool a)
+    => key -- ^ 
+    -> f field -- ^ 
     -> Redis (Maybe a)
-hdel key field = decodeBool <$> sendRequest (["HDEL"] ++ [key] ++ field )
+hdel key field = decodeBool <$> sendRequest (["HDEL"] ++ [encodeString key] ++ encodeList field )
 
-hincrby :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> ByteString -- ^ increment
+hincrby :: (RedisArgString key, RedisArgString field, RedisArgInt increment, RedisReturnInt a)
+    => key -- ^ 
+    -> field -- ^ 
+    -> increment -- ^ 
     -> Redis (Maybe a)
-hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY"] ++ [key] ++ [field] ++ [increment] )
+hincrby key field increment = decodeInt <$> sendRequest (["HINCRBY"] ++ [encodeString key] ++ [encodeString field] ++ [encodeInt increment] )
 
 configResetstat :: (RedisReturnStatus a)
     => Redis (Maybe a)
 configResetstat  = decodeStatus <$> sendRequest (["CONFIG RESETSTAT"] )
 
-del :: (RedisReturnInt a)
-    => [ByteString] -- ^ key
+del :: (RedisArgList (f key), RedisArgString key, RedisReturnInt a)
+    => f key -- ^ 
     -> Redis (Maybe a)
-del key = decodeInt <$> sendRequest (["DEL"] ++ key )
+del key = decodeInt <$> sendRequest (["DEL"] ++ encodeList key )
 
-zrevrank :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+zrevrank :: (RedisArgString key, RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-zrevrank key member = decodeInt <$> sendRequest (["ZREVRANK"] ++ [key] ++ [member] )
+zrevrank key member = decodeInt <$> sendRequest (["ZREVRANK"] ++ [encodeString key] ++ [encodeString member] )
 
-brpoplpush :: (RedisReturnString a)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
-    -> ByteString -- ^ timeout
+brpoplpush :: (RedisArgString source, RedisArgString destination, RedisArgInt timeout, RedisReturnString a)
+    => source -- ^ 
+    -> destination -- ^ 
+    -> timeout -- ^ 
     -> Redis (Maybe a)
-brpoplpush source destination timeout = decodeString <$> sendRequest (["BRPOPLPUSH"] ++ [source] ++ [destination] ++ [timeout] )
+brpoplpush source destination timeout = decodeString <$> sendRequest (["BRPOPLPUSH"] ++ [encodeString source] ++ [encodeString destination] ++ [encodeInt timeout] )
 
-incrby :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ increment
+incrby :: (RedisArgString key, RedisArgInt increment, RedisReturnInt a)
+    => key -- ^ 
+    -> increment -- ^ 
     -> Redis (Maybe a)
-incrby key increment = decodeInt <$> sendRequest (["INCRBY"] ++ [key] ++ [increment] )
+incrby key increment = decodeInt <$> sendRequest (["INCRBY"] ++ [encodeString key] ++ [encodeInt increment] )
 
-rpop :: (RedisReturnString a)
-    => ByteString -- ^ key
+rpop :: (RedisArgString key, RedisReturnString a)
+    => key -- ^ 
     -> Redis (Maybe a)
-rpop key = decodeString <$> sendRequest (["RPOP"] ++ [key] )
+rpop key = decodeString <$> sendRequest (["RPOP"] ++ [encodeString key] )
 
-setrange :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ offset
-    -> ByteString -- ^ value
+setrange :: (RedisArgString key, RedisArgInt offset, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> offset -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-setrange key offset value = decodeInt <$> sendRequest (["SETRANGE"] ++ [key] ++ [offset] ++ [value] )
+setrange key offset value = decodeInt <$> sendRequest (["SETRANGE"] ++ [encodeString key] ++ [encodeInt offset] ++ [encodeString value] )
 
-setbit :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ offset
-    -> ByteString -- ^ value
+setbit :: (RedisArgString key, RedisArgInt offset, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> offset -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-setbit key offset value = decodeInt <$> sendRequest (["SETBIT"] ++ [key] ++ [offset] ++ [value] )
+setbit key offset value = decodeInt <$> sendRequest (["SETBIT"] ++ [encodeString key] ++ [encodeInt offset] ++ [encodeString value] )
 
 save :: (RedisReturnStatus a)
     => Redis (Maybe a)
 save  = decodeStatus <$> sendRequest (["SAVE"] )
 
-echo :: (RedisReturnString a)
-    => ByteString -- ^ message
+echo :: (RedisArgString message, RedisReturnString a)
+    => message -- ^ 
     -> Redis (Maybe a)
-echo message = decodeString <$> sendRequest (["ECHO"] ++ [message] )
+echo message = decodeString <$> sendRequest (["ECHO"] ++ [encodeString message] )
 
-blpop :: (RedisReturnPair a)
-    => [ByteString] -- ^ key
-    -> ByteString -- ^ timeout
+blpop :: (RedisArgList (f key), RedisArgString key, RedisArgInt timeout, RedisReturnPair a)
+    => f key -- ^ 
+    -> timeout -- ^ 
     -> Redis (Maybe a)
-blpop key timeout = decodePair <$> sendRequest (["BLPOP"] ++ key ++ [timeout] )
+blpop key timeout = decodePair <$> sendRequest (["BLPOP"] ++ encodeList key ++ [encodeInt timeout] )
 
-sdiffstore :: (RedisReturnInt a)
-    => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+sdiffstore :: (RedisArgString destination, RedisArgList (f key), RedisArgString key, RedisReturnInt a)
+    => destination -- ^ 
+    -> f key -- ^ 
     -> Redis (Maybe a)
-sdiffstore destination key = decodeInt <$> sendRequest (["SDIFFSTORE"] ++ [destination] ++ key )
+sdiffstore destination key = decodeInt <$> sendRequest (["SDIFFSTORE"] ++ [encodeString destination] ++ encodeList key )
 
-move :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ db
+move :: (RedisArgString key, RedisArgInt db, RedisReturnBool a)
+    => key -- ^ 
+    -> db -- ^ 
     -> Redis (Maybe a)
-move key db = decodeBool <$> sendRequest (["MOVE"] ++ [key] ++ [db] )
+move key db = decodeBool <$> sendRequest (["MOVE"] ++ [encodeString key] ++ [encodeInt db] )
 
-getrange :: (RedisReturnString a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ start
-    -> ByteString -- ^ end
+getrange :: (RedisArgString key, RedisArgInt start, RedisArgInt end, RedisReturnString a)
+    => key -- ^ 
+    -> start -- ^ 
+    -> end -- ^ 
     -> Redis (Maybe a)
-getrange key start end = decodeString <$> sendRequest (["GETRANGE"] ++ [key] ++ [start] ++ [end] )
+getrange key start end = decodeString <$> sendRequest (["GETRANGE"] ++ [encodeString key] ++ [encodeInt start] ++ [encodeInt end] )
 
-srem :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+srem :: (RedisArgString key, RedisArgList (f member), RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> f member -- ^ 
     -> Redis (Maybe a)
-srem key member = decodeInt <$> sendRequest (["SREM"] ++ [key] ++ member )
+srem key member = decodeInt <$> sendRequest (["SREM"] ++ [encodeString key] ++ encodeList member )
 
-getbit :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ offset
+getbit :: (RedisArgString key, RedisArgInt offset, RedisReturnInt a)
+    => key -- ^ 
+    -> offset -- ^ 
     -> Redis (Maybe a)
-getbit key offset = decodeInt <$> sendRequest (["GETBIT"] ++ [key] ++ [offset] )
+getbit key offset = decodeInt <$> sendRequest (["GETBIT"] ++ [encodeString key] ++ [encodeInt offset] )
 
-zcount :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ min
-    -> ByteString -- ^ max
+zcount :: (RedisArgString key, RedisArgDouble min, RedisArgDouble max, RedisReturnInt a)
+    => key -- ^ 
+    -> min -- ^ 
+    -> max -- ^ 
     -> Redis (Maybe a)
-zcount key min max = decodeInt <$> sendRequest (["ZCOUNT"] ++ [key] ++ [min] ++ [max] )
+zcount key min max = decodeInt <$> sendRequest (["ZCOUNT"] ++ [encodeString key] ++ [encodeDouble min] ++ [encodeDouble max] )
 
 quit :: (RedisReturnStatus a)
     => Redis (Maybe a)
 quit  = decodeStatus <$> sendRequest (["QUIT"] )
 
-msetnx :: (RedisReturnBool a)
-    => [(ByteString,ByteString)] -- ^ keyValue
+msetnx :: (RedisArgHash (f key value), RedisArgString key, RedisArgString value, RedisReturnBool a)
+    => f key value -- ^ 
     -> Redis (Maybe a)
-msetnx keyValue = decodeBool <$> sendRequest (["MSETNX"] ++ flattenPairs keyValue )
+msetnx keyValue = decodeBool <$> sendRequest (["MSETNX"] ++ encodeHash keyValue )
 
-sismember :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+sismember :: (RedisArgString key, RedisArgString member, RedisReturnBool a)
+    => key -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-sismember key member = decodeBool <$> sendRequest (["SISMEMBER"] ++ [key] ++ [member] )
+sismember key member = decodeBool <$> sendRequest (["SISMEMBER"] ++ [encodeString key] ++ [encodeString member] )
 
 bgrewriteaof :: (RedisReturnStatus a)
     => Redis (Maybe a)
 bgrewriteaof  = decodeStatus <$> sendRequest (["BGREWRITEAOF"] )
 
-hmset :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> [(ByteString,ByteString)] -- ^ fieldValue
+hmset :: (RedisArgString key, RedisArgHash (f field value), RedisArgString field, RedisArgString value, RedisReturnStatus a)
+    => key -- ^ 
+    -> f field value -- ^ 
     -> Redis (Maybe a)
-hmset key fieldValue = decodeStatus <$> sendRequest (["HMSET"] ++ [key] ++ flattenPairs fieldValue )
+hmset key fieldValue = decodeStatus <$> sendRequest (["HMSET"] ++ [encodeString key] ++ encodeHash fieldValue )
 
-scard :: (RedisReturnInt a)
-    => ByteString -- ^ key
+scard :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-scard key = decodeInt <$> sendRequest (["SCARD"] ++ [key] )
+scard key = decodeInt <$> sendRequest (["SCARD"] ++ [encodeString key] )
 
-zincrby :: (RedisReturnDouble a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ increment
-    -> ByteString -- ^ member
+zincrby :: (RedisArgString key, RedisArgInt increment, RedisArgString member, RedisReturnDouble a)
+    => key -- ^ 
+    -> increment -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-zincrby key increment member = decodeDouble <$> sendRequest (["ZINCRBY"] ++ [key] ++ [increment] ++ [member] )
+zincrby key increment member = decodeDouble <$> sendRequest (["ZINCRBY"] ++ [encodeString key] ++ [encodeInt increment] ++ [encodeString member] )
 
-sinter :: (RedisReturnSet a)
-    => [ByteString] -- ^ key
+sinter :: (RedisArgList (f key), RedisArgString key, RedisReturnSet a)
+    => f key -- ^ 
     -> Redis (Maybe a)
-sinter key = decodeSet <$> sendRequest (["SINTER"] ++ key )
+sinter key = decodeSet <$> sendRequest (["SINTER"] ++ encodeList key )
 
-mset :: (RedisReturnStatus a)
-    => [(ByteString,ByteString)] -- ^ keyValue
+mset :: (RedisArgHash (f key value), RedisArgString key, RedisArgString value, RedisReturnStatus a)
+    => f key value -- ^ 
     -> Redis (Maybe a)
-mset keyValue = decodeStatus <$> sendRequest (["MSET"] ++ flattenPairs keyValue )
+mset keyValue = decodeStatus <$> sendRequest (["MSET"] ++ encodeHash keyValue )
 
-rpoplpush :: (RedisReturnString a)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
+rpoplpush :: (RedisArgString source, RedisArgString destination, RedisReturnString a)
+    => source -- ^ 
+    -> destination -- ^ 
     -> Redis (Maybe a)
-rpoplpush source destination = decodeString <$> sendRequest (["RPOPLPUSH"] ++ [source] ++ [destination] )
+rpoplpush source destination = decodeString <$> sendRequest (["RPOPLPUSH"] ++ [encodeString source] ++ [encodeString destination] )
 
-hlen :: (RedisReturnInt a)
-    => ByteString -- ^ key
+hlen :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-hlen key = decodeInt <$> sendRequest (["HLEN"] ++ [key] )
+hlen key = decodeInt <$> sendRequest (["HLEN"] ++ [encodeString key] )
 
-setex :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ seconds
-    -> ByteString -- ^ value
+setex :: (RedisArgString key, RedisArgInt seconds, RedisArgString value, RedisReturnStatus a)
+    => key -- ^ 
+    -> seconds -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-setex key seconds value = decodeStatus <$> sendRequest (["SETEX"] ++ [key] ++ [seconds] ++ [value] )
+setex key seconds value = decodeStatus <$> sendRequest (["SETEX"] ++ [encodeString key] ++ [encodeInt seconds] ++ [encodeString value] )
 
-sunionstore :: (RedisReturnInt a)
-    => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+sunionstore :: (RedisArgString destination, RedisArgList (f key), RedisArgString key, RedisReturnInt a)
+    => destination -- ^ 
+    -> f key -- ^ 
     -> Redis (Maybe a)
-sunionstore destination key = decodeInt <$> sendRequest (["SUNIONSTORE"] ++ [destination] ++ key )
+sunionstore destination key = decodeInt <$> sendRequest (["SUNIONSTORE"] ++ [encodeString destination] ++ encodeList key )
 
-brpop :: (RedisReturnPair a)
-    => [ByteString] -- ^ key
-    -> ByteString -- ^ timeout
+brpop :: (RedisArgList (f key), RedisArgString key, RedisArgInt timeout, RedisReturnPair a)
+    => f key -- ^ 
+    -> timeout -- ^ 
     -> Redis (Maybe a)
-brpop key timeout = decodePair <$> sendRequest (["BRPOP"] ++ key ++ [timeout] )
+brpop key timeout = decodePair <$> sendRequest (["BRPOP"] ++ encodeList key ++ [encodeInt timeout] )
 
-hgetall :: (RedisReturnHash a)
-    => ByteString -- ^ key
+hgetall :: (RedisArgString key, RedisReturnHash a)
+    => key -- ^ 
     -> Redis (Maybe a)
-hgetall key = decodeHash <$> sendRequest (["HGETALL"] ++ [key] )
+hgetall key = decodeHash <$> sendRequest (["HGETALL"] ++ [encodeString key] )
 
 dbsize :: (RedisReturnInt a)
     => Redis (Maybe a)
 dbsize  = decodeInt <$> sendRequest (["DBSIZE"] )
 
-lpop :: (RedisReturnString a)
-    => ByteString -- ^ key
+lpop :: (RedisArgString key, RedisReturnString a)
+    => key -- ^ 
     -> Redis (Maybe a)
-lpop key = decodeString <$> sendRequest (["LPOP"] ++ [key] )
+lpop key = decodeString <$> sendRequest (["LPOP"] ++ [encodeString key] )
 
-hmget :: (RedisReturnList a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ field
+hmget :: (RedisArgString key, RedisArgList (f field), RedisArgString field, RedisReturnList a)
+    => key -- ^ 
+    -> f field -- ^ 
     -> Redis (Maybe a)
-hmget key field = decodeList <$> sendRequest (["HMGET"] ++ [key] ++ field )
+hmget key field = decodeList <$> sendRequest (["HMGET"] ++ [encodeString key] ++ encodeList field )
 
-lrange :: (RedisReturnList a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ start
-    -> ByteString -- ^ stop
+lrange :: (RedisArgString key, RedisArgInt start, RedisArgInt stop, RedisReturnList a)
+    => key -- ^ 
+    -> start -- ^ 
+    -> stop -- ^ 
     -> Redis (Maybe a)
-lrange key start stop = decodeList <$> sendRequest (["LRANGE"] ++ [key] ++ [start] ++ [stop] )
+lrange key start stop = decodeList <$> sendRequest (["LRANGE"] ++ [encodeString key] ++ [encodeInt start] ++ [encodeInt stop] )
 
-expire :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ seconds
+expire :: (RedisArgString key, RedisArgInt seconds, RedisReturnBool a)
+    => key -- ^ 
+    -> seconds -- ^ 
     -> Redis (Maybe a)
-expire key seconds = decodeBool <$> sendRequest (["EXPIRE"] ++ [key] ++ [seconds] )
+expire key seconds = decodeBool <$> sendRequest (["EXPIRE"] ++ [encodeString key] ++ [encodeInt seconds] )
 
 lastsave :: (RedisReturnInt a)
     => Redis (Maybe a)
 lastsave  = decodeInt <$> sendRequest (["LASTSAVE"] )
 
-llen :: (RedisReturnInt a)
-    => ByteString -- ^ key
+llen :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-llen key = decodeInt <$> sendRequest (["LLEN"] ++ [key] )
+llen key = decodeInt <$> sendRequest (["LLEN"] ++ [encodeString key] )
 
-decrby :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ decrement
+decrby :: (RedisArgString key, RedisArgInt decrement, RedisReturnInt a)
+    => key -- ^ 
+    -> decrement -- ^ 
     -> Redis (Maybe a)
-decrby key decrement = decodeInt <$> sendRequest (["DECRBY"] ++ [key] ++ [decrement] )
+decrby key decrement = decodeInt <$> sendRequest (["DECRBY"] ++ [encodeString key] ++ [encodeInt decrement] )
 
-mget :: (RedisReturnList a)
-    => [ByteString] -- ^ key
+mget :: (RedisArgList (f key), RedisArgString key, RedisReturnList a)
+    => f key -- ^ 
     -> Redis (Maybe a)
-mget key = decodeList <$> sendRequest (["MGET"] ++ key )
+mget key = decodeList <$> sendRequest (["MGET"] ++ encodeList key )
 
-zadd :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [(ByteString,ByteString)] -- ^ scoreMember
+zadd :: (RedisArgString key, RedisArgHash (f score member), RedisArgDouble score, RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> f score member -- ^ 
     -> Redis (Maybe a)
-zadd key scoreMember = decodeInt <$> sendRequest (["ZADD"] ++ [key] ++ flattenPairs scoreMember )
+zadd key scoreMember = decodeInt <$> sendRequest (["ZADD"] ++ [encodeString key] ++ encodeHash scoreMember )
 
-keys :: (RedisReturnList a)
-    => ByteString -- ^ pattern
+keys :: (RedisArgString pattern, RedisReturnList a)
+    => pattern -- ^ 
     -> Redis (Maybe a)
-keys pattern = decodeList <$> sendRequest (["KEYS"] ++ [pattern] )
+keys pattern = decodeList <$> sendRequest (["KEYS"] ++ [encodeString pattern] )
 
 bgsave :: (RedisReturnStatus a)
     => Redis (Maybe a)
 bgsave  = decodeStatus <$> sendRequest (["BGSAVE"] )
 
-slaveof :: (RedisReturnStatus a)
-    => ByteString -- ^ host
-    -> ByteString -- ^ port
+slaveof :: (RedisArgString host, RedisArgString port, RedisReturnStatus a)
+    => host -- ^ 
+    -> port -- ^ 
     -> Redis (Maybe a)
-slaveof host port = decodeStatus <$> sendRequest (["SLAVEOF"] ++ [host] ++ [port] )
+slaveof host port = decodeStatus <$> sendRequest (["SLAVEOF"] ++ [encodeString host] ++ [encodeString port] )
 
-getset :: (RedisReturnString a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+getset :: (RedisArgString key, RedisArgString value, RedisReturnString a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-getset key value = decodeString <$> sendRequest (["GETSET"] ++ [key] ++ [value] )
+getset key value = decodeString <$> sendRequest (["GETSET"] ++ [encodeString key] ++ [encodeString value] )
 
-rpushx :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+rpushx :: (RedisArgString key, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-rpushx key value = decodeInt <$> sendRequest (["RPUSHX"] ++ [key] ++ [value] )
+rpushx key value = decodeInt <$> sendRequest (["RPUSHX"] ++ [encodeString key] ++ [encodeString value] )
 
-setnx :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+setnx :: (RedisArgString key, RedisArgString value, RedisReturnBool a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-setnx key value = decodeBool <$> sendRequest (["SETNX"] ++ [key] ++ [value] )
+setnx key value = decodeBool <$> sendRequest (["SETNX"] ++ [encodeString key] ++ [encodeString value] )
 
-zrank :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+zrank :: (RedisArgString key, RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-zrank key member = decodeInt <$> sendRequest (["ZRANK"] ++ [key] ++ [member] )
+zrank key member = decodeInt <$> sendRequest (["ZRANK"] ++ [encodeString key] ++ [encodeString member] )
 
-zremrangebyscore :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ min
-    -> ByteString -- ^ max
+zremrangebyscore :: (RedisArgString key, RedisArgDouble min, RedisArgDouble max, RedisReturnInt a)
+    => key -- ^ 
+    -> min -- ^ 
+    -> max -- ^ 
     -> Redis (Maybe a)
-zremrangebyscore key min max = decodeInt <$> sendRequest (["ZREMRANGEBYSCORE"] ++ [key] ++ [min] ++ [max] )
+zremrangebyscore key min max = decodeInt <$> sendRequest (["ZREMRANGEBYSCORE"] ++ [encodeString key] ++ [encodeDouble min] ++ [encodeDouble max] )
 
-ttl :: (RedisReturnInt a)
-    => ByteString -- ^ key
+ttl :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-ttl key = decodeInt <$> sendRequest (["TTL"] ++ [key] )
+ttl key = decodeInt <$> sendRequest (["TTL"] ++ [encodeString key] )
 
-hkeys :: (RedisReturnSet a)
-    => ByteString -- ^ key
+hkeys :: (RedisArgString key, RedisReturnSet a)
+    => key -- ^ 
     -> Redis (Maybe a)
-hkeys key = decodeSet <$> sendRequest (["HKEYS"] ++ [key] )
+hkeys key = decodeSet <$> sendRequest (["HKEYS"] ++ [encodeString key] )
 
-rpush :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ value
+rpush :: (RedisArgString key, RedisArgList (f value), RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> f value -- ^ 
     -> Redis (Maybe a)
-rpush key value = decodeInt <$> sendRequest (["RPUSH"] ++ [key] ++ value )
+rpush key value = decodeInt <$> sendRequest (["RPUSH"] ++ [encodeString key] ++ encodeList value )
 
 randomkey :: (RedisReturnKey a)
     => Redis (Maybe a)
 randomkey  = decodeKey <$> sendRequest (["RANDOMKEY"] )
 
-spop :: (RedisReturnString a)
-    => ByteString -- ^ key
+spop :: (RedisArgString key, RedisReturnString a)
+    => key -- ^ 
     -> Redis (Maybe a)
-spop key = decodeString <$> sendRequest (["SPOP"] ++ [key] )
+spop key = decodeString <$> sendRequest (["SPOP"] ++ [encodeString key] )
 
-hsetnx :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> ByteString -- ^ value
+hsetnx :: (RedisArgString key, RedisArgString field, RedisArgString value, RedisReturnBool a)
+    => key -- ^ 
+    -> field -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-hsetnx key field value = decodeBool <$> sendRequest (["HSETNX"] ++ [key] ++ [field] ++ [value] )
+hsetnx key field value = decodeBool <$> sendRequest (["HSETNX"] ++ [encodeString key] ++ [encodeString field] ++ [encodeString value] )
 
-configGet :: (RedisReturnHash a)
-    => ByteString -- ^ parameter
+configGet :: (RedisArgString parameter, RedisReturnHash a)
+    => parameter -- ^ 
     -> Redis (Maybe a)
-configGet parameter = decodeHash <$> sendRequest (["CONFIG GET"] ++ [parameter] )
+configGet parameter = decodeHash <$> sendRequest (["CONFIG GET"] ++ [encodeString parameter] )
 
-hvals :: (RedisReturnSet a)
-    => ByteString -- ^ key
+hvals :: (RedisArgString key, RedisReturnSet a)
+    => key -- ^ 
     -> Redis (Maybe a)
-hvals key = decodeSet <$> sendRequest (["HVALS"] ++ [key] )
+hvals key = decodeSet <$> sendRequest (["HVALS"] ++ [encodeString key] )
 
-exists :: (RedisReturnBool a)
-    => ByteString -- ^ key
+exists :: (RedisArgString key, RedisReturnBool a)
+    => key -- ^ 
     -> Redis (Maybe a)
-exists key = decodeBool <$> sendRequest (["EXISTS"] ++ [key] )
+exists key = decodeBool <$> sendRequest (["EXISTS"] ++ [encodeString key] )
 
-sunion :: (RedisReturnSet a)
-    => [ByteString] -- ^ key
+sunion :: (RedisArgList (f key), RedisArgString key, RedisReturnSet a)
+    => f key -- ^ 
     -> Redis (Maybe a)
-sunion key = decodeSet <$> sendRequest (["SUNION"] ++ key )
+sunion key = decodeSet <$> sendRequest (["SUNION"] ++ encodeList key )
 
-zrem :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+zrem :: (RedisArgString key, RedisArgList (f member), RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> f member -- ^ 
     -> Redis (Maybe a)
-zrem key member = decodeInt <$> sendRequest (["ZREM"] ++ [key] ++ member )
+zrem key member = decodeInt <$> sendRequest (["ZREM"] ++ [encodeString key] ++ encodeList member )
 
-smembers :: (RedisReturnSet a)
-    => ByteString -- ^ key
+smembers :: (RedisArgString key, RedisReturnSet a)
+    => key -- ^ 
     -> Redis (Maybe a)
-smembers key = decodeSet <$> sendRequest (["SMEMBERS"] ++ [key] )
+smembers key = decodeSet <$> sendRequest (["SMEMBERS"] ++ [encodeString key] )
 
 ping :: (RedisReturnStatus a)
     => Redis (Maybe a)
 ping  = decodeStatus <$> sendRequest (["PING"] )
 
-rename :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ newkey
+rename :: (RedisArgString key, RedisArgString newkey, RedisReturnStatus a)
+    => key -- ^ 
+    -> newkey -- ^ 
     -> Redis (Maybe a)
-rename key newkey = decodeStatus <$> sendRequest (["RENAME"] ++ [key] ++ [newkey] )
+rename key newkey = decodeStatus <$> sendRequest (["RENAME"] ++ [encodeString key] ++ [encodeString newkey] )
 
-decr :: (RedisReturnInt a)
-    => ByteString -- ^ key
+decr :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-decr key = decodeInt <$> sendRequest (["DECR"] ++ [key] )
+decr key = decodeInt <$> sendRequest (["DECR"] ++ [encodeString key] )
 
-select :: (RedisReturnStatus a)
-    => ByteString -- ^ index
+select :: (RedisArgInt index, RedisReturnStatus a)
+    => index -- ^ 
     -> Redis (Maybe a)
-select index = decodeStatus <$> sendRequest (["SELECT"] ++ [index] )
+select index = decodeStatus <$> sendRequest (["SELECT"] ++ [encodeInt index] )
 
-hexists :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
+hexists :: (RedisArgString key, RedisArgString field, RedisReturnBool a)
+    => key -- ^ 
+    -> field -- ^ 
     -> Redis (Maybe a)
-hexists key field = decodeBool <$> sendRequest (["HEXISTS"] ++ [key] ++ [field] )
+hexists key field = decodeBool <$> sendRequest (["HEXISTS"] ++ [encodeString key] ++ [encodeString field] )
 
-auth :: (RedisReturnStatus a)
-    => ByteString -- ^ password
+auth :: (RedisArgString password, RedisReturnStatus a)
+    => password -- ^ 
     -> Redis (Maybe a)
-auth password = decodeStatus <$> sendRequest (["AUTH"] ++ [password] )
+auth password = decodeStatus <$> sendRequest (["AUTH"] ++ [encodeString password] )
 
-sinterstore :: (RedisReturnInt a)
-    => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+sinterstore :: (RedisArgString destination, RedisArgList (f key), RedisArgString key, RedisReturnInt a)
+    => destination -- ^ 
+    -> f key -- ^ 
     -> Redis (Maybe a)
-sinterstore destination key = decodeInt <$> sendRequest (["SINTERSTORE"] ++ [destination] ++ key )
+sinterstore destination key = decodeInt <$> sendRequest (["SINTERSTORE"] ++ [encodeString destination] ++ encodeList key )
 
 shutdown :: (RedisReturnStatus a)
     => Redis (Maybe a)
 shutdown  = decodeStatus <$> sendRequest (["SHUTDOWN"] )
 
-configSet :: (RedisReturnStatus a)
-    => ByteString -- ^ parameter
-    -> ByteString -- ^ value
+configSet :: (RedisArgString parameter, RedisArgString value, RedisReturnStatus a)
+    => parameter -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-configSet parameter value = decodeStatus <$> sendRequest (["CONFIG SET"] ++ [parameter] ++ [value] )
+configSet parameter value = decodeStatus <$> sendRequest (["CONFIG SET"] ++ [encodeString parameter] ++ [encodeString value] )
 
-renamenx :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ newkey
+renamenx :: (RedisArgString key, RedisArgString newkey, RedisReturnBool a)
+    => key -- ^ 
+    -> newkey -- ^ 
     -> Redis (Maybe a)
-renamenx key newkey = decodeBool <$> sendRequest (["RENAMENX"] ++ [key] ++ [newkey] )
+renamenx key newkey = decodeBool <$> sendRequest (["RENAMENX"] ++ [encodeString key] ++ [encodeString newkey] )
 
-expireat :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ timestamp
+expireat :: (RedisArgString key, RedisArgInt timestamp, RedisReturnBool a)
+    => key -- ^ 
+    -> timestamp -- ^ 
     -> Redis (Maybe a)
-expireat key timestamp = decodeBool <$> sendRequest (["EXPIREAT"] ++ [key] ++ [timestamp] )
+expireat key timestamp = decodeBool <$> sendRequest (["EXPIREAT"] ++ [encodeString key] ++ [encodeInt timestamp] )
 
-get :: (RedisReturnString a)
-    => ByteString -- ^ key
+get :: (RedisArgString key, RedisReturnString a)
+    => key -- ^ 
     -> Redis (Maybe a)
-get key = decodeString <$> sendRequest (["GET"] ++ [key] )
+get key = decodeString <$> sendRequest (["GET"] ++ [encodeString key] )
 
-lrem :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ count
-    -> ByteString -- ^ value
+lrem :: (RedisArgString key, RedisArgInt count, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> count -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-lrem key count value = decodeInt <$> sendRequest (["LREM"] ++ [key] ++ [count] ++ [value] )
+lrem key count value = decodeInt <$> sendRequest (["LREM"] ++ [encodeString key] ++ [encodeInt count] ++ [encodeString value] )
 
-incr :: (RedisReturnInt a)
-    => ByteString -- ^ key
+incr :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-incr key = decodeInt <$> sendRequest (["INCR"] ++ [key] )
+incr key = decodeInt <$> sendRequest (["INCR"] ++ [encodeString key] )
 
-zcard :: (RedisReturnInt a)
-    => ByteString -- ^ key
+zcard :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-zcard key = decodeInt <$> sendRequest (["ZCARD"] ++ [key] )
+zcard key = decodeInt <$> sendRequest (["ZCARD"] ++ [encodeString key] )
 
-ltrim :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ start
-    -> ByteString -- ^ stop
+ltrim :: (RedisArgString key, RedisArgInt start, RedisArgInt stop, RedisReturnStatus a)
+    => key -- ^ 
+    -> start -- ^ 
+    -> stop -- ^ 
     -> Redis (Maybe a)
-ltrim key start stop = decodeStatus <$> sendRequest (["LTRIM"] ++ [key] ++ [start] ++ [stop] )
+ltrim key start stop = decodeStatus <$> sendRequest (["LTRIM"] ++ [encodeString key] ++ [encodeInt start] ++ [encodeInt stop] )
 
-append :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+append :: (RedisArgString key, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-append key value = decodeInt <$> sendRequest (["APPEND"] ++ [key] ++ [value] )
+append key value = decodeInt <$> sendRequest (["APPEND"] ++ [encodeString key] ++ [encodeString value] )
 
-lset :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ index
-    -> ByteString -- ^ value
+lset :: (RedisArgString key, RedisArgInt index, RedisArgString value, RedisReturnStatus a)
+    => key -- ^ 
+    -> index -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-lset key index value = decodeStatus <$> sendRequest (["LSET"] ++ [key] ++ [index] ++ [value] )
+lset key index value = decodeStatus <$> sendRequest (["LSET"] ++ [encodeString key] ++ [encodeInt index] ++ [encodeString value] )
 
 info :: (RedisReturnString a)
     => Redis (Maybe a)
 info  = decodeString <$> sendRequest (["INFO"] )
 
-hget :: (RedisReturnString a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
+hget :: (RedisArgString key, RedisArgString field, RedisReturnString a)
+    => key -- ^ 
+    -> field -- ^ 
     -> Redis (Maybe a)
-hget key field = decodeString <$> sendRequest (["HGET"] ++ [key] ++ [field] )
+hget key field = decodeString <$> sendRequest (["HGET"] ++ [encodeString key] ++ [encodeString field] )
 
-sdiff :: (RedisReturnSet a)
-    => [ByteString] -- ^ key
+sdiff :: (RedisArgList (f key), RedisArgString key, RedisReturnSet a)
+    => f key -- ^ 
     -> Redis (Maybe a)
-sdiff key = decodeSet <$> sendRequest (["SDIFF"] ++ key )
+sdiff key = decodeSet <$> sendRequest (["SDIFF"] ++ encodeList key )
 
-smove :: (RedisReturnBool a)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
-    -> ByteString -- ^ member
+smove :: (RedisArgString source, RedisArgString destination, RedisArgString member, RedisReturnBool a)
+    => source -- ^ 
+    -> destination -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-smove source destination member = decodeBool <$> sendRequest (["SMOVE"] ++ [source] ++ [destination] ++ [member] )
+smove source destination member = decodeBool <$> sendRequest (["SMOVE"] ++ [encodeString source] ++ [encodeString destination] ++ [encodeString member] )
 
 flushdb :: (RedisReturnStatus a)
     => Redis (Maybe a)
 flushdb  = decodeStatus <$> sendRequest (["FLUSHDB"] )
 
-set :: (RedisReturnStatus a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+set :: (RedisArgString key, RedisArgString value, RedisReturnStatus a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-set key value = decodeStatus <$> sendRequest (["SET"] ++ [key] ++ [value] )
+set key value = decodeStatus <$> sendRequest (["SET"] ++ [encodeString key] ++ [encodeString value] )
 
-zremrangebyrank :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ start
-    -> ByteString -- ^ stop
+zremrangebyrank :: (RedisArgString key, RedisArgInt start, RedisArgInt stop, RedisReturnInt a)
+    => key -- ^ 
+    -> start -- ^ 
+    -> stop -- ^ 
     -> Redis (Maybe a)
-zremrangebyrank key start stop = decodeInt <$> sendRequest (["ZREMRANGEBYRANK"] ++ [key] ++ [start] ++ [stop] )
+zremrangebyrank key start stop = decodeInt <$> sendRequest (["ZREMRANGEBYRANK"] ++ [encodeString key] ++ [encodeInt start] ++ [encodeInt stop] )
 
-sadd :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+sadd :: (RedisArgString key, RedisArgList (f member), RedisArgString member, RedisReturnInt a)
+    => key -- ^ 
+    -> f member -- ^ 
     -> Redis (Maybe a)
-sadd key member = decodeInt <$> sendRequest (["SADD"] ++ [key] ++ member )
+sadd key member = decodeInt <$> sendRequest (["SADD"] ++ [encodeString key] ++ encodeList member )
 
-lpush :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ value
+lpush :: (RedisArgString key, RedisArgList (f value), RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> f value -- ^ 
     -> Redis (Maybe a)
-lpush key value = decodeInt <$> sendRequest (["LPUSH"] ++ [key] ++ value )
+lpush key value = decodeInt <$> sendRequest (["LPUSH"] ++ [encodeString key] ++ encodeList value )
 
-lindex :: (RedisReturnString a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ index
+lindex :: (RedisArgString key, RedisArgInt index, RedisReturnString a)
+    => key -- ^ 
+    -> index -- ^ 
     -> Redis (Maybe a)
-lindex key index = decodeString <$> sendRequest (["LINDEX"] ++ [key] ++ [index] )
+lindex key index = decodeString <$> sendRequest (["LINDEX"] ++ [encodeString key] ++ [encodeInt index] )
 
-zscore :: (RedisReturnDouble a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+zscore :: (RedisArgString key, RedisArgString member, RedisReturnDouble a)
+    => key -- ^ 
+    -> member -- ^ 
     -> Redis (Maybe a)
-zscore key member = decodeDouble <$> sendRequest (["ZSCORE"] ++ [key] ++ [member] )
+zscore key member = decodeDouble <$> sendRequest (["ZSCORE"] ++ [encodeString key] ++ [encodeString member] )
 
-strlen :: (RedisReturnInt a)
-    => ByteString -- ^ key
+strlen :: (RedisArgString key, RedisReturnInt a)
+    => key -- ^ 
     -> Redis (Maybe a)
-strlen key = decodeInt <$> sendRequest (["STRLEN"] ++ [key] )
+strlen key = decodeInt <$> sendRequest (["STRLEN"] ++ [encodeString key] )
 
-hset :: (RedisReturnBool a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> ByteString -- ^ value
+hset :: (RedisArgString key, RedisArgString field, RedisArgString value, RedisReturnBool a)
+    => key -- ^ 
+    -> field -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-hset key field value = decodeBool <$> sendRequest (["HSET"] ++ [key] ++ [field] ++ [value] )
+hset key field value = decodeBool <$> sendRequest (["HSET"] ++ [encodeString key] ++ [encodeString field] ++ [encodeString value] )
 
-lpushx :: (RedisReturnInt a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+lpushx :: (RedisArgString key, RedisArgString value, RedisReturnInt a)
+    => key -- ^ 
+    -> value -- ^ 
     -> Redis (Maybe a)
-lpushx key value = decodeInt <$> sendRequest (["LPUSHX"] ++ [key] ++ [value] )
+lpushx key value = decodeInt <$> sendRequest (["LPUSHX"] ++ [encodeString key] ++ [encodeString value] )
 
-srandmember :: (RedisReturnString a)
-    => ByteString -- ^ key
+srandmember :: (RedisArgString key, RedisReturnString a)
+    => key -- ^ 
     -> Redis (Maybe a)
-srandmember key = decodeString <$> sendRequest (["SRANDMEMBER"] ++ [key] )
+srandmember key = decodeString <$> sendRequest (["SRANDMEMBER"] ++ [encodeString key] )
 
-persist :: (RedisReturnBool a)
-    => ByteString -- ^ key
+persist :: (RedisArgString key, RedisReturnBool a)
+    => key -- ^ 
     -> Redis (Maybe a)
-persist key = decodeBool <$> sendRequest (["PERSIST"] ++ [key] )
+persist key = decodeBool <$> sendRequest (["PERSIST"] ++ [encodeString key] )
 
 
