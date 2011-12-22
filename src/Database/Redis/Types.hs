@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances,
+        TypeSynonymInstances #-}
 
 module Database.Redis.Types where
 
