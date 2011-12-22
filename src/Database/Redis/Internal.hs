@@ -1,25 +1,19 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Internal (
     module Network,
-    ConnPool,
-    newConnPool,
-    disconnectConnPool,
-    Redis(),
-    runRedis,
+    RedisConn(), connect, disconnect,
+    Redis(),runRedis,
     send,
     recv,
     sendRequest
 ) where
 
 import Control.Applicative
-import Control.Exception
 import Control.Monad.Reader
-import Control.Monad.State
 import Control.Concurrent
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Network (HostName, PortID(..), withSocketsDo)
-import qualified Network (connectTo)
+import Network (HostName, PortID(..), withSocketsDo, connectTo)
 import System.IO (Handle, hFlush, hClose)
 
 import Database.Redis.Reply
@@ -27,64 +21,40 @@ import Database.Redis.Request
 
 
 ------------------------------------------------------------------------------
--- Connection & Connection Pool
+-- Connection
 --
-data Conn = Connected Handle [Reply]
-          | Disconnected
+data RedisConn = Conn { connHandle :: Handle, connReplies :: MVar [Reply] }
 
-data ConnPool = ConnPool Int HostName PortID (Chan Conn)
+connect :: HostName -> PortID -> IO RedisConn
+connect host port = do
+    h       <- connectTo host port
+    replies <- parseReply <$> LB.hGetContents h
+    Conn h <$> newMVar replies
 
-
-newConnPool :: Int -> HostName -> PortID -> IO ConnPool
-newConnPool size host port = do
-    conns <- newChan
-    writeList2Chan conns $ replicate size Disconnected
-    return $ ConnPool size host port conns
-
-disconnectConnPool :: ConnPool -> IO ()
-disconnectConnPool (ConnPool size _ _ conns) =
-    replicateM_ size $ readChan conns >>= disconnect >>= writeChan conns
-
-connect :: HostName -> PortID -> Conn -> IO Conn
-connect host port Disconnected = do
-    h <- Network.connectTo host port
-    Connected h . parseReply <$> LB.hGetContents h
-connect _ _ c = return c
-
-disconnect :: Conn -> IO Conn
-disconnect (Connected h _) = hClose h >> return Disconnected
-disconnect c               = return c
+disconnect :: RedisConn -> IO ()
+disconnect (Conn h _) = hClose h
 
 
 ------------------------------------------------------------------------------
 -- The Redis Monad
 --
-newtype Redis a = Redis (StateT Conn IO a)
+newtype Redis a = Redis (ReaderT RedisConn IO a)
     deriving (Monad, MonadIO, Functor)
 
-
-runRedis :: ConnPool -> Redis a -> IO a
-runRedis (ConnPool _ host port conns) (Redis r) = do
-    c <- readChan conns >>= connect host port
-    do
-        (a, c') <- runStateT r c
-        writeChan conns c'
-        return a
-      `onException`
-        (disconnect c >>= writeChan conns)
-
+runRedis :: RedisConn -> Redis a -> IO a
+runRedis conn (Redis r) = runReaderT r conn
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    (Connected h _) <- get
-    liftIO $ B.hPut h $ renderRequest req
-    liftIO $ hFlush h
+    h <- asks connHandle
+    liftIO $ do
+        B.hPut h $ renderRequest req
+        hFlush h
 
 recv :: Redis Reply
 recv = Redis $ do
-    (Connected h rs) <- get
-    put $ Connected h (tail rs)
-    return $ head rs
+    replies <- asks connReplies
+    liftIO $ modifyMVar replies $ \(r:rs) -> return (rs,r)
 
 sendRequest :: [B.ByteString] -> Redis Reply
 sendRequest req = send req >> recv

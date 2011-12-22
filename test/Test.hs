@@ -19,11 +19,11 @@ type BS = ByteString
 --
 main :: IO ()
 main = withSocketsDo $ do
-    c <- newConnPool 1 "127.0.0.1" (PortNumber 6379)
+    c <- connect "127.0.0.1" (PortNumber 6379)
     runTestTT $ Test.TestList $ map ($c) tests
-    disconnectConnPool c
+    disconnect c
 
-type Test = ConnPool -> Test.Test
+type Test = RedisConn -> Test.Test
 
 testCase :: String -> Redis () -> Test
 testCase name r conn = name ~:
@@ -471,7 +471,7 @@ testLset = testCase "lset/lrem/ltrim" $ do
 -- Connection
 --
 testsConnection :: [Test]
-testsConnection = [ testAuth, testEcho, testPing, testSelect ]
+testsConnection = [ testEcho, testPing, testSelect ]
 
 testEcho :: Test
 testEcho = testCase "echo" $
