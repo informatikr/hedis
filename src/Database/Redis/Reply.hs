@@ -8,20 +8,19 @@ import qualified Data.Attoparsec.Lazy as P
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 
-
+-- |Low-level representation of replies from the Redis server.
 data Reply = SingleLine S.ByteString
            | Error S.ByteString
            | Integer Integer
            | Bulk (Maybe S.ByteString)
            | MultiBulk (Maybe [Reply])
-           | Disconnect
          deriving (Show)
 
-
+-- |Parse a lazy 'L.ByteString' into a (possibly infinite) list of 'Reply's.
 parseReply :: L.ByteString -> [Reply]
 parseReply input =
     case P.parse reply input of
-        P.Fail _ _ _  -> [Disconnect]
+        P.Fail _ _ _  -> []
         P.Done rest r -> r : parseReply rest
 
 ------------------------------------------------------------------------------

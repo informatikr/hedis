@@ -18,7 +18,7 @@ type BS = ByteString
 -- Main and helpers
 --
 main :: IO ()
-main = withSocketsDo $ do
+main = do
     c <- connect "127.0.0.1" (PortNumber 6379)
     runTestTT $ Test.TestList $ map ($c) tests
     disconnect c

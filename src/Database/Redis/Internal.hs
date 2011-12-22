@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Internal (
-    module Network,
+    HostName,PortID(..),
     RedisConn(), connect, disconnect,
     Redis(),runRedis,
     send,
@@ -13,7 +13,7 @@ import Control.Monad.Reader
 import Control.Concurrent
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Network (HostName, PortID(..), withSocketsDo, connectTo)
+import Network (HostName, PortID(..), connectTo)
 import System.IO (Handle, hFlush, hClose)
 
 import Database.Redis.Reply
@@ -23,14 +23,18 @@ import Database.Redis.Request
 ------------------------------------------------------------------------------
 -- Connection
 --
+
+-- |Connection to a Redis server. Use the 'connect' function to create one.
 data RedisConn = Conn { connHandle :: Handle, connReplies :: MVar [Reply] }
 
+-- |Opens a connection to a Redis server at the given host and port.
 connect :: HostName -> PortID -> IO RedisConn
 connect host port = do
     h       <- connectTo host port
     replies <- parseReply <$> LB.hGetContents h
     Conn h <$> newMVar replies
 
+-- |Close the given connection.
 disconnect :: RedisConn -> IO ()
 disconnect (Conn h _) = hClose h
 
@@ -56,5 +60,6 @@ recv = Redis $ do
     replies <- asks connReplies
     liftIO $ modifyMVar replies $ \(r:rs) -> return (rs,r)
 
+-- |Send a request to the Redis server.
 sendRequest :: [B.ByteString] -> Redis Reply
 sendRequest req = send req >> recv

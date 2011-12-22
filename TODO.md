@@ -9,10 +9,10 @@
     - unordered-containers
     - vector
 - SETBIT argument types: Bool or Int for the bit argument.
-- AUTH when connecting
 
 
 ## Maybe
 
 - Can RedisHash be implemented in term of RedisPair?
 - use pool library by bos for connection pooling
+- AUTH when connecting (User can do this easily, right after connecting)
