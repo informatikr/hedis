@@ -58,7 +58,9 @@ send req = Redis $ do
 recv :: Redis Reply
 recv = Redis $ do
     replies <- asks connReplies
-    liftIO $ modifyMVar replies $ \(r:rs) -> return (rs,r)
+    -- head/tail avoids forcing the ':' constructor, enabling automatic
+    -- pipelining.
+    liftIO $ modifyMVar replies $ \rs -> return (tail rs, head rs)
 
 -- |Send a request to the Redis server.
 sendRequest :: [B.ByteString] -> Redis Reply
