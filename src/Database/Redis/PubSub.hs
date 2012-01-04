@@ -71,17 +71,17 @@ pubSubAction :: B.ByteString -> B.ByteString -> PubSub ()
 pubSubAction cmd chan = tell [[cmd, chan]]
 
 decodeMsg :: Reply -> Message
-decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = fromJust $ do
-    kind <- decodeString r0
+decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = either (error "TODO") id $ do
+    kind <- decode r0
     case kind :: B.ByteString of
-        "message"  -> Message  <$> decodeString r1 <*> decodeString r2
-        "pmessage" -> PMessage <$> decodeString r1
-                                        <*> decodeString r2
-                                        <*> (maybeHead rs >>= decodeString)
+        "message"  -> Message  <$> decode r1 <*> decode r2
+        "pmessage" -> PMessage <$> decode r1
+                                        <*> decode r2
+                                        <*> (maybeHead rs >>= decode)
         -- kind `elem` ["subscribe","unsubscribe","psubscribe","punsubscribe"]
-        _          -> SubscriptionCnt <$> decodeInt r2                                                
+        _          -> SubscriptionCnt <$> decode r2                                                
 decodeMsg r = error $ "not a message: " ++ show r
 
-maybeHead :: [a] -> Maybe a
-maybeHead (x:_) = Just x
-maybeHead _     = Nothing
+maybeHead :: [a] -> Either ResultError a
+maybeHead (x:_) = Right x
+maybeHead _     = Left ResultError

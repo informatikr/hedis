@@ -2,43 +2,42 @@
 
 module Database.Redis.ManualCommands where
 
-import Control.Applicative
 import Data.ByteString
 import Database.Redis.Types
 import Database.Redis.Internal
 
-objectRefcount :: (RedisReturnInt a)
+objectRefcount :: (RedisResult a)
     => ByteString -- ^ key
-    -> Redis (Maybe a)
-objectRefcount key = decodeInt <$> sendRequest ["OBJECT", "refcount", key]
+    -> Redis a
+objectRefcount key = sendRequest ["OBJECT", "refcount", key]
 
-objectIdletime :: (RedisReturnInt a)
+objectIdletime :: (RedisResult a)
     => ByteString -- ^ key
-    -> Redis (Maybe a)
-objectIdletime key = decodeInt <$> sendRequest ["OBJECT", "idletime", key]
+    -> Redis a
+objectIdletime key = sendRequest ["OBJECT", "idletime", key]
 
-objectEncoding :: (RedisReturnString a)
+objectEncoding :: (RedisResult a)
     => ByteString -- ^ key
-    -> Redis (Maybe a)
-objectEncoding key = decodeString <$> sendRequest ["OBJECT", "encoding", key]
+    -> Redis a
+objectEncoding key = sendRequest ["OBJECT", "encoding", key]
 
-linsertBefore :: (RedisReturnInt a)
+linsertBefore :: (RedisResult a)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
-    -> Redis (Maybe a)
+    -> Redis a
 linsertBefore key pivot value =
-    decodeInt <$> sendRequest ["LINSERT", key, "BEFORE", pivot, value]
+    sendRequest ["LINSERT", key, "BEFORE", pivot, value]
 
-linsertAfter :: (RedisReturnInt a)
+linsertAfter :: (RedisResult a)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
-    -> Redis (Maybe a)
+    -> Redis a
 linsertAfter key pivot value =
-        decodeInt <$> sendRequest ["LINSERT", key, "AFTER", pivot, value]
+        sendRequest ["LINSERT", key, "AFTER", pivot, value]
 
-getType :: (RedisReturnStatus a)
+getType :: (RedisResult a)
         => ByteString -- ^ key
-        -> Redis (Maybe a)
-getType key = decodeStatus <$> sendRequest ["TYPE", key]
+        -> Redis a
+getType key = sendRequest ["TYPE", key]

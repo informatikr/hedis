@@ -222,7 +222,6 @@ imprts = mconcat $ flip map moduls (\modul ->
     fromString "import " `mappend` fromString modul `mappend`newline)
   where
     moduls = [ "Prelude hiding (min,max)" -- get rid of name-shadowing warnings
-             , "Control.Applicative"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
              , "Database.Redis.Internal"
@@ -240,17 +239,19 @@ fromCmd cmd@Cmd{..}
     sig = mconcat
             [ fromString name, fromString " :: ("
             , mconcat $ map argTypeClass cmdArgs
-            , fromString "RedisReturn", retType cmd, fromString " a"
+--            , fromString "RedisReturn", retType cmd, fromString " a"
+            , fromString "RedisResult a"
             , fromString ")\n    => "
             , mconcat $ map argumentType cmdArgs
-            , fromString "Redis (Maybe a)"
+--            , fromString "Redis (Maybe a)"
+            , fromString "Redis a"
             ]
     fun = mconcat
             [ fromString name, fromString " "
             , mconcat $ intersperse (fromString " ") (map argumentName cmdArgs)
             , fromString " = "
-            , fromString "decode", retType cmd, fromString " <$> "
-            , fromString "sendRequest ([\""
+--            , fromString "decode", {-retType cmd,-} fromString " <$> "
+           , fromString "sendRequest ([\""
             , mconcat $ map fromString $ intersperse "\",\"" $ words cmdName
             , fromString "\"]"
             , mconcat $ map argumentList cmdArgs
@@ -266,19 +267,19 @@ argumentList a = fromString " ++ " `mappend` go a
   where
     go (Multiple p@(Pair a a')) = mconcat
         [ fromString "concatMap (\\(x,y) -> ["
-        , fromString "encode", translateArgType a, fromString " x"
+        , fromString "encode", {-translateArgType a,-} fromString " x"
         , fromString ","
-        , fromString "encode", translateArgType a', fromString " y"
+        , fromString "encode", {-translateArgType a',-} fromString " y"
         , fromString "])"
         , argumentName p
         ]
     go (Multiple a)             = mconcat
         [ fromString "map encode"
-        , translateArgType a
+--        , translateArgType a
         , fromString " ", argumentName a
         ]
     go a@Arg{..}                = mconcat
-        [ fromString "[encode", translateArgType a
+        [ fromString "[encode" --, translateArgType a
         , fromString " ", argumentName a, fromString "]" ]
 
 argumentName :: Arg -> Builder
@@ -291,7 +292,7 @@ argumentName a = go a
 
 argumentType :: Arg -> Builder
 argumentType a = mconcat [ go a
-                         , fromString " -- ^ " -- , argumentName a
+                         , fromString " -- ^ " --, argumentName a
                          , fromString "\n    -> "
                          ]
   where
@@ -305,7 +306,7 @@ argTypeClass :: Arg -> Builder
 argTypeClass (Multiple (Pair a a')) = argTypeClass a `mappend` argTypeClass a'
 argTypeClass (Multiple a)           = argTypeClass a
 argTypeClass a@Arg{..}              = mconcat
-    [ fromString "RedisArg", translateArgType a, fromString " "
+    [ fromString "RedisArg", {-translateArgType a,-} fromString " "
     , argumentName a, fromString ", "
     ]
 

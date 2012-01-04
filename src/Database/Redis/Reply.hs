@@ -43,7 +43,7 @@ bulk = Bulk <$> do
     len <- '$' `prefixing` signed decimal
     if len < 0
         then return Nothing
-        else Just <$> (P.take len <* crlf)
+        else Just <$> P.take len <* crlf
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do

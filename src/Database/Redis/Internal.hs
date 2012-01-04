@@ -11,6 +11,7 @@ module Database.Redis.Internal (
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Concurrent
+import Control.Exception
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Network (HostName, PortID(..), connectTo)
@@ -18,7 +19,7 @@ import System.IO (Handle, hFlush, hClose)
 
 import Database.Redis.Reply
 import Database.Redis.Request
-
+import Database.Redis.Types
 
 ------------------------------------------------------------------------------
 -- Connection
@@ -63,5 +64,7 @@ recv = Redis $ do
     liftIO $ modifyMVar replies $ \rs -> return (tail rs, head rs)
 
 -- |Send a request to the Redis server.
-sendRequest :: [B.ByteString] -> Redis Reply
-sendRequest req = send req >> recv
+sendRequest :: (RedisResult a) => [B.ByteString] -> Redis a
+sendRequest req = do
+    reply <- send req >> recv
+    either (liftIO . throwIO) return (decode reply)

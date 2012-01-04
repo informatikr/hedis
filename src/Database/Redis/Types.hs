@@ -1,99 +1,74 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances,
-        TypeSynonymInstances #-}
+        TypeSynonymInstances, DeriveDataTypeable #-}
 
 module Database.Redis.Types where
 
 import Control.Applicative
+import Control.Exception
 import Control.Monad
 import Data.ByteString.Char8 (ByteString, unpack, pack)
 import Data.ByteString.Lex.Double (readDouble)
 import Data.Maybe
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Typeable
 import Database.Redis.Reply
 
 
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
 --
-class RedisArgString a where
-    encodeString :: a -> ByteString
+class RedisArg a where
+    encode :: a -> ByteString
 
-class RedisArgInt a where
-    encodeInt :: a -> ByteString
+class RedisResult a where
+    decode :: Reply -> Either ResultError a
 
-class RedisArgDouble a where
-    encodeDouble :: a -> ByteString
+data ResultError = ResultError
+    deriving (Show, Typeable)
 
-
-class RedisReturnStatus a where
-    decodeStatus :: Reply -> Maybe a
-
-class RedisReturnBool a where
-    decodeBool :: Reply -> Maybe a
-
-class RedisReturnInt a where
-    decodeInt :: Reply -> Maybe a
-
-class RedisReturnDouble a where
-    decodeDouble :: Reply -> Maybe a
-
-class RedisReturnKey a where
-    decodeKey :: Reply -> Maybe a
-
-class RedisReturnString a where
-    decodeString :: Reply -> Maybe a
-
-class RedisReturnList a where
-    decodeList :: Reply -> Maybe a
-
-class RedisReturnSet a where
-    decodeSet :: Reply -> Maybe a
-
-class RedisReturnHash a where
-    decodeHash :: Reply -> Maybe a
-
-class RedisReturnPair a where
-    decodePair :: Reply -> Maybe a
-
+instance Exception ResultError
 
 ------------------------------------------------------------------------------
--- RedisArgString instances
+-- RedisArg instances
 --
-instance RedisArgString ByteString where
-    encodeString = id
+instance RedisArg ByteString where
+    encode = id
 
+instance (Integral a) => RedisArg a where
+    encode = pack . show . toInteger
 
-------------------------------------------------------------------------------
--- RedisArgInt instances
---
-instance (Integral a) => RedisArgInt a where
-    encodeInt = pack . show . toInteger
-
+instance RedisArg Double where
+    encode = pack . show
 
 ------------------------------------------------------------------------------
--- RedisArgDouble instances
---
-instance RedisArgDouble Double where
-    encodeDouble = pack . show
-
-
-------------------------------------------------------------------------------
--- RedisReturnStatus instances
+-- RedisResult instances
 --
 data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
-instance RedisReturnStatus ByteString where
-    decodeStatus (SingleLine s) = Just s
-    decodeStatus _              = Nothing
+-- |'decode'ing to 'Maybe' will never throw a 'ResultError'. It is, however,
+--  ambiguous wether the command returned @nil@ or wether decoding failed.
+instance (RedisResult a) => RedisResult (Maybe a) where
+    decode (Bulk Nothing) = Right Nothing
+    decode r              = Right $ either (const Nothing) Just (decode r)
 
-instance RedisReturnStatus String where
-    decodeStatus = liftM unpack . decodeStatus
+instance RedisResult ByteString where
+    decode (SingleLine s)  = Right s
+    decode (Bulk (Just s)) = Right s
+    decode _               = Left ResultError
 
-instance RedisReturnStatus Status where
-    decodeStatus r = do
-        s <- decodeStatus r
+instance (Integral a) => RedisResult a where
+    decode (Integer n) = Right (fromIntegral n)
+    decode _           = Left ResultError
+
+instance RedisResult Double where
+    decode s = maybe (Left ResultError) (Right . fst) . readDouble =<< decode s
+
+instance RedisResult String where
+    decode = liftM unpack . decode
+
+instance RedisResult Status where
+    decode r = do
+        s <- decode r
         return $ case s of
             "OK"     -> Ok
             "PONG"   -> Pong
@@ -105,96 +80,29 @@ instance RedisReturnStatus Status where
             "zset"   -> ZSet
             _        -> error $ "unhandled status-code: " ++ s
 
-
-------------------------------------------------------------------------------
--- RedisReturnBool instances
---
-instance RedisReturnBool Bool where
-    decodeBool (Integer 1) = Just True
-    decodeBool (Integer 0) = Just False
-    decodeBool _           = Nothing
-
-instance (Num a) => (RedisReturnBool a) where
-    decodeBool (Integer 1) = Just 1
-    decodeBool (Integer 0) = Just 0
-    decodeBool _           = Nothing
+instance RedisResult Bool where
+    decode (Integer 1) = Right True
+    decode (Integer 0) = Right False
+    decode _           = Left ResultError
 
 
-------------------------------------------------------------------------------
--- RedisReturnInt instances
---
-instance (Integral a) => RedisReturnInt a where
-    decodeInt (Integer i) = Just $ fromIntegral i
-    decodeInt _           = Nothing
-
-
-------------------------------------------------------------------------------
--- RedisReturnDouble instances
---
-instance RedisReturnDouble Double where
-    decodeDouble s = fst <$> (readDouble =<< decodeString s)
-
-
-------------------------------------------------------------------------------
--- RedisReturnKey instances
---
-instance RedisReturnKey ByteString where
-    decodeKey (Bulk k) = k
-    decodeKey _        = Nothing
-
-
-------------------------------------------------------------------------------
--- RedisReturnString instances
---
-instance RedisReturnString ByteString where
-    decodeString (Bulk v) = v
-    decodeString _        = Nothing
-
-
-------------------------------------------------------------------------------
--- RedisReturnList instances
---
-instance RedisReturnString a => RedisReturnList [Maybe a] where
-    decodeList (MultiBulk (Just rs)) = Just $ map decodeString rs
-    decodeList _                     = Nothing
-
-
-------------------------------------------------------------------------------
--- RedisReturnSet instances
---
-instance (Ord a, RedisReturnString a) => RedisReturnSet (Set.Set a) where
-    decodeSet = liftM Set.fromList . decodeSet
-
-instance (RedisReturnString a) => RedisReturnSet [a] where
-    decodeSet r = catMaybes <$> decodeList r
-
-
-------------------------------------------------------------------------------
--- RedisReturnHash instances
---
-instance (RedisReturnKey k, RedisReturnString v) =>
-        RedisReturnHash [(k,v)] where
-    decodeHash reply = 
-        case reply of
-            (MultiBulk (Just rs)) -> pairs rs
-            _                     -> Nothing
+instance RedisResult a => RedisResult [a] where
+    decode (MultiBulk (Just rs)) = mapM decode rs
+    decode _                     = Left ResultError
+        
+instance (RedisResult k, RedisResult v) => RedisResult [(k,v)] where
+    decode r = case r of
+                (MultiBulk (Just rs)) -> pairs rs
+                _                     -> Left ResultError
       where
-        pairs []         = Just []
-        pairs (_:[])     = Nothing
-        pairs (r1:r2:rs) =
-            let kv = (,) <$> decodeKey r1 <*> decodeString r2
-            in (:) <$> kv <*> pairs rs
+        pairs []         = Right []
+        pairs (_:[])     = Left ResultError
+        pairs (r1:r2:rs) = do
+            k   <- decode r1
+            v   <- decode r2
+            kvs <- pairs rs
+            return $ (k,v) : kvs    
 
-instance (Ord k , RedisReturnKey k, RedisReturnString v) =>
-        RedisReturnHash (Map.Map k v) where
-    decodeHash = liftM Map.fromList . decodeHash
-
-
-------------------------------------------------------------------------------
--- RedisReturnPair instances
---
-instance (RedisReturnString a, RedisReturnString b) =>
-        RedisReturnPair (a,b) where
-    decodePair (MultiBulk (Just [x, y])) =
-        (,) <$> decodeString x <*> decodeString y
-    decodePair _          = Nothing
+instance (RedisResult a, RedisResult b) => RedisResult (a,b) where
+    decode (MultiBulk (Just [x, y])) = (,) <$> decode x <*> decode y
+    decode _                         = Left ResultError

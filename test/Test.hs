@@ -76,8 +76,8 @@ testExpire :: Test
 testExpire = testCase "expire" $ do
     let [k,v,notAKey] = ["key","value","notAKey"] :: [BS]
     set k v          >>=? Just Ok
-    expire k 1       >>=? Just True
-    expire notAKey 1 >>=? Just False
+    expire k (1 :: Int)       >>=? Just True
+    expire notAKey (1 :: Int) >>=? Just False
     ttl k            >>=? Just (1 :: Int)
     
 testExpireAt :: Test
@@ -97,7 +97,7 @@ testKeys = testCase "keys" $ do
     set k1 v >>=? Just Ok
     set k2 v >>=? Just Ok
     Just ks <- keys pat
-    2    @=? length (ks :: [Maybe ByteString])
+    (2 :: Int)    @=? length (ks :: [Maybe ByteString])
     True @=? elem (Just "key1") ks
     True @=? elem (Just "key2") ks
 
@@ -105,16 +105,16 @@ testMove :: Test
 testMove = testCase "move" $ do
     let [k,v] = ["key","value"] :: [BS]
     set k v   >>=? Just Ok
-    move k 13 >>=? Just True
+    move k (13 :: Int) >>=? Just True
     get k     >>=? (Nothing :: Maybe ByteString)
-    select 13 >>=? Just Ok
+    select (13 :: Int) >>=? Just Ok
     get k     >>=? Just ("value" :: BS)
 
 testPersist :: Test
 testPersist = testCase "persist" $ do
     let [k,v] = ["key","val"] :: [BS]
     set k v    >>=? Just Ok
-    expire k 1 >>=? Just True
+    expire k (1 :: Int) >>=? Just True
     ttl k      >>=? Just (1 :: Int)
     persist k  >>=? Just True
     ttl k      >>=? Just (-1 :: Int)
@@ -152,7 +152,7 @@ testTtl = testCase "ttl" $ do
     set k v >>=? Just Ok
     ttl ("notAKey" :: BS) >>=? Just (-1 :: Int)
     ttl k                 >>=? Just (-1 :: Int)
-    expire k 42           >>=? Just True
+    expire k (42 :: Int)           >>=? Just True
     ttl k                 >>=? Just (42 :: Int)
 
 testGetType :: Test
@@ -175,9 +175,9 @@ testObject :: Test
 testObject = testCase "object" $ do
     let [k,v] = ["key","value"] :: [BS]
     set k v          >>=? Just Ok
-    objectRefcount k >>=? Just 1
+    objectRefcount k >>=? Just (1 :: Int)
     Just _ <- objectEncoding k :: Redis (Maybe BS)
-    objectIdletime k >>=? Just 0
+    objectIdletime k >>=? Just (0 :: Int)
 
 ------------------------------------------------------------------------------
 -- Strings
@@ -206,16 +206,16 @@ testDecrby :: Test
 testDecrby = testCase "decrby" $ do
     let k = "key" :: BS
     set k ("42" :: BS) >>=? Just Ok
-    decrby k 2         >>=? Just (40 :: Int)
+    decrby k (2 :: Int)         >>=? Just (40 :: Int)
 
 testGetbit :: Test
-testGetbit = testCase "getbit" $ getbit ("key" :: BS) 42 >>=? Just (0 :: Int)
+testGetbit = testCase "getbit" $ getbit ("key" :: BS) (42 :: Int) >>=? Just (0 :: Int)
 
 testGetrange :: Test
 testGetrange = testCase "getrange" $ do
     let [k,v] = ["key","value"] :: [BS]
     set k v           >>=? Just Ok
-    getrange k 1 (-2) >>=? Just ("alu" :: BS)
+    getrange k (1 :: Int) ((-2) :: Int) >>=? Just ("alu" :: BS)
 
 testGetset :: Test
 testGetset = testCase "getset" $ do
@@ -233,7 +233,7 @@ testIncrby :: Test
 testIncrby = testCase "incrby" $ do
     let k = "key" :: BS
     set k ("40" :: BS) >>=? Just Ok
-    incrby k 2         >>=? Just (42 :: Int)
+    incrby k (2 :: Int)         >>=? Just (42 :: Int)
 
 testMget :: Test
 testMget = testCase "mget" $ do
@@ -261,13 +261,13 @@ testMsetnx = testCase "msetnx" $ do
 testSetbit :: Test
 testSetbit = testCase "setbit" $ do
     let [k,one,zero] = ["key","1","0"] :: [BS]
-    setbit k 42 one  >>=? Just (0 :: Int)
-    setbit k 42 zero >>=? Just (1 :: Int)
+    setbit k (42 :: Int) one  >>=? Just (0 :: Int)
+    setbit k (42 :: Int) zero >>=? Just (1 :: Int)
     
 testSetex :: Test
 testSetex = testCase "setex" $ do
     let [k,v] = ["key","value"] :: [BS]
-    setex k 1 v >>=? Just Ok
+    setex k (1 :: Int) v >>=? Just Ok
     ttl k       >>=? Just (1 :: Int)
 
 testSetnx :: Test
@@ -280,7 +280,7 @@ testSetrange :: Test
 testSetrange = testCase "setrange" $ do
     let [k,v] = ["key","value"] :: [BS]
     set k v                    >>=? Just Ok
-    setrange k 1 ("ers" :: BS) >>=? Just (5 :: Int)
+    setrange k (1  :: Int)("ers" :: BS) >>=? Just (5 :: Int)
     get k                      >>=? Just ("verse" :: BS)
 
 testStrlen :: Test
@@ -343,7 +343,7 @@ testHincrby :: Test
 testHincrby = testCase "hincrby" $ do
     let [k,f,v] = ["key","field","40"] :: [BS]
     hset k f v    >>=? Just True
-    hincrby k f 2 >>=? Just (42 :: Int)
+    hincrby k f (2 :: Int) >>=? Just (42 :: Int)
 
 testHkeys :: Test
 testHkeys = testCase "hkeys" $ do
@@ -400,55 +400,55 @@ testsLists =
 testBlpop :: Test
 testBlpop = testCase "blpop/brpop" $ do
     let [k,notAKey,v1,v2,v3] = ["key","notAKey","v1","v2","v3"] :: [BS]
-    lpush k [v3,v2,v1]  >>=? Just 3
-    blpop [notAKey,k] 1 >>=? Just ("key" :: BS, "v1" :: BS)
-    brpop [notAKey,k] 1 >>=? Just ("key" :: BS, "v3" :: BS)
+    lpush k [v3,v2,v1]  >>=? Just (3 :: Int)
+    blpop [notAKey,k] (1 :: Int) >>=? Just ("key" :: BS, "v1" :: BS)
+    brpop [notAKey,k] (1 :: Int) >>=? Just ("key" :: BS, "v3" :: BS)
 
 testBrpoplpush :: Test
 testBrpoplpush = testCase "brpoplpush/rpoplpush" $ do
     let [k1,k2,v1,v2] = ["k1","k2","v1","v2"] :: [BS]
-    rpush k1 [v1,v2]   >>=? Just 2
-    brpoplpush k1 k2 1 >>=? Just ("v2" :: BS)
+    rpush k1 [v1,v2]   >>=? Just (2 :: Int)
+    brpoplpush k1 k2 (1 :: Int) >>=? Just ("v2" :: BS)
     rpoplpush k1 k2    >>=? Just ("v1" :: BS)
-    llen k2            >>=? Just 2
-    llen k1            >>=? Just 0
+    llen k2            >>=? Just (2 :: Int)
+    llen k1            >>=? Just (0 :: Int)
 
 testLpop :: Test
 testLpop = testCase "lpop/rpop" $ do
     let [k,v1,v2,v3] = ["key","v1","v2","v3"] :: [BS]
-    lpush k [v3,v2,v1] >>=? Just 3
+    lpush k [v3,v2,v1] >>=? Just (3 :: Int)
     lpop k             >>=? Just ("v1" :: BS)
-    llen k             >>=? Just 2
+    llen k             >>=? Just (2 :: Int)
     rpop k             >>=? Just ("v3" :: BS)
 
 testLinsert :: Test
 testLinsert = testCase "linsert" $ do
     let [k,notAVal,v1,v2,v3] = ["key","notAVal","v1","v2","v3"] :: [BS]
-    rpush k [v2]               >>=? Just 1
-    linsertBefore k v2 v1      >>=? Just 2
-    linsertBefore k notAVal v3 >>=? Just (-1)
-    linsertAfter k v2 v3       >>=? Just 3    
-    linsertAfter k notAVal v3  >>=? Just (-1)
-    lindex k 0                 >>=? Just ("v1" :: BS)
-    lindex k 2                 >>=? Just ("v3" :: BS)
+    rpush k [v2]               >>=? Just (1 :: Int)
+    linsertBefore k v2 v1      >>=? Just (2 :: Int)
+    linsertBefore k notAVal v3 >>=? Just ((-1) :: Int)
+    linsertAfter k v2 v3       >>=? Just (3 :: Int)    
+    linsertAfter k notAVal v3  >>=? Just ((-1) :: Int)
+    lindex k (0 :: Int)                 >>=? Just ("v1" :: BS)
+    lindex k (2 :: Int)                 >>=? Just ("v3" :: BS)
 
 testLpushx :: Test
 testLpushx = testCase "lpushx/rpushx" $ do
     let [k,notAKey,v1,v2,v3] = ["key","notAKey","v1","v2","v3"] :: [BS]
-    lpushx notAKey v1 >>=? Just 0
-    lpush k [v2]      >>=? Just 1
-    lpushx k v1       >>=? Just 2
-    rpushx k v3       >>=? Just 3
+    lpushx notAKey v1 >>=? Just (0 :: Int)
+    lpush k [v2]      >>=? Just (1 :: Int)
+    lpushx k v1       >>=? Just (2 :: Int)
+    rpushx k v3       >>=? Just (3 :: Int)
 
 testLset :: Test
 testLset = testCase "lset/lrem/ltrim" $ do
     let [k,v1,v2,v3] = ["key","v1","v2","v3"] :: [BS]
-    lpush k [v3,v2,v2,v1,v1] >>=? Just 5
-    lset k 1 v2              >>=? Just Ok
-    lrem k 2 v2              >>=? Just 2
-    llen k                   >>=? Just 3
-    ltrim k 0 1              >>=? Just Ok
-    lrange k 0 1             >>=? Just [Just "v1", Just ("v2" :: BS)]
+    lpush k [v3,v2,v2,v1,v1] >>=? Just (5 :: Int)
+    lset k (1 :: Int) v2              >>=? Just Ok
+    lrem k (2 :: Int) v2              >>=? Just (2 :: Int)
+    llen k                   >>=? Just (3 :: Int)
+    ltrim k (0 :: Int) (1 :: Int)              >>=? Just Ok
+    lrange k (0 :: Int) (1 :: Int)             >>=? Just [Just "v1", Just ("v2" :: BS)]
 
 ------------------------------------------------------------------------------
 -- Sets
@@ -485,8 +485,8 @@ testQuit = testCase "quit" $ quit >>=? Just Ok
 
 testSelect :: Test
 testSelect = testCase "select" $ do
-    select 13 >>=? Just Ok
-    select 0  >>=? Just Ok
+    select (13 :: Int) >>=? Just Ok
+    select (0  :: Int) >>=? Just Ok
 
 
 ------------------------------------------------------------------------------
@@ -517,5 +517,5 @@ testInfo :: Test
 testInfo = testCase "info/lastsave/dbsize" $ do
     Just (_ :: BS)      <- info
     Just (_ :: Integer) <- lastsave
-    dbsize          >>=? Just 0
+    dbsize          >>=? Just (0 :: Int)
     configResetstat >>=? Just Ok
