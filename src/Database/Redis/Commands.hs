@@ -124,6 +124,13 @@ setex, -- |Set the value and expiration of a key (<http://redis.io/commands/sete
 setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>).
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>).
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>).
+
+-- ** Transactions
+discard, -- |Discard all commands issued after MULTI (<http://redis.io/commands/discard>).
+exec, -- |Execute all commands issued after MULTI (<http://redis.io/commands/exec>).
+multi, -- |Mark the start of a transaction block (<http://redis.io/commands/multi>).
+unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
+watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (<http://redis.io/commands/watch>).
 ) where
 
 import Prelude hiding (min,max)
@@ -222,6 +229,10 @@ move :: (RedisArg key, RedisArg db, RedisResult a)
     -> Redis a
 move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
 
+multi :: (RedisResult a)
+    => Redis a
+multi  = sendRequest (["MULTI"] )
+
 getrange :: (RedisArg key, RedisArg start, RedisArg end, RedisResult a)
     => key -- ^ 
     -> start -- ^ 
@@ -234,6 +245,11 @@ srem :: (RedisArg key, RedisArg member, RedisResult a)
     -> [member] -- ^ 
     -> Redis a
 srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
+
+watch :: (RedisArg key, RedisResult a)
+    => [key] -- ^ 
+    -> Redis a
+watch key = sendRequest (["WATCH"] ++ map encode key )
 
 getbit :: (RedisArg key, RedisArg offset, RedisResult a)
     => key -- ^ 
@@ -372,6 +388,10 @@ decrby :: (RedisArg key, RedisArg decrement, RedisResult a)
     -> decrement -- ^ 
     -> Redis a
 decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
+
+exec :: (RedisResult a)
+    => Redis a
+exec  = sendRequest (["EXEC"] )
 
 mget :: (RedisArg key, RedisResult a)
     => [key] -- ^ 
@@ -662,6 +682,10 @@ strlen :: (RedisArg key, RedisResult a)
     -> Redis a
 strlen key = sendRequest (["STRLEN"] ++ [encode key] )
 
+unwatch :: (RedisResult a)
+    => Redis a
+unwatch  = sendRequest (["UNWATCH"] )
+
 hset :: (RedisArg key, RedisArg field, RedisArg value, RedisResult a)
     => key -- ^ 
     -> field -- ^ 
@@ -674,6 +698,10 @@ lpushx :: (RedisArg key, RedisArg value, RedisResult a)
     -> value -- ^ 
     -> Redis a
 lpushx key value = sendRequest (["LPUSHX"] ++ [encode key] ++ [encode value] )
+
+discard :: (RedisResult a)
+    => Redis a
+discard  = sendRequest (["DISCARD"] )
 
 srandmember :: (RedisArg key, RedisResult a)
     => key -- ^ 

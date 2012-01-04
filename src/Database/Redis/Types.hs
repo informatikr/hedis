@@ -33,8 +33,11 @@ instance Exception ResultError
 instance RedisArg ByteString where
     encode = id
 
-instance (Integral a) => RedisArg a where
-    encode = pack . show . toInteger
+instance RedisArg Integer where
+    encode = pack . show
+    
+instance RedisArg Int where
+    encode = pack . show
 
 instance RedisArg Double where
     encode = pack . show
@@ -42,8 +45,11 @@ instance RedisArg Double where
 ------------------------------------------------------------------------------
 -- RedisResult instances
 --
-data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
+data Status = Ok | Pong | None | String | Hash | List | Set | ZSet | Queued
     deriving (Show, Eq)
+
+instance RedisResult () where
+    decode _ = Right ()
 
 -- |'decode'ing to 'Maybe' will never throw a 'ResultError'. It is, however,
 --  ambiguous wether the command returned @nil@ or wether decoding failed.
@@ -56,8 +62,12 @@ instance RedisResult ByteString where
     decode (Bulk (Just s)) = Right s
     decode _               = Left ResultError
 
-instance (Integral a) => RedisResult a where
-    decode (Integer n) = Right (fromIntegral n)
+instance RedisResult Integer where
+    decode (Integer n) = Right n
+    decode _           = Left ResultError
+
+instance RedisResult Int where
+    decode (Integer n) = Right (fromInteger n)
     decode _           = Left ResultError
 
 instance RedisResult Double where
@@ -78,6 +88,7 @@ instance RedisResult Status where
             "list"   -> List
             "set"    -> Set
             "zset"   -> ZSet
+            "QUEUED" -> Queued
             _        -> error $ "unhandled status-code: " ++ s
 
 instance RedisResult Bool where

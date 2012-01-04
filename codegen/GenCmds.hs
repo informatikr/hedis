@@ -40,7 +40,7 @@ groupCmds (Cmds cmds) =
              , "sorted_set"
              , "hash"
              -- , "pubsub"
-             -- , "transactions"
+             , "transactions"
              , "connection"
              , "server"
              ]
@@ -184,7 +184,7 @@ exportList cmds =
         "sorted_set"   -> "Sorted Sets"
         "hash"         -> "Hashes"
         -- "pubsub"       ->
-        -- "transactions" ->
+        "transactions" -> "Transactions"
         "connection"   -> "Connection"
         "server"       -> "Server"
         _              -> error $ "untranslated group: " ++ cmdGroup
