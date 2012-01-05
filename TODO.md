@@ -2,7 +2,6 @@
 
 ## Certainly
 
-- runRedis: take [Reply] from the MVar, Redis holds [Reply] in State
 - PubSub: how to disallow runRedis inside PubSub?
 - Manual implementation of blacklisted commands
 - More instances for argument type class

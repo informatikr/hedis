@@ -72,4 +72,5 @@ recv = Redis $ do
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis a
 sendRequest req = do
     reply <- send req >> recv
-    either (liftIO . throwIO) return (decode reply)
+    -- Using 'throw' instead of 'throwIO' is lazy enough for auto-pipelining.
+    return $ either throw id (decode reply)
