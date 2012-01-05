@@ -13,6 +13,7 @@
     - Text
 - Benchmark
     - include pathological cases with a lot of list appending when building reqs
+- Test to check if pipelining works
 
 
 ## Maybe

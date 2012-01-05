@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, RecordWildCards #-}
 module Database.Redis.Internal (
     HostName,PortID(..),
     RedisConn(), connect, disconnect,
@@ -9,7 +9,7 @@ module Database.Redis.Internal (
 ) where
 
 import Control.Applicative
-import Control.Monad.Reader
+import Control.Monad.RWS
 import Control.Concurrent
 import Control.Exception
 import qualified Data.ByteString as B
@@ -43,25 +43,30 @@ disconnect (Conn h _) = hClose h
 ------------------------------------------------------------------------------
 -- The Redis Monad
 --
-newtype Redis a = Redis (ReaderT RedisConn IO a)
-    deriving (Monad, MonadIO, Functor)
+newtype Redis a = Redis (RWST Handle () [Reply] IO a)
+    deriving (Monad, MonadIO, Functor, Applicative)
 
 runRedis :: RedisConn -> Redis a -> IO a
-runRedis conn (Redis r) = runReaderT r conn
+runRedis Conn{..} (Redis redis) = do
+    replies <- takeMVar connReplies
+    (a,replies',_) <- runRWST redis connHandle replies
+    putMVar connReplies replies'
+    return a
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    h <- asks connHandle
+    h <- ask
     liftIO $ do
         B.hPut h $ renderRequest req
         hFlush h
 
 recv :: Redis Reply
 recv = Redis $ do
-    replies <- asks connReplies
     -- head/tail avoids forcing the ':' constructor, enabling automatic
     -- pipelining.
-    liftIO $ modifyMVar replies $ \rs -> return (tail rs, head rs)
+    rs <- get
+    put (tail rs)
+    return (head rs)
 
 -- |Send a request to the Redis server.
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis a
