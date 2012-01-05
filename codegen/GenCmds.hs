@@ -61,10 +61,16 @@ blacklist = [ ("OBJECT", Just ["objectRefcount"
             , ("SLOWLOG", Just ["slowlogGet", "slowlogLen", "slowlogReset"])
             , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Nothing)
-            , ("ZRANGE", Nothing)
-            , ("ZRANGEBYSCORE", Nothing)
-            , ("ZREVRANGE", Nothing)
-            , ("ZREVRANGEBYSCORE", Nothing)
+            , ("ZRANGE", Just ["zrange", "zrangeWithscores"])
+            , ("ZRANGEBYSCORE", Just ["zrangebyscore"
+                                     ,"zrangebyscoreWithscores"
+                                     ,"zrangebyscoreLimit"
+                                     ,"zrangebyscoreWithscoresLimit"])
+            , ("ZREVRANGE", Just ["zrevrange", "zrevrangeWithscores"])
+            , ("ZREVRANGEBYSCORE", Just ["zrevrangebyscore"
+                                        ,"zrevrangebyscoreWithscores"
+                                        ,"zrevrangebyscoreLimit"
+                                        ,"zrevrangebyscoreWithscoresLimit"])
             , ("ZUNIONSTORE", Nothing)
             ]
 
