@@ -48,6 +48,9 @@ instance RedisArg Double where
 data Status = Ok | Pong | None | String | Hash | List | Set | ZSet | Queued
     deriving (Show, Eq)
 
+instance RedisResult Reply where
+    decode = Right . id
+
 instance RedisResult () where
     decode _ = Right ()
 
