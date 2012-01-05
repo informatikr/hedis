@@ -90,7 +90,7 @@ recv = Redis $ do
     put (tail rs)
     return (head rs)
 
--- |Send a request to the Redis server.
+-- |Sends a request to the Redis server, returning the 'decode'd reply.
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis a
 sendRequest req = do
     reply <- send req >> recv

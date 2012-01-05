@@ -146,6 +146,33 @@ exec, -- |Execute all commands issued after MULTI (<http://redis.io/commands/exe
 multi, -- |Mark the start of a transaction block (<http://redis.io/commands/multi>).
 unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
 watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (<http://redis.io/commands/watch>).
+
+-- * Unimplemented Commands
+-- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
+--
+-- * EVAL (<http://redis.io/commands/eval>)
+--
+--
+-- * SORT (<http://redis.io/commands/sort>)
+--
+--
+-- * MONITOR (<http://redis.io/commands/monitor>)
+--
+--
+-- * DEBUG OBJECT (<http://redis.io/commands/debug-object>)
+--
+--
+-- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
+--
+--
+-- * SYNC (<http://redis.io/commands/sync>)
+--
+--
+-- * ZINTERSTORE (<http://redis.io/commands/zinterstore>)
+--
+--
+-- * ZUNIONSTORE (<http://redis.io/commands/zunionstore>)
+--
 ) where
 
 import Prelude hiding (min,max)
@@ -728,4 +755,31 @@ persist :: (RedisArg key, RedisResult a)
     -> Redis a
 persist key = sendRequest (["PERSIST"] ++ [encode key] )
 
+
+-- * Unimplemented Commands
+-- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
+--
+-- * EVAL (<http://redis.io/commands/eval>)
+--
+--
+-- * SORT (<http://redis.io/commands/sort>)
+--
+--
+-- * MONITOR (<http://redis.io/commands/monitor>)
+--
+--
+-- * DEBUG OBJECT (<http://redis.io/commands/debug-object>)
+--
+--
+-- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
+--
+--
+-- * SYNC (<http://redis.io/commands/sync>)
+--
+--
+-- * ZINTERSTORE (<http://redis.io/commands/zinterstore>)
+--
+--
+-- * ZUNIONSTORE (<http://redis.io/commands/zunionstore>)
+--
 

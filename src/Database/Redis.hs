@@ -13,10 +13,12 @@ module Database.Redis (
     Reply(..),
     sendRequest,
     -- |'sendRequest' can be used to implement one of the unimplemented 
-    --  commands.
+    --  commands, as shown below.
     --
     -- @
-    --   sendRequest [\"DEBUG\", \"SEGFAULT\"] -- crashes the server
+    -- -- |Redis DEBUG OBJECT command
+    -- debugObject :: (RedisArg key, RedisResult a) => key -> Redis a
+    -- debugObject key = sendRequest [\"DEBUG\", \"OBJECT\", encode key]
     -- @
     --
     
@@ -25,11 +27,7 @@ module Database.Redis (
     module Database.Redis.Types,
     -- * Commands
 	module Database.Redis.Commands
-	
-	
-	-- * Unimplemented Commands
-	-- #unimplementedCommands#
-	-- $unimplementedCommands
+
 ) where
 
 import Database.Redis.Internal
@@ -38,6 +36,3 @@ import Database.Redis.Reply
 import Database.Redis.Types
 
 import Database.Redis.Commands
-
--- $unimplementedCommands
--- List of unimplemented commands
