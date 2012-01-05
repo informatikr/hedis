@@ -58,7 +58,7 @@ blacklist = [ ("OBJECT", Just ["objectRefcount"
             , ("MONITOR", Nothing)        -- debugging command
             , ("DEBUG OBJECT", Nothing)   -- debugging command
             , ("DEBUG SEGFAULT", Nothing) -- debugging command
-            , ("SLOWLOG", Nothing)
+            , ("SLOWLOG", Just ["slowlogGet", "slowlogLen", "slowlogReset"])
             , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Nothing)
             , ("ZRANGE", Nothing)

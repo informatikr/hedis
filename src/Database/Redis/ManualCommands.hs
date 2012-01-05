@@ -2,42 +2,52 @@
 
 module Database.Redis.ManualCommands where
 
-import Data.ByteString
 import Database.Redis.Types
 import Database.Redis.Internal
 
-objectRefcount :: (RedisResult a)
-    => ByteString -- ^ key
+objectRefcount :: (RedisArg key, RedisResult a)
+    => key
     -> Redis a
-objectRefcount key = sendRequest ["OBJECT", "refcount", key]
+objectRefcount key = sendRequest ["OBJECT", "refcount", encode key]
 
-objectIdletime :: (RedisResult a)
-    => ByteString -- ^ key
+objectIdletime :: (RedisArg key, RedisResult a)
+    => key
     -> Redis a
-objectIdletime key = sendRequest ["OBJECT", "idletime", key]
+objectIdletime key = sendRequest ["OBJECT", "idletime", encode key]
 
-objectEncoding :: (RedisResult a)
-    => ByteString -- ^ key
+objectEncoding :: (RedisArg key, RedisResult a)
+    => key
     -> Redis a
-objectEncoding key = sendRequest ["OBJECT", "encoding", key]
+objectEncoding key = sendRequest ["OBJECT", "encoding", encode key]
 
-linsertBefore :: (RedisResult a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ pivot
-    -> ByteString -- ^ value
+linsertBefore :: (RedisArg key, RedisArg pivot, RedisArg value, RedisResult a)
+    => key
+    -> pivot
+    -> value
     -> Redis a
 linsertBefore key pivot value =
-    sendRequest ["LINSERT", key, "BEFORE", pivot, value]
+    sendRequest ["LINSERT", encode key, "BEFORE", encode pivot, encode value]
 
-linsertAfter :: (RedisResult a)
-    => ByteString -- ^ key
-    -> ByteString -- ^ pivot
-    -> ByteString -- ^ value
+linsertAfter :: (RedisArg key, RedisArg pivot, RedisArg value, RedisResult a)
+    => key
+    -> pivot
+    -> value
     -> Redis a
 linsertAfter key pivot value =
-        sendRequest ["LINSERT", key, "AFTER", pivot, value]
+        sendRequest ["LINSERT", encode key, "AFTER", encode pivot, encode value]
 
-getType :: (RedisResult a)
-        => ByteString -- ^ key
+getType :: (RedisArg key, RedisResult a)
+        => key
         -> Redis a
-getType key = sendRequest ["TYPE", key]
+getType key = sendRequest ["TYPE", encode key]
+
+slowlogGet :: (RedisArg cnt, RedisResult a)
+    => cnt
+    -> Redis a
+slowlogGet n = sendRequest ["SLOWLOG", "GET", encode n]
+
+slowlogLen :: (RedisResult a) => Redis a
+slowlogLen = sendRequest ["SLOWLOG", "LEN"]
+
+slowlogReset :: (RedisResult a) => Redis a
+slowlogReset = sendRequest ["SLOWLOG", "RESET"]

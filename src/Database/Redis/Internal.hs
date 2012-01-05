@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Internal (
     HostName,PortID(..),
     RedisConn(), connect, disconnect,

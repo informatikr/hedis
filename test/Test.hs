@@ -492,7 +492,8 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
-testsServer = [testBgrewriteaof, testFlushall, testInfo, testConfig]
+testsServer =
+    [testBgrewriteaof, testFlushall, testInfo, testConfig, testSlowlog]
 
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
@@ -519,3 +520,9 @@ testInfo = testCase "info/lastsave/dbsize" $ do
     Just (_ :: Integer) <- lastsave
     dbsize          >>=? Just (0 :: Int)
     configResetstat >>=? Just Ok
+
+testSlowlog :: Test
+testSlowlog = testCase "slowlog" $ do
+    slowlogGet (5 :: Int)  >>=? ([] :: [BS])
+    slowlogLen             >>=? (0 :: Int)
+    slowlogReset           >>=? Ok

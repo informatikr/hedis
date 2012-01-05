@@ -76,6 +76,9 @@ lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http
 save, -- |Synchronously save the dataset to disk (<http://redis.io/commands/save>).
 shutdown, -- |Synchronously save the dataset to disk and then shut down the server (<http://redis.io/commands/shutdown>).
 slaveof, -- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>).
+slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
+slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
+slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
 
 -- ** Sets
 sadd, -- |Add one or more members to a set (<http://redis.io/commands/sadd>).
