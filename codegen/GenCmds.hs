@@ -39,7 +39,7 @@ groupCmds (Cmds cmds) =
              , "set"
              , "sorted_set"
              , "hash"
-             -- , "pubsub"
+             -- , "pubsub" commands implemented in Database.Redis.PubSub
              , "transactions"
              , "connection"
              , "server"

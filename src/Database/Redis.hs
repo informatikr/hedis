@@ -9,6 +9,13 @@ module Database.Redis (
     RedisConn, connect, disconnect,
     HostName,PortID(..),
     
+    -- * Commands
+	module Database.Redis.Commands,
+
+    -- * Pub\/Sub
+    module Database.Redis.PubSub,
+    module Database.Redis.Types,
+
     -- * Low-Level Requests and Replies
     Reply(..),
     sendRequest,
@@ -21,13 +28,6 @@ module Database.Redis (
     -- debugObject key = sendRequest [\"DEBUG\", \"OBJECT\", encode key]
     -- @
     --
-    
-    -- * PubSub
-    module Database.Redis.PubSub,
-    module Database.Redis.Types,
-    -- * Commands
-	module Database.Redis.Commands
-
 ) where
 
 import Database.Redis.Internal

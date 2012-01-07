@@ -2,7 +2,6 @@
 
 ## Certainly
 
-- PubSub: how to disallow runRedis inside PubSub?
 - Manual implementation of blacklisted commands
 - More instances for argument type class
 - Add Redis* instances for
@@ -13,7 +12,7 @@
 - Benchmark
     - include pathological cases with a lot of list appending when building reqs
 - Test to check if pipelining works
-
+- Command renaming, perhaps additional param (Map CmdName CmdName) for connect?
 
 ## Maybe
 

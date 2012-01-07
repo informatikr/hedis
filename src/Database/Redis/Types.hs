@@ -60,6 +60,10 @@ instance (RedisResult a) => RedisResult (Maybe a) where
     decode (Bulk Nothing) = Right Nothing
     decode r              = Right $ either (const Nothing) Just (decode r)
 
+instance (RedisResult a) => RedisResult (Either ByteString a) where
+    decode (Error err) = Right (Left err)
+    decode r           = Right <$> decode r
+
 instance RedisResult ByteString where
     decode (SingleLine s)  = Right s
     decode (Bulk (Just s)) = Right s
