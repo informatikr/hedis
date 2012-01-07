@@ -11,7 +11,6 @@ module Database.Redis.Internal (
 import Control.Applicative
 import Control.Monad.RWS
 import Control.Concurrent
-import Control.Exception
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.Maybe
@@ -91,8 +90,8 @@ recv = Redis $ do
     return (head rs)
 
 -- |Sends a request to the Redis server, returning the 'decode'd reply.
-sendRequest :: (RedisResult a) => [B.ByteString] -> Redis a
+sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
 sendRequest req = do
     reply <- send req >> recv
     -- Using 'throw' instead of 'throwIO' is lazy enough for auto-pipelining.
-    return $ either throw id (decode reply)
+    return $ decode reply

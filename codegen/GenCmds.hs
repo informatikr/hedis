@@ -255,10 +255,12 @@ imprts :: Builder
 imprts = mconcat $ flip map moduls (\modul ->
     fromString "import " `mappend` fromString modul `mappend`newline)
   where
-    moduls = [ "Prelude hiding (min,max)" -- get rid of name-shadowing warnings
+    moduls = [ "Prelude hiding (min,max)" -- name shadowing warnings.
+             , "Data.ByteString (ByteString)"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
              , "Database.Redis.Internal"
+             , "Database.Redis.Reply"
              ]
 
 blackListed :: Cmd -> Bool
@@ -271,12 +273,11 @@ fromCmd cmd@Cmd{..}
     | otherwise       = mconcat [sig, newline, fun, newline, newline]
   where
     sig = mconcat
-            [ fromString name, fromString " :: ("
-            , mconcat $ map argTypeClass cmdArgs
-            , fromString "RedisResult a"
-            , fromString ")\n    => "
+            [ fromString name, fromString "\n    :: "
             , mconcat $ map argumentType cmdArgs
-            , fromString "Redis a"
+            , fromString "Redis (Either Reply "
+            , retType cmd
+            , fromString ")"
             ]
     fun = mconcat
             [ fromString name, fromString " "
@@ -290,7 +291,24 @@ fromCmd cmd@Cmd{..}
             ]
     name = camelCase cmdName
     
-    
+retType :: Cmd -> Builder
+retType Cmd{..} = maybe err translate cmdRetType
+  where
+    err = error $ "Command without return type: " ++ cmdName
+    translate t = fromString $ case t of
+        "status"     -> "Status"
+        "bool"       -> "Bool"
+        "integer"    -> "Integer"
+        "key"        -> "ByteString"
+        "string"     -> "ByteString"
+        "list"       -> "[ByteString]"
+        "list-maybe" -> "[Maybe ByteString]"
+        "hash"       -> "[(ByteString,ByteString)]"
+        "set"        -> "[ByteString]"
+        "pair"       -> "(ByteString,ByteString)"
+        "double"     -> "Double"
+        "reply"      -> "Reply"
+        _            -> error $ "untranslated return type: " ++ t
     
 
 argumentList :: Arg -> Builder
@@ -314,21 +332,25 @@ argumentName a = go a
 
 argumentType :: Arg -> Builder
 argumentType a = mconcat [ go a
-                         , fromString " -- ^ " --, argumentName a
+                         , fromString " -- ^ ", argumentName a
                          , fromString "\n    -> "
                          ]
   where
-      go (Multiple a) =
-          mconcat [fromString "[", go a, fromString "]"]
-      go (Pair a a')  =
-          mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
-      go a@Arg{..}    = argumentName a
+    go (Multiple a) =
+        mconcat [fromString "[", go a, fromString "]"]
+    go (Pair a a')  =
+        mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
+    go a@Arg{..}    = translateArgType a
+    
+    translateArgType Arg{..} = fromString $ case argType of
+        "integer"    -> "Integer"
+        "string"     -> "ByteString"
+        "key"        -> "ByteString"
+        "pattern"    -> "ByteString"
+        "posix time" -> "Integer"
+        "double"     -> "Double"
+        _            -> error $ "untranslated arg type: " ++ argType
 
-argTypeClass :: Arg -> Builder
-argTypeClass (Multiple (Pair a a')) = argTypeClass a `mappend` argTypeClass a'
-argTypeClass (Multiple a)           = argTypeClass a
-argTypeClass a@Arg{..}              = mconcat
-    [fromString "RedisArg ", argumentName a, fromString ", "]
 
 --------------------------------------------------------------------------------
 -- HELPERS

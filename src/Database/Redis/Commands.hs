@@ -176,583 +176,585 @@ watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (
 ) where
 
 import Prelude hiding (min,max)
+import Data.ByteString (ByteString)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Internal
+import Database.Redis.Reply
 
-flushall :: (RedisResult a)
-    => Redis a
+flushall
+    :: Redis (Either Reply Status)
 flushall  = sendRequest (["FLUSHALL"] )
 
-hdel :: (RedisArg key, RedisArg field, RedisResult a)
-    => key -- ^ 
-    -> [field] -- ^ 
-    -> Redis a
+hdel
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ field
+    -> Redis (Either Reply Bool)
 hdel key field = sendRequest (["HDEL"] ++ [encode key] ++ map encode field )
 
-hincrby :: (RedisArg key, RedisArg field, RedisArg increment, RedisResult a)
-    => key -- ^ 
-    -> field -- ^ 
-    -> increment -- ^ 
-    -> Redis a
+hincrby
+    :: ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Integer -- ^ increment
+    -> Redis (Either Reply Integer)
 hincrby key field increment = sendRequest (["HINCRBY"] ++ [encode key] ++ [encode field] ++ [encode increment] )
 
-configResetstat :: (RedisResult a)
-    => Redis a
+configResetstat
+    :: Redis (Either Reply Status)
 configResetstat  = sendRequest (["CONFIG","RESETSTAT"] )
 
-del :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+del
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply Integer)
 del key = sendRequest (["DEL"] ++ map encode key )
 
-zrevrank :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> member -- ^ 
-    -> Redis a
+zrevrank
+    :: ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Integer)
 zrevrank key member = sendRequest (["ZREVRANK"] ++ [encode key] ++ [encode member] )
 
-brpoplpush :: (RedisArg source, RedisArg destination, RedisArg timeout, RedisResult a)
-    => source -- ^ 
-    -> destination -- ^ 
-    -> timeout -- ^ 
-    -> Redis a
+brpoplpush
+    :: ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> Integer -- ^ timeout
+    -> Redis (Either Reply ByteString)
 brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
 
-incrby :: (RedisArg key, RedisArg increment, RedisResult a)
-    => key -- ^ 
-    -> increment -- ^ 
-    -> Redis a
+incrby
+    :: ByteString -- ^ key
+    -> Integer -- ^ increment
+    -> Redis (Either Reply Integer)
 incrby key increment = sendRequest (["INCRBY"] ++ [encode key] ++ [encode increment] )
 
-rpop :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+rpop
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
 rpop key = sendRequest (["RPOP"] ++ [encode key] )
 
-setrange :: (RedisArg key, RedisArg offset, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> offset -- ^ 
-    -> value -- ^ 
-    -> Redis a
+setrange
+    :: ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 setrange key offset value = sendRequest (["SETRANGE"] ++ [encode key] ++ [encode offset] ++ [encode value] )
 
-setbit :: (RedisArg key, RedisArg offset, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> offset -- ^ 
-    -> value -- ^ 
-    -> Redis a
+setbit
+    :: ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 setbit key offset value = sendRequest (["SETBIT"] ++ [encode key] ++ [encode offset] ++ [encode value] )
 
-save :: (RedisResult a)
-    => Redis a
+save
+    :: Redis (Either Reply Status)
 save  = sendRequest (["SAVE"] )
 
-echo :: (RedisArg message, RedisResult a)
-    => message -- ^ 
-    -> Redis a
+echo
+    :: ByteString -- ^ message
+    -> Redis (Either Reply ByteString)
 echo message = sendRequest (["ECHO"] ++ [encode message] )
 
-blpop :: (RedisArg key, RedisArg timeout, RedisResult a)
-    => [key] -- ^ 
-    -> timeout -- ^ 
-    -> Redis a
+blpop
+    :: [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> Redis (Either Reply (ByteString,ByteString))
 blpop key timeout = sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
 
-sdiffstore :: (RedisArg destination, RedisArg key, RedisResult a)
-    => destination -- ^ 
-    -> [key] -- ^ 
-    -> Redis a
+sdiffstore
+    :: ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Either Reply Integer)
 sdiffstore destination key = sendRequest (["SDIFFSTORE"] ++ [encode destination] ++ map encode key )
 
-move :: (RedisArg key, RedisArg db, RedisResult a)
-    => key -- ^ 
-    -> db -- ^ 
-    -> Redis a
+move
+    :: ByteString -- ^ key
+    -> Integer -- ^ db
+    -> Redis (Either Reply Bool)
 move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
 
-multi :: (RedisResult a)
-    => Redis a
+multi
+    :: Redis (Either Reply Status)
 multi  = sendRequest (["MULTI"] )
 
-getrange :: (RedisArg key, RedisArg start, RedisArg end, RedisResult a)
-    => key -- ^ 
-    -> start -- ^ 
-    -> end -- ^ 
-    -> Redis a
+getrange
+    :: ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ end
+    -> Redis (Either Reply ByteString)
 getrange key start end = sendRequest (["GETRANGE"] ++ [encode key] ++ [encode start] ++ [encode end] )
 
-srem :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> [member] -- ^ 
-    -> Redis a
+srem
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Either Reply Integer)
 srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
 
-watch :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+watch
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply Status)
 watch key = sendRequest (["WATCH"] ++ map encode key )
 
-getbit :: (RedisArg key, RedisArg offset, RedisResult a)
-    => key -- ^ 
-    -> offset -- ^ 
-    -> Redis a
+getbit
+    :: ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> Redis (Either Reply Integer)
 getbit key offset = sendRequest (["GETBIT"] ++ [encode key] ++ [encode offset] )
 
-zcount :: (RedisArg key, RedisArg min, RedisArg max, RedisResult a)
-    => key -- ^ 
-    -> min -- ^ 
-    -> max -- ^ 
-    -> Redis a
+zcount
+    :: ByteString -- ^ key
+    -> Double -- ^ min
+    -> Double -- ^ max
+    -> Redis (Either Reply Integer)
 zcount key min max = sendRequest (["ZCOUNT"] ++ [encode key] ++ [encode min] ++ [encode max] )
 
-quit :: (RedisResult a)
-    => Redis a
+quit
+    :: Redis (Either Reply Status)
 quit  = sendRequest (["QUIT"] )
 
-msetnx :: (RedisArg key, RedisArg value, RedisResult a)
-    => [(key,value)] -- ^ 
-    -> Redis a
+msetnx
+    :: [(ByteString,ByteString)] -- ^ keyValue
+    -> Redis (Either Reply Bool)
 msetnx keyValue = sendRequest (["MSETNX"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
 
-sismember :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> member -- ^ 
-    -> Redis a
+sismember
+    :: ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
 
-bgrewriteaof :: (RedisResult a)
-    => Redis a
+bgrewriteaof
+    :: Redis (Either Reply Status)
 bgrewriteaof  = sendRequest (["BGREWRITEAOF"] )
 
-hmset :: (RedisArg key, RedisArg field, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> [(field,value)] -- ^ 
-    -> Redis a
+hmset
+    :: ByteString -- ^ key
+    -> [(ByteString,ByteString)] -- ^ fieldValue
+    -> Redis (Either Reply Status)
 hmset key fieldValue = sendRequest (["HMSET"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])fieldValue )
 
-scard :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+scard
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 scard key = sendRequest (["SCARD"] ++ [encode key] )
 
-zincrby :: (RedisArg key, RedisArg increment, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> increment -- ^ 
-    -> member -- ^ 
-    -> Redis a
+zincrby
+    :: ByteString -- ^ key
+    -> Integer -- ^ increment
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Double)
 zincrby key increment member = sendRequest (["ZINCRBY"] ++ [encode key] ++ [encode increment] ++ [encode member] )
 
-sinter :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+sinter
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply [ByteString])
 sinter key = sendRequest (["SINTER"] ++ map encode key )
 
-mset :: (RedisArg key, RedisArg value, RedisResult a)
-    => [(key,value)] -- ^ 
-    -> Redis a
+mset
+    :: [(ByteString,ByteString)] -- ^ keyValue
+    -> Redis (Either Reply Status)
 mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
 
-rpoplpush :: (RedisArg source, RedisArg destination, RedisResult a)
-    => source -- ^ 
-    -> destination -- ^ 
-    -> Redis a
+rpoplpush
+    :: ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> Redis (Either Reply ByteString)
 rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
 
-hlen :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+hlen
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 hlen key = sendRequest (["HLEN"] ++ [encode key] )
 
-setex :: (RedisArg key, RedisArg seconds, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> seconds -- ^ 
-    -> value -- ^ 
-    -> Redis a
+setex
+    :: ByteString -- ^ key
+    -> Integer -- ^ seconds
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Status)
 setex key seconds value = sendRequest (["SETEX"] ++ [encode key] ++ [encode seconds] ++ [encode value] )
 
-sunionstore :: (RedisArg destination, RedisArg key, RedisResult a)
-    => destination -- ^ 
-    -> [key] -- ^ 
-    -> Redis a
+sunionstore
+    :: ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Either Reply Integer)
 sunionstore destination key = sendRequest (["SUNIONSTORE"] ++ [encode destination] ++ map encode key )
 
-brpop :: (RedisArg key, RedisArg timeout, RedisResult a)
-    => [key] -- ^ 
-    -> timeout -- ^ 
-    -> Redis a
+brpop
+    :: [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> Redis (Either Reply (ByteString,ByteString))
 brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
 
-hgetall :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+hgetall
+    :: ByteString -- ^ key
+    -> Redis (Either Reply [(ByteString,ByteString)])
 hgetall key = sendRequest (["HGETALL"] ++ [encode key] )
 
-dbsize :: (RedisResult a)
-    => Redis a
+dbsize
+    :: Redis (Either Reply Integer)
 dbsize  = sendRequest (["DBSIZE"] )
 
-lpop :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+lpop
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
 lpop key = sendRequest (["LPOP"] ++ [encode key] )
 
-hmget :: (RedisArg key, RedisArg field, RedisResult a)
-    => key -- ^ 
-    -> [field] -- ^ 
-    -> Redis a
+hmget
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ field
+    -> Redis (Either Reply [Maybe ByteString])
 hmget key field = sendRequest (["HMGET"] ++ [encode key] ++ map encode field )
 
-lrange :: (RedisArg key, RedisArg start, RedisArg stop, RedisResult a)
-    => key -- ^ 
-    -> start -- ^ 
-    -> stop -- ^ 
-    -> Redis a
+lrange
+    :: ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ stop
+    -> Redis (Either Reply [ByteString])
 lrange key start stop = sendRequest (["LRANGE"] ++ [encode key] ++ [encode start] ++ [encode stop] )
 
-expire :: (RedisArg key, RedisArg seconds, RedisResult a)
-    => key -- ^ 
-    -> seconds -- ^ 
-    -> Redis a
+expire
+    :: ByteString -- ^ key
+    -> Integer -- ^ seconds
+    -> Redis (Either Reply Bool)
 expire key seconds = sendRequest (["EXPIRE"] ++ [encode key] ++ [encode seconds] )
 
-lastsave :: (RedisResult a)
-    => Redis a
+lastsave
+    :: Redis (Either Reply Integer)
 lastsave  = sendRequest (["LASTSAVE"] )
 
-llen :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+llen
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 llen key = sendRequest (["LLEN"] ++ [encode key] )
 
-decrby :: (RedisArg key, RedisArg decrement, RedisResult a)
-    => key -- ^ 
-    -> decrement -- ^ 
-    -> Redis a
+decrby
+    :: ByteString -- ^ key
+    -> Integer -- ^ decrement
+    -> Redis (Either Reply Integer)
 decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
 
-exec :: (RedisResult a)
-    => Redis a
+exec
+    :: Redis (Either Reply Reply)
 exec  = sendRequest (["EXEC"] )
 
-mget :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+mget
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply [Maybe ByteString])
 mget key = sendRequest (["MGET"] ++ map encode key )
 
-zadd :: (RedisArg key, RedisArg score, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> [(score,member)] -- ^ 
-    -> Redis a
+zadd
+    :: ByteString -- ^ key
+    -> [(Double,ByteString)] -- ^ scoreMember
+    -> Redis (Either Reply Integer)
 zadd key scoreMember = sendRequest (["ZADD"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])scoreMember )
 
-keys :: (RedisArg pattern, RedisResult a)
-    => pattern -- ^ 
-    -> Redis a
+keys
+    :: ByteString -- ^ pattern
+    -> Redis (Either Reply [ByteString])
 keys pattern = sendRequest (["KEYS"] ++ [encode pattern] )
 
-bgsave :: (RedisResult a)
-    => Redis a
+bgsave
+    :: Redis (Either Reply Status)
 bgsave  = sendRequest (["BGSAVE"] )
 
-slaveof :: (RedisArg host, RedisArg port, RedisResult a)
-    => host -- ^ 
-    -> port -- ^ 
-    -> Redis a
+slaveof
+    :: ByteString -- ^ host
+    -> ByteString -- ^ port
+    -> Redis (Either Reply Status)
 slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
 
-getset :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+getset
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply ByteString)
 getset key value = sendRequest (["GETSET"] ++ [encode key] ++ [encode value] )
 
-rpushx :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+rpushx
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 rpushx key value = sendRequest (["RPUSHX"] ++ [encode key] ++ [encode value] )
 
-setnx :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+setnx
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Bool)
 setnx key value = sendRequest (["SETNX"] ++ [encode key] ++ [encode value] )
 
-zrank :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> member -- ^ 
-    -> Redis a
+zrank
+    :: ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Integer)
 zrank key member = sendRequest (["ZRANK"] ++ [encode key] ++ [encode member] )
 
-zremrangebyscore :: (RedisArg key, RedisArg min, RedisArg max, RedisResult a)
-    => key -- ^ 
-    -> min -- ^ 
-    -> max -- ^ 
-    -> Redis a
+zremrangebyscore
+    :: ByteString -- ^ key
+    -> Double -- ^ min
+    -> Double -- ^ max
+    -> Redis (Either Reply Integer)
 zremrangebyscore key min max = sendRequest (["ZREMRANGEBYSCORE"] ++ [encode key] ++ [encode min] ++ [encode max] )
 
-ttl :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+ttl
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 ttl key = sendRequest (["TTL"] ++ [encode key] )
 
-hkeys :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+hkeys
+    :: ByteString -- ^ key
+    -> Redis (Either Reply [ByteString])
 hkeys key = sendRequest (["HKEYS"] ++ [encode key] )
 
-rpush :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> [value] -- ^ 
-    -> Redis a
+rpush
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> Redis (Either Reply Integer)
 rpush key value = sendRequest (["RPUSH"] ++ [encode key] ++ map encode value )
 
-randomkey :: (RedisResult a)
-    => Redis a
+randomkey
+    :: Redis (Either Reply ByteString)
 randomkey  = sendRequest (["RANDOMKEY"] )
 
-spop :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+spop
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
 spop key = sendRequest (["SPOP"] ++ [encode key] )
 
-hsetnx :: (RedisArg key, RedisArg field, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> field -- ^ 
-    -> value -- ^ 
-    -> Redis a
+hsetnx
+    :: ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Bool)
 hsetnx key field value = sendRequest (["HSETNX"] ++ [encode key] ++ [encode field] ++ [encode value] )
 
-configGet :: (RedisArg parameter, RedisResult a)
-    => parameter -- ^ 
-    -> Redis a
+configGet
+    :: ByteString -- ^ parameter
+    -> Redis (Either Reply [(ByteString,ByteString)])
 configGet parameter = sendRequest (["CONFIG","GET"] ++ [encode parameter] )
 
-hvals :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+hvals
+    :: ByteString -- ^ key
+    -> Redis (Either Reply [ByteString])
 hvals key = sendRequest (["HVALS"] ++ [encode key] )
 
-exists :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+exists
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Bool)
 exists key = sendRequest (["EXISTS"] ++ [encode key] )
 
-sunion :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+sunion
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply [ByteString])
 sunion key = sendRequest (["SUNION"] ++ map encode key )
 
-zrem :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> [member] -- ^ 
-    -> Redis a
+zrem
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Either Reply Integer)
 zrem key member = sendRequest (["ZREM"] ++ [encode key] ++ map encode member )
 
-smembers :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+smembers
+    :: ByteString -- ^ key
+    -> Redis (Either Reply [ByteString])
 smembers key = sendRequest (["SMEMBERS"] ++ [encode key] )
 
-ping :: (RedisResult a)
-    => Redis a
+ping
+    :: Redis (Either Reply Status)
 ping  = sendRequest (["PING"] )
 
-rename :: (RedisArg key, RedisArg newkey, RedisResult a)
-    => key -- ^ 
-    -> newkey -- ^ 
-    -> Redis a
+rename
+    :: ByteString -- ^ key
+    -> ByteString -- ^ newkey
+    -> Redis (Either Reply Status)
 rename key newkey = sendRequest (["RENAME"] ++ [encode key] ++ [encode newkey] )
 
-decr :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+decr
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 decr key = sendRequest (["DECR"] ++ [encode key] )
 
-select :: (RedisArg index, RedisResult a)
-    => index -- ^ 
-    -> Redis a
+select
+    :: Integer -- ^ index
+    -> Redis (Either Reply Status)
 select index = sendRequest (["SELECT"] ++ [encode index] )
 
-hexists :: (RedisArg key, RedisArg field, RedisResult a)
-    => key -- ^ 
-    -> field -- ^ 
-    -> Redis a
+hexists
+    :: ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Redis (Either Reply Bool)
 hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
 
-auth :: (RedisArg password, RedisResult a)
-    => password -- ^ 
-    -> Redis a
+auth
+    :: ByteString -- ^ password
+    -> Redis (Either Reply Status)
 auth password = sendRequest (["AUTH"] ++ [encode password] )
 
-sinterstore :: (RedisArg destination, RedisArg key, RedisResult a)
-    => destination -- ^ 
-    -> [key] -- ^ 
-    -> Redis a
+sinterstore
+    :: ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> Redis (Either Reply Integer)
 sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
 
-shutdown :: (RedisResult a)
-    => Redis a
+shutdown
+    :: Redis (Either Reply Status)
 shutdown  = sendRequest (["SHUTDOWN"] )
 
-configSet :: (RedisArg parameter, RedisArg value, RedisResult a)
-    => parameter -- ^ 
-    -> value -- ^ 
-    -> Redis a
+configSet
+    :: ByteString -- ^ parameter
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Status)
 configSet parameter value = sendRequest (["CONFIG","SET"] ++ [encode parameter] ++ [encode value] )
 
-renamenx :: (RedisArg key, RedisArg newkey, RedisResult a)
-    => key -- ^ 
-    -> newkey -- ^ 
-    -> Redis a
+renamenx
+    :: ByteString -- ^ key
+    -> ByteString -- ^ newkey
+    -> Redis (Either Reply Bool)
 renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newkey] )
 
-expireat :: (RedisArg key, RedisArg timestamp, RedisResult a)
-    => key -- ^ 
-    -> timestamp -- ^ 
-    -> Redis a
+expireat
+    :: ByteString -- ^ key
+    -> Integer -- ^ timestamp
+    -> Redis (Either Reply Bool)
 expireat key timestamp = sendRequest (["EXPIREAT"] ++ [encode key] ++ [encode timestamp] )
 
-get :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+get
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
 get key = sendRequest (["GET"] ++ [encode key] )
 
-lrem :: (RedisArg key, RedisArg count, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> count -- ^ 
-    -> value -- ^ 
-    -> Redis a
+lrem
+    :: ByteString -- ^ key
+    -> Integer -- ^ count
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 lrem key count value = sendRequest (["LREM"] ++ [encode key] ++ [encode count] ++ [encode value] )
 
-incr :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+incr
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 incr key = sendRequest (["INCR"] ++ [encode key] )
 
-zcard :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+zcard
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 zcard key = sendRequest (["ZCARD"] ++ [encode key] )
 
-ltrim :: (RedisArg key, RedisArg start, RedisArg stop, RedisResult a)
-    => key -- ^ 
-    -> start -- ^ 
-    -> stop -- ^ 
-    -> Redis a
+ltrim
+    :: ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ stop
+    -> Redis (Either Reply Status)
 ltrim key start stop = sendRequest (["LTRIM"] ++ [encode key] ++ [encode start] ++ [encode stop] )
 
-append :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+append
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 append key value = sendRequest (["APPEND"] ++ [encode key] ++ [encode value] )
 
-lset :: (RedisArg key, RedisArg index, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> index -- ^ 
-    -> value -- ^ 
-    -> Redis a
+lset
+    :: ByteString -- ^ key
+    -> Integer -- ^ index
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Status)
 lset key index value = sendRequest (["LSET"] ++ [encode key] ++ [encode index] ++ [encode value] )
 
-info :: (RedisResult a)
-    => Redis a
+info
+    :: Redis (Either Reply ByteString)
 info  = sendRequest (["INFO"] )
 
-hget :: (RedisArg key, RedisArg field, RedisResult a)
-    => key -- ^ 
-    -> field -- ^ 
-    -> Redis a
+hget
+    :: ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Redis (Either Reply ByteString)
 hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
 
-sdiff :: (RedisArg key, RedisResult a)
-    => [key] -- ^ 
-    -> Redis a
+sdiff
+    :: [ByteString] -- ^ key
+    -> Redis (Either Reply [ByteString])
 sdiff key = sendRequest (["SDIFF"] ++ map encode key )
 
-smove :: (RedisArg source, RedisArg destination, RedisArg member, RedisResult a)
-    => source -- ^ 
-    -> destination -- ^ 
-    -> member -- ^ 
-    -> Redis a
+smove
+    :: ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Bool)
 smove source destination member = sendRequest (["SMOVE"] ++ [encode source] ++ [encode destination] ++ [encode member] )
 
-flushdb :: (RedisResult a)
-    => Redis a
+flushdb
+    :: Redis (Either Reply Status)
 flushdb  = sendRequest (["FLUSHDB"] )
 
-set :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+set
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Status)
 set key value = sendRequest (["SET"] ++ [encode key] ++ [encode value] )
 
-zremrangebyrank :: (RedisArg key, RedisArg start, RedisArg stop, RedisResult a)
-    => key -- ^ 
-    -> start -- ^ 
-    -> stop -- ^ 
-    -> Redis a
+zremrangebyrank
+    :: ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ stop
+    -> Redis (Either Reply Integer)
 zremrangebyrank key start stop = sendRequest (["ZREMRANGEBYRANK"] ++ [encode key] ++ [encode start] ++ [encode stop] )
 
-sadd :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> [member] -- ^ 
-    -> Redis a
+sadd
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> Redis (Either Reply Integer)
 sadd key member = sendRequest (["SADD"] ++ [encode key] ++ map encode member )
 
-lpush :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> [value] -- ^ 
-    -> Redis a
+lpush
+    :: ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> Redis (Either Reply Integer)
 lpush key value = sendRequest (["LPUSH"] ++ [encode key] ++ map encode value )
 
-lindex :: (RedisArg key, RedisArg index, RedisResult a)
-    => key -- ^ 
-    -> index -- ^ 
-    -> Redis a
+lindex
+    :: ByteString -- ^ key
+    -> Integer -- ^ index
+    -> Redis (Either Reply ByteString)
 lindex key index = sendRequest (["LINDEX"] ++ [encode key] ++ [encode index] )
 
-zscore :: (RedisArg key, RedisArg member, RedisResult a)
-    => key -- ^ 
-    -> member -- ^ 
-    -> Redis a
+zscore
+    :: ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> Redis (Either Reply Double)
 zscore key member = sendRequest (["ZSCORE"] ++ [encode key] ++ [encode member] )
 
-strlen :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+strlen
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Integer)
 strlen key = sendRequest (["STRLEN"] ++ [encode key] )
 
-unwatch :: (RedisResult a)
-    => Redis a
+unwatch
+    :: Redis (Either Reply Status)
 unwatch  = sendRequest (["UNWATCH"] )
 
-hset :: (RedisArg key, RedisArg field, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> field -- ^ 
-    -> value -- ^ 
-    -> Redis a
+hset
+    :: ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Bool)
 hset key field value = sendRequest (["HSET"] ++ [encode key] ++ [encode field] ++ [encode value] )
 
-lpushx :: (RedisArg key, RedisArg value, RedisResult a)
-    => key -- ^ 
-    -> value -- ^ 
-    -> Redis a
+lpushx
+    :: ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> Redis (Either Reply Integer)
 lpushx key value = sendRequest (["LPUSHX"] ++ [encode key] ++ [encode value] )
 
-discard :: (RedisResult a)
-    => Redis a
+discard
+    :: Redis (Either Reply Status)
 discard  = sendRequest (["DISCARD"] )
 
-srandmember :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+srandmember
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
 srandmember key = sendRequest (["SRANDMEMBER"] ++ [encode key] )
 
-persist :: (RedisArg key, RedisResult a)
-    => key -- ^ 
-    -> Redis a
+persist
+    :: ByteString -- ^ key
+    -> Redis (Either Reply Bool)
 persist key = sendRequest (["PERSIST"] ++ [encode key] )
 
 

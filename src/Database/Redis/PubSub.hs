@@ -34,10 +34,10 @@ data Message = Message  { msgChannel, msgMessage :: ByteString}
 --
 
 -- |Post a message to a channel (<http://redis.io/commands/publish>).
-publish :: (RedisArg channel, RedisArg message, RedisResult a)
-    => channel -- ^
-    -> message -- ^
-    -> Redis a
+publish
+    :: ByteString -- ^ channel
+    -> ByteString -- ^ message
+    -> Redis (Either Reply Integer)
 publish channel message =
     Internal.sendRequest ["PUBLISH", encode channel, encode message]
 
@@ -129,10 +129,6 @@ decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = either (error "decodeMsg") id $ do
   where
     decodeMessage  = Message  <$> decode r1 <*> decode r2
     decodePMessage = PMessage <$> decode r1 <*> decode r2
-                                    <*> (decode =<< maybeHead rs)
+                                    <*> decode (head rs)
         
 decodeMsg r = error $ "not a message: " ++ show r
-
-maybeHead :: [a] -> Either ResultError a
-maybeHead (x:_) = Right x
-maybeHead _     = Left ResultError

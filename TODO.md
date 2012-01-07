@@ -3,12 +3,6 @@
 ## Certainly
 
 - Manual implementation of blacklisted commands
-- More instances for argument type class
-- Add Redis* instances for
-    - containers
-    - unordered-containers
-    - vector
-    - Text
 - Benchmark
     - include pathological cases with a lot of list appending when building reqs
 - Test to check if pipelining works

@@ -196,7 +196,8 @@
   "DISCARD": {
     "summary": "Discard all commands issued after MULTI",
     "since": "1.3.3",
-    "group": "transactions"
+    "group": "transactions",
+    "returns": "status"
   },
   "ECHO": {
     "summary": "Echo the given string",
@@ -213,7 +214,8 @@
   "EXEC": {
     "summary": "Execute all commands issued after MULTI",
     "since": "1.1.95",
-    "group": "transactions"
+    "group": "transactions",
+    "returns": "reply"
   },
   "EXISTS": {
     "summary": "Determine if a key exists",
@@ -455,7 +457,7 @@
     ],
     "since": "1.3.10",
     "group": "hash",
-    "returns": "list"
+    "returns": "list-maybe"
   },
   "HMSET": {
     "summary": "Set multiple hash fields to multiple values",
@@ -766,7 +768,7 @@
     ],
     "since": "0.07",
     "group": "string",
-    "returns": "list"
+    "returns": "list-maybe"
   },
   "MONITOR": {
     "summary": "Listen for all requests received by the server in real time",
@@ -818,7 +820,8 @@
   "MULTI": {
     "summary": "Mark the start of a transaction block",
     "since": "1.1.95",
-    "group": "transactions"
+    "group": "transactions",
+    "returns": "status"
   },
   "OBJECT": {
     "summary": "Inspect the internals of Redis objects",
@@ -1472,7 +1475,8 @@
   "UNWATCH": {
     "summary": "Forget about all watched keys",
     "since": "2.1.0",
-    "group": "transactions"
+    "group": "transactions",
+    "returns": "status"
   },
   "WATCH": {
     "summary": "Watch the given keys to determine execution of the MULTI/EXEC block",
@@ -1484,7 +1488,8 @@
       }
     ],
     "since": "2.1.0",
-    "group": "transactions"
+    "group": "transactions",
+    "returns": "status"
   },
   "ZADD": {
     "summary": "Add one or more members to a sorted set, or update its score if it already exists",
