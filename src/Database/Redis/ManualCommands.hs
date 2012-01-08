@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Database.Redis.ManualCommands where
 
@@ -166,3 +166,51 @@ zrevrangebyscoreWithscoresLimit
 zrevrangebyscoreWithscoresLimit key min max offset count =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES","LIMIT", encode offset, encode count]
+
+data SortOpts = SortOpts
+    { sortBy     :: Maybe ByteString
+    , sortLimit  :: (Integer,Integer)
+    , sortGet    :: [ByteString]
+    , sortOrder  :: SortOrder
+    , sortAlpha  :: Bool
+    } deriving (Show, Eq)
+
+defaultSortOpts :: SortOpts
+defaultSortOpts = SortOpts
+    { sortBy    = Nothing
+    , sortLimit = (0,-1)
+    , sortGet   = []
+    , sortOrder = Asc
+    , sortAlpha = False
+    }
+
+data SortOrder = Asc | Desc deriving (Show, Eq)
+
+sortStore
+    :: ByteString -- ^ key
+    -> ByteString -- ^ destination
+    -> SortOpts
+    -> Redis (Either Reply Integer)
+sortStore key dest = sortInternal key (Just dest)
+
+sort
+    :: ByteString -- ^ key
+    -> SortOpts
+    -> Redis (Either Reply [ByteString])
+sort key = sortInternal key Nothing
+
+sortInternal
+    :: (RedisResult a)
+    => ByteString -- ^ key
+    -> Maybe ByteString -- ^ destination
+    -> SortOpts
+    -> Redis (Either Reply a)
+sortInternal key destination SortOpts{..} = sendRequest $
+    concat [["SORT", encode key], by, limit, get, order, alpha, store]
+  where
+    by    = maybe [] (\pattern -> ["BY", pattern]) sortBy
+    limit = let (off,cnt) = sortLimit in ["LIMIT", encode off, encode cnt]
+    get   = concatMap (\pattern -> ["GET", pattern]) sortGet
+    order = case sortOrder of Desc -> ["DESC"]; Asc -> ["ASC"]
+    alpha = ["ALPHA" | sortAlpha]
+    store = maybe [] (\dest -> ["STORE", dest]) destination

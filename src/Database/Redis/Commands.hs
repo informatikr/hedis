@@ -25,6 +25,11 @@ persist, -- |Remove the expiration from a key (<http://redis.io/commands/persist
 randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>).
 rename, -- |Rename a key (<http://redis.io/commands/rename>).
 renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
+SortOpts(..),
+defaultSortOpts,
+SortOrder(..),
+sort, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
+sortStore, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
 ttl, -- |Get the time to live for a key (<http://redis.io/commands/ttl>).
 getType, -- |Determine the type stored at key (<http://redis.io/commands/type>).
 
@@ -151,9 +156,6 @@ watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (
 -- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
 --
 -- * EVAL (<http://redis.io/commands/eval>)
---
---
--- * SORT (<http://redis.io/commands/sort>)
 --
 --
 -- * MONITOR (<http://redis.io/commands/monitor>)
@@ -762,9 +764,6 @@ persist key = sendRequest (["PERSIST"] ++ [encode key] )
 -- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
 --
 -- * EVAL (<http://redis.io/commands/eval>)
---
---
--- * SORT (<http://redis.io/commands/sort>)
 --
 --
 -- * MONITOR (<http://redis.io/commands/monitor>)

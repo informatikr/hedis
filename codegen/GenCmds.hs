@@ -47,30 +47,34 @@ groupCmds (Cmds cmds) =
 
 -- |Blacklisted commands, optionally paired with the name of their
 --  implementation in the "Database.Redis.ManualCommands" module.
-blacklist :: [(String, Maybe [String])]
-blacklist = [ ("OBJECT", Just ["objectRefcount"
-                              ,"objectEncoding"
-                              ,"objectIdletime"])
-            , ("TYPE", Just ["getType"])
+blacklist :: [(String, Maybe ([String],[String]))]
+blacklist = [ ("OBJECT", Just (["objectRefcount"
+                               ,"objectEncoding"
+                               ,"objectIdletime"]
+                              ,[]))
+            , ("TYPE", Just (["getType"],[]))
             , ("EVAL", Nothing)           -- not part of Redis 2.4
-            , ("SORT", Nothing)
-            , ("LINSERT", Just ["linsertBefore", "linsertAfter"])
+            , ("SORT", Just (["sort","sortStore"]
+                            ,["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
+                            ))
+            , ("LINSERT",Just (["linsertBefore", "linsertAfter"],[]))
             , ("MONITOR", Nothing)        -- debugging command
             , ("DEBUG OBJECT", Nothing)   -- debugging command
             , ("DEBUG SEGFAULT", Nothing) -- debugging command
-            , ("SLOWLOG", Just ["slowlogGet", "slowlogLen", "slowlogReset"])
+            , ("SLOWLOG"
+                ,Just (["slowlogGet", "slowlogLen", "slowlogReset"],[]))
             , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Nothing)
-            , ("ZRANGE", Just ["zrange", "zrangeWithscores"])
-            , ("ZRANGEBYSCORE", Just ["zrangebyscore"
-                                     ,"zrangebyscoreWithscores"
-                                     ,"zrangebyscoreLimit"
-                                     ,"zrangebyscoreWithscoresLimit"])
-            , ("ZREVRANGE", Just ["zrevrange", "zrevrangeWithscores"])
-            , ("ZREVRANGEBYSCORE", Just ["zrevrangebyscore"
-                                        ,"zrevrangebyscoreWithscores"
-                                        ,"zrevrangebyscoreLimit"
-                                        ,"zrevrangebyscoreWithscoresLimit"])
+            , ("ZRANGE", Just (["zrange", "zrangeWithscores"],[]))
+            , ("ZRANGEBYSCORE"
+                ,Just (["zrangebyscore","zrangebyscoreWithscores"
+                       ,"zrangebyscoreLimit"
+                       ,"zrangebyscoreWithscoresLimit"],[]))
+            , ("ZREVRANGE", Just (["zrevrange", "zrevrangeWithscores"],[]))
+            , ("ZREVRANGEBYSCORE"
+                , Just (["zrevrangebyscore","zrevrangebyscoreWithscores"
+                        ,"zrevrangebyscoreLimit"
+                        ,"zrevrangebyscoreWithscoresLimit"],[]))
             , ("ZUNIONSTORE", Nothing)
             ]
 
@@ -218,24 +222,35 @@ exportList cmds =
         _              -> error $ "untranslated group: " ++ cmdGroup
 
 exportCmdNames :: Cmd -> Builder
-exportCmdNames Cmd{..} = mconcat $ flip map names
-    (\name -> mconcat [fromString name, fromString ", ", haddock, newline])
+exportCmdNames Cmd{..} = types `mappend` functions
   where
-    names = case lookup cmdName blacklist of
-        Nothing       -> [camelCase cmdName]
-        Just (Just s) -> s
-        Just Nothing  -> error "unhandled"
+    types = mconcat $ flip map typeNames
+        (\name -> mconcat [fromString name, fromString ",\n"])
+        
+    functions = mconcat $ flip map funNames
+        (\name -> mconcat [fromString name, fromString ", ", haddock, newline])
+      
+    funNames = case lookup cmdName blacklist of
+        Nothing            -> [camelCase cmdName]
+        Just (Just (xs,_)) -> xs
+        Just Nothing       -> error "unhandled"
+
+    typeNames = case lookup cmdName blacklist of
+        Nothing            -> []
+        Just (Just (_,ts)) -> ts
+        Just Nothing       -> error "unhandled"
+
     haddock = mconcat
         [ fromString "-- |", fromString cmdSummary
         , fromString " ("
         , cmdDescriptionLink cmdName
         , fromString ")."
-        , if length names > 1
+        , if length funNames > 1
             then mconcat
                 [ fromString " The Redis command @"
                 , fromString cmdName
                 , fromString "@ is split up into '"
-                , mconcat . map fromString $ intersperse "', '" names
+                , mconcat . map fromString $ intersperse "', '" funNames
                 , fromString "'."
                 ]
             else mempty
