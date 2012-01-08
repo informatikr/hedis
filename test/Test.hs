@@ -44,8 +44,8 @@ x @=? y = liftIO $ (Test.@=?) x y
 --
 tests :: [Test]
 tests = concat
-    [ testsKeys, testsStrings, testsHashes, testsLists, testsConnection
-    , testsServer, [testQuit]
+    [ testsKeys, testsStrings, testsHashes, testsLists, testsZSets
+    , testsConnection, testsServer, [testQuit]
     ]
 
 
@@ -404,7 +404,46 @@ testLset = testCase "lset/lrem/ltrim" $ do
 ------------------------------------------------------------------------------
 -- Sorted Sets
 --
+testsZSets :: [Test]
+testsZSets = [testZAdd, testZRank, testZRemRange, testZRange]
 
+testZAdd :: Test
+testZAdd = testCase "zadd/zrem/zcard/zscore/zincrby" $ do
+    zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 3
+    zscore "key" "v3"                        >>=? 40
+    zincrby "key" 2 "v3"                     >>=? 42
+    zrem "key" ["v3","notAKey"]              >>=? 1
+    zcard "key"                              >>=? 2
+
+testZRank :: Test
+testZRank = testCase "zrank/zrevrank/zcount" $ do
+    zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 3
+    zrank "key" "v1"                         >>=? 0
+    zrevrank "key" "v1"                      >>=? 2
+    zcount "key" 10 100                      >>=? 1
+
+testZRemRange :: Test
+testZRemRange = testCase "zremrangebyscore/zremrangebyrank" $ do
+    zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 3
+    zremrangebyrank "key" 0 1                >>=? 2
+    zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 2
+    zremrangebyscore "key" 10 100            >>=? 1
+
+testZRange :: Test
+testZRange = testCase "zrange/zrevrange/zrangebyscore/zrevrangebyscore" $ do
+    zadd "key" [(1,"v1"),(2,"v2"),(3,"v3")]           >>=? 3
+    zrange "key" 0 1                                  >>=? ["v1","v2"]
+    zrevrange "key" 0 1                               >>=? ["v3","v2"]
+    zrangeWithscores "key" 0 1                        >>=? [("v1",1),("v2",2)]
+    zrevrangeWithscores "key" 0 1                     >>=? [("v3",3),("v2",2)]
+    zrangebyscore "key" 0.5 1.5                       >>=? ["v1"]
+    zrangebyscoreWithscores "key" 0.5 1.5             >>=? [("v1",1)]
+    zrangebyscoreLimit "key" 0.5 2.5 0 1              >>=? ["v1"]
+    zrangebyscoreWithscoresLimit "key" 0.5 2.5 0 1    >>=? [("v1",1)]
+    zrevrangebyscore "key" 1.5 0.5                       >>=? ["v1"]
+    zrevrangebyscoreWithscores "key" 1.5 0.5             >>=? [("v1",1)]
+    zrevrangebyscoreLimit "key" 2.5 0.5 0 1              >>=? ["v2"]
+    zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1    >>=? [("v2",2)]
 
 ------------------------------------------------------------------------------
 -- Pub/Sub

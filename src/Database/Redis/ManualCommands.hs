@@ -78,7 +78,7 @@ zrevrange
     -> Integer -- ^ stop
     -> Redis (Either Reply [ByteString])
 zrevrange key start stop =
-    sendRequest ["ZRANGE", encode key, encode start, encode stop]
+    sendRequest ["ZREVRANGE", encode key, encode start, encode stop]
 
 zrevrangeWithscores
     :: ByteString -- ^ key
@@ -86,7 +86,8 @@ zrevrangeWithscores
     -> Integer -- ^ stop
     -> Redis (Either Reply [(ByteString,Double)])
 zrevrangeWithscores key start stop =
-    sendRequest ["ZRANGE", encode key, encode start, encode stop, "WITHSCORES"]
+    sendRequest ["ZREVRANGE", encode key, encode start, encode stop
+                ,"WITHSCORES"]
 
 zrangebyscore
     :: ByteString -- ^ key
@@ -129,16 +130,16 @@ zrangebyscoreWithscoresLimit key min max offset count =
 
 zrevrangebyscore
     :: ByteString -- ^ key
-    -> Double -- ^ min
     -> Double -- ^ max
+    -> Double -- ^ min
     -> Redis (Either Reply [ByteString])
 zrevrangebyscore key min max =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max]
 
 zrevrangebyscoreWithscores
     :: ByteString -- ^ key
-    -> Double -- ^ min
     -> Double -- ^ max
+    -> Double -- ^ min
     -> Redis (Either Reply [(ByteString,Double)])
 zrevrangebyscoreWithscores key min max =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
@@ -146,8 +147,8 @@ zrevrangebyscoreWithscores key min max =
 
 zrevrangebyscoreLimit
     :: ByteString -- ^ key
-    -> Double -- ^ min
     -> Double -- ^ max
+    -> Double -- ^ min
     -> Integer -- ^ offset
     -> Integer -- ^ count
     -> Redis (Either Reply [ByteString])
@@ -157,8 +158,8 @@ zrevrangebyscoreLimit key min max offset count =
 
 zrevrangebyscoreWithscoresLimit
     :: ByteString -- ^ key
-    -> Double -- ^ min
     -> Double -- ^ max
+    -> Double -- ^ min
     -> Integer -- ^ offset
     -> Integer -- ^ count
     -> Redis (Either Reply [(ByteString,Double)])
