@@ -91,7 +91,4 @@ recv = Redis $ do
 
 -- |Sends a request to the Redis server, returning the 'decode'd reply.
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
-sendRequest req = do
-    reply <- send req >> recv
-    -- Using 'throw' instead of 'throwIO' is lazy enough for auto-pipelining.
-    return $ decode reply
+sendRequest req = decode <$> (send req >> recv)

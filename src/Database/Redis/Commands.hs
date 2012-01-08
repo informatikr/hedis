@@ -466,7 +466,7 @@ slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
 getset
     :: ByteString -- ^ key
     -> ByteString -- ^ value
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 getset key value = sendRequest (["GETSET"] ++ [encode key] ++ [encode value] )
 
 rpushx
@@ -618,7 +618,7 @@ expireat key timestamp = sendRequest (["EXPIREAT"] ++ [encode key] ++ [encode ti
 
 get
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 get key = sendRequest (["GET"] ++ [encode key] )
 
 lrem
@@ -665,7 +665,7 @@ info  = sendRequest (["INFO"] )
 hget
     :: ByteString -- ^ key
     -> ByteString -- ^ field
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
 
 sdiff

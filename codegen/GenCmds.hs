@@ -296,19 +296,20 @@ retType Cmd{..} = maybe err translate cmdRetType
   where
     err = error $ "Command without return type: " ++ cmdName
     translate t = fromString $ case t of
-        "status"     -> "Status"
-        "bool"       -> "Bool"
-        "integer"    -> "Integer"
-        "key"        -> "ByteString"
-        "string"     -> "ByteString"
-        "list"       -> "[ByteString]"
-        "list-maybe" -> "[Maybe ByteString]"
-        "hash"       -> "[(ByteString,ByteString)]"
-        "set"        -> "[ByteString]"
-        "pair"       -> "(ByteString,ByteString)"
-        "double"     -> "Double"
-        "reply"      -> "Reply"
-        _            -> error $ "untranslated return type: " ++ t
+        "status"       -> "Status"
+        "bool"         -> "Bool"
+        "integer"      -> "Integer"
+        "key"          -> "ByteString"
+        "string"       -> "ByteString"
+        "maybe-string" -> "(Maybe ByteString)"
+        "list"         -> "[ByteString]"
+        "list-maybe"   -> "[Maybe ByteString]"
+        "hash"         -> "[(ByteString,ByteString)]"
+        "set"          -> "[ByteString]"
+        "pair"         -> "(ByteString,ByteString)"
+        "double"       -> "Double"
+        "reply"        -> "Reply"
+        _              -> error $ "untranslated return type: " ++ t
     
 
 argumentList :: Arg -> Builder

@@ -24,8 +24,8 @@ module Database.Redis (
     --
     -- @
     -- -- |Redis DEBUG OBJECT command
-    -- debugObject :: (RedisArg key, RedisResult a) => key -> Redis a
-    -- debugObject key = sendRequest [\"DEBUG\", \"OBJECT\", encode key]
+    -- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
+    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
     -- @
     --
 ) where

@@ -14,7 +14,7 @@ data Reply = SingleLine S.ByteString
            | Integer Integer
            | Bulk (Maybe S.ByteString)
            | MultiBulk (Maybe [Reply])
-         deriving (Show)
+         deriving (Eq, Show)
 
 -- |Parse a lazy 'L.ByteString' into a (possibly infinite) list of 'Reply's.
 parseReply :: L.ByteString -> [Reply]
