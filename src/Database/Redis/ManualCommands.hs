@@ -214,3 +214,58 @@ sortInternal key destination SortOpts{..} = sendRequest $
     order = case sortOrder of Desc -> ["DESC"]; Asc -> ["ASC"]
     alpha = ["ALPHA" | sortAlpha]
     store = maybe [] (\dest -> ["STORE", dest]) destination
+
+
+data Aggregate = Sum | Min | Max deriving (Show,Eq)
+
+zunionstore
+    :: ByteString -- ^ destination
+    -> [ByteString] -- ^ keys
+    -> Aggregate
+    -> Redis (Either Reply Integer)
+zunionstore dest keys =
+    zstoreInternal "ZUNIONSTORE" dest keys []
+
+zunionstoreWeights
+    :: ByteString -- ^ destination
+    -> [(ByteString,Double)] -- ^ weighted keys
+    -> Aggregate
+    -> Redis (Either Reply Integer)
+zunionstoreWeights dest kws =
+    let (keys,weights) = unzip kws
+    in zstoreInternal "ZUNIONSTORE" dest keys weights
+
+zinterstore
+    :: ByteString -- ^ destination
+    -> [ByteString] -- ^ keys
+    -> Aggregate
+    -> Redis (Either Reply Integer)
+zinterstore dest keys =
+    zstoreInternal "ZINTERSTORE" dest keys []
+
+zinterstoreWeights
+    :: ByteString -- ^ destination
+    -> [(ByteString,Double)] -- ^ weighted keys
+    -> Aggregate
+    -> Redis (Either Reply Integer)
+zinterstoreWeights dest kws =
+    let (keys,weights) = unzip kws
+    in zstoreInternal "ZINTERSTORE" dest keys weights
+
+zstoreInternal
+    :: ByteString -- ^ cmd
+    -> ByteString -- ^ destination
+    -> [ByteString] -- ^ keys
+    -> [Double] -- ^ weights
+    -> Aggregate
+    -> Redis (Either Reply Integer)
+zstoreInternal cmd dest keys weights aggregate = sendRequest $
+    concat [ [cmd, dest, encode . toInteger $ length keys], keys
+           , if null weights then [] else "WEIGHTS" : map encode weights
+           , ["AGGREGATE", aggregate']
+           ]
+  where
+    aggregate' = case aggregate of
+        Sum -> "SUM"
+        Min -> "MIN"
+        Max -> "MAX"

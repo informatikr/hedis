@@ -421,7 +421,7 @@ testLset = testCase "lset/lrem/ltrim" $ do
 -- Sorted Sets
 --
 testsZSets :: [Test]
-testsZSets = [testZAdd, testZRank, testZRemRange, testZRange]
+testsZSets = [testZAdd, testZRank, testZRemRange, testZRange, testZStore]
 
 testZAdd :: Test
 testZAdd = testCase "zadd/zrem/zcard/zscore/zincrby" $ do
@@ -456,10 +456,20 @@ testZRange = testCase "zrange/zrevrange/zrangebyscore/zrevrangebyscore" $ do
     zrangebyscoreWithscores "key" 0.5 1.5             >>=? [("v1",1)]
     zrangebyscoreLimit "key" 0.5 2.5 0 1              >>=? ["v1"]
     zrangebyscoreWithscoresLimit "key" 0.5 2.5 0 1    >>=? [("v1",1)]
-    zrevrangebyscore "key" 1.5 0.5                       >>=? ["v1"]
-    zrevrangebyscoreWithscores "key" 1.5 0.5             >>=? [("v1",1)]
-    zrevrangebyscoreLimit "key" 2.5 0.5 0 1              >>=? ["v2"]
-    zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1    >>=? [("v2",2)]
+    zrevrangebyscore "key" 1.5 0.5                    >>=? ["v1"]
+    zrevrangebyscoreWithscores "key" 1.5 0.5          >>=? [("v1",1)]
+    zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
+    zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
+
+testZStore :: Test
+testZStore = testCase "zunionstore/zinterstore" $ do
+    zadd "k1" [(1, "v1"), (2, "v2")]
+    zadd "k2" [(2, "v2"), (3, "v3")]
+    zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
+    zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
+    zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
+    zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
+
 
 ------------------------------------------------------------------------------
 -- Pub/Sub

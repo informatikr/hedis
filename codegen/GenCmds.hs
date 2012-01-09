@@ -64,7 +64,9 @@ blacklist = [ ("OBJECT", Just (["objectRefcount"
             , ("SLOWLOG"
                 ,Just (["slowlogGet", "slowlogLen", "slowlogReset"],[]))
             , ("SYNC", Nothing)           -- internal command
-            , ("ZINTERSTORE", Nothing)
+            , ("ZINTERSTORE", Just (["zinterstore","zinterstoreWeights"]
+                                   ,["Aggregate(..)"]
+                                   ))
             , ("ZRANGE", Just (["zrange", "zrangeWithscores"],[]))
             , ("ZRANGEBYSCORE"
                 ,Just (["zrangebyscore","zrangebyscoreWithscores"
@@ -75,7 +77,7 @@ blacklist = [ ("OBJECT", Just (["objectRefcount"
                 , Just (["zrevrangebyscore","zrevrangebyscoreWithscores"
                         ,"zrevrangebyscoreLimit"
                         ,"zrevrangebyscoreWithscoresLimit"],[]))
-            , ("ZUNIONSTORE", Nothing)
+            , ("ZUNIONSTORE", Just (["zunionstore","zunionstoreWeights"],[]))
             ]
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.

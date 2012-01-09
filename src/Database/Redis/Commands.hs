@@ -106,6 +106,9 @@ zadd, -- |Add one or more members to a sorted set, or update its score if it alr
 zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>).
 zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>).
 zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>).
+Aggregate(..),
+zinterstore, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'.
+zinterstoreWeights, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'.
 zrange, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'.
 zrangeWithscores, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'.
 zrangebyscore, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'.
@@ -124,6 +127,8 @@ zrevrangebyscoreLimit, -- |Return a range of members in a sorted set, by score, 
 zrevrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'.
 zrevrank, -- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>).
 zscore, -- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>).
+zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'.
+zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'.
 
 -- ** Strings
 append, -- |Append a value to a key (<http://redis.io/commands/append>).
@@ -168,12 +173,6 @@ watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)
---
---
--- * ZINTERSTORE (<http://redis.io/commands/zinterstore>)
---
---
--- * ZUNIONSTORE (<http://redis.io/commands/zunionstore>)
 --
 ) where
 
@@ -776,11 +775,5 @@ persist key = sendRequest (["PERSIST"] ++ [encode key] )
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)
---
---
--- * ZINTERSTORE (<http://redis.io/commands/zinterstore>)
---
---
--- * ZUNIONSTORE (<http://redis.io/commands/zunionstore>)
 --
 
