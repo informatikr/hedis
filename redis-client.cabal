@@ -26,18 +26,12 @@ library
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis,
                     Database.Redis.Types
-  build-depends:    aeson == 0.4.*,
-                    attoparsec >= 0.8,
+  build-depends:    attoparsec >= 0.8,
                     base >= 4,
                     bytestring >= 0.9,
                     bytestring-lexing == 0.2.*,
-                    containers >= 0.3,
                     mtl >= 2,
-                    network >= 2,
-                    template-haskell >= 2.5,
-                    text == 0.11.1.*,
-                    unordered-containers == 0.1.4.*,
-                    vector == 0.9
+                    network >= 2
 
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
@@ -50,15 +44,13 @@ executable redis-client-benchmark
     buildable = flag(benchmark)
     main-is: benchmark/Benchmark.hs
     other-modules:
-    ghc-options: -O -Wall -rtsopts
+    ghc-options: -Wall -rtsopts
     ghc-prof-options: -auto-all
     build-depends:
         base >= 4,
         mtl == 2.0.*,
         redis-client == 0.1.*,
         time >= 1.2
-
-    
 
 source-repository head
   type:     git
