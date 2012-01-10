@@ -7,7 +7,7 @@ module Database.Redis (
     
     -- * Connection
     RedisConn, connect, disconnect,
-    HostName,PortID(..),
+    HostName,PortID(..),defaultPort,
     
     -- * Commands
 	module Database.Redis.Commands,

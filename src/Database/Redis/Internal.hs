@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Internal (
-    HostName,PortID(..),
+    HostName,PortID(..), defaultPort,
     RedisConn(), connect, disconnect,
     Redis(),runRedis,
     send,
@@ -57,6 +57,9 @@ disconnect conn = withConn conn $ \h rs -> do
     when open (hClose h)
     return (rs, ())
 
+-- | The Redis default port 6379. Equivalent to @'PortNumber' 6379@.
+defaultPort :: PortID
+defaultPort = PortNumber 6379
 
 ------------------------------------------------------------------------------
 -- The Redis Monad
