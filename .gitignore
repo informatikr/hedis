@@ -5,3 +5,4 @@
 /cabal-dev/
 dump.rdb
 appendonly.aof
+*.prof
