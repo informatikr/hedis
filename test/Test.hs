@@ -19,7 +19,7 @@ type BS = ByteString
 --
 main :: IO ()
 main = do
-    c <- connect "127.0.0.1" (PortNumber 6379)
+    c <- connect "127.0.0.1" defaultPort
     runTestTT $ Test.TestList $ map ($c) tests
     disconnect c
 
@@ -27,7 +27,7 @@ type Test = RedisConn -> Test.Test
 
 testCase :: String -> Redis () -> Test
 testCase name r conn = name ~:
-    Test.TestCase $ runRedis conn $ flushall >>=? Ok >> r
+    Test.TestCase $ runRedis conn $ flushdb >>=? Ok >> r
     
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
 redis >>=? expected = do
