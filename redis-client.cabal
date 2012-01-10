@@ -41,16 +41,17 @@ library
                     Database.Redis.ManualCommands
 
 executable redis-client-benchmark
-    buildable = flag(benchmark)
     main-is: benchmark/Benchmark.hs
-    other-modules:
     ghc-options: -Wall -rtsopts
     ghc-prof-options: -auto-all
-    build-depends:
-        base >= 4,
-        mtl == 2.0.*,
-        redis-client == 0.1.*,
-        time >= 1.2
+    if ! flag(benchmark)
+        buildable: False
+    else
+        build-depends:
+            base >= 4,
+            mtl == 2.0.*,
+            redis-client,
+            time >= 1.2
 
 source-repository head
   type:     git
