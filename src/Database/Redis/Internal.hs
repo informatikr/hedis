@@ -13,9 +13,8 @@ import Control.Monad.RWS
 import Control.Concurrent
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Data.Maybe
 import Network (HostName, PortID(..), connectTo)
-import System.IO (Handle, hFlush, hClose)
+import System.IO (Handle, hFlush, hClose, hIsOpen)
 
 import Database.Redis.Reply
 import Database.Redis.Request
@@ -30,15 +29,15 @@ import Database.Redis.Types
 --  A 'RedisConn' can only be used by a single thread at a time. This means that
 --  calls to 'runRedis' or 'disconnet' may block when the 'RedisConn' is shared
 --  between multiple threads.
-data RedisConn = Conn (MVar (Maybe Handle, [Reply]))
+data RedisConn = Conn (MVar (Handle, [Reply]))
 
 withConn :: RedisConn
-         -> (Maybe Handle -> [Reply] -> IO (Maybe Handle, [Reply], a))
+         -> (Handle -> [Reply] -> IO ([Reply], a))
          -> IO a
 withConn (Conn conn) f = do
     (h,rs)     <- takeMVar conn
-    (h',rs',a) <- f h rs
-    putMVar conn (h',rs')
+    (rs',a) <- f h rs
+    putMVar conn (h,rs')
     return a
 
 -- |Opens a connection to a Redis server at the given host and port.
@@ -46,7 +45,7 @@ connect :: HostName -> PortID -> IO RedisConn
 connect host port = do
     h       <- connectTo host port
     replies <- parseReply <$> LB.hGetContents h
-    Conn <$> newMVar (Just h, replies)
+    Conn <$> newMVar (h, replies)
 
 -- |Close the given connection.
 --
@@ -54,8 +53,9 @@ connect host port = do
 -- 'RedisConn' can not be re-used.
 disconnect :: RedisConn -> IO ()
 disconnect conn = withConn conn $ \h rs -> do
-    maybe (return ()) hClose h
-    return (Nothing, rs, ())
+    open <- hIsOpen h
+    when open (hClose h)
+    return (rs, ())
 
 
 ------------------------------------------------------------------------------
@@ -68,11 +68,13 @@ newtype Redis a = Redis (RWST Handle () [Reply] IO a)
 --
 --  May block when the given 'RedisConn' is shared between multiple threads.
 runRedis :: RedisConn -> Redis a -> IO a
-runRedis conn (Redis redis) = withConn conn $ \h rs -> do    
-    (a,rs',_) <- maybe (error "RedisConn is disconnected.")
-        (\h' -> runRWST redis h' rs)
-        h
-    return (h,rs',a)
+runRedis conn (Redis redis) = withConn conn $ \h rs -> do
+    open <- hIsOpen h
+    if open
+        then do
+            (a,rs',_) <- runRWST redis h rs
+            return (rs',a)
+        else error "Redis: disconnected"
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
