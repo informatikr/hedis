@@ -2,15 +2,17 @@
 
 module Main where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Data.ByteString (ByteString)
 import Data.Time
-import Database.Redis
+import Database.Redis.Redis
 import Text.Printf
 
 nRequests, nClients :: Int
-nRequests = 10000
+nRequests = 100000
 nClients  = 50
 
 
@@ -19,24 +21,23 @@ main = do
     ----------------------------------------------------------------------
     -- Preparation
     --
-    conn <- connect "localhost" (PortNumber 6379)
-    runRedis conn $ do
-        Right _ <- mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
-                        , ("k4","v4"), ("k5","v5") ]
-        return ()
-    
+    conn <- connect localhost defaultPort
+    ROk <- mSet conn [ ("k1","v1"), ("k2","v2"), ("k3","v3")
+         , ("k4","v4"), ("k5" :: ByteString,"v5"::ByteString) ]
+    return ()
     disconnect conn
-    
-    ----------------------------------------------------------------------
-    -- Spawn clients
-    --
+   ----------------------------------------------------------------------
+   -- Spawn clients
+   --
     start <- newEmptyMVar
     done  <- newEmptyMVar
+    
     replicateM_ nClients $ forkIO $ do
-        c <- connect "localhost" (PortNumber 6379)
-        runRedis c $ forever $ do
+        
+        redis <- connect localhost defaultPort
+        forever $ do
             action <- liftIO $ takeMVar start
-            replicateM_ (nRequests `div` nClients) $ action
+            replicateM_ (nRequests `div` nClients) $ action redis
             liftIO $ putMVar done ()
 
     let timeAction name action = do
@@ -48,20 +49,18 @@ main = do
             rqsPerSec = fromIntegral nRequests / deltaT :: Double
         putStrLn $ printf "%-10s %.2f Req/s" (name :: String) rqsPerSec
 
-    ----------------------------------------------------------------------
-    -- Benchmarks
-    --
-    timeAction "ping" $ do
-        Right Pong <- ping
+
+    timeAction "ping" $ \redis -> do
+        RPong <- ping redis
         return ()
         
-    timeAction "get" $ do
-        Right Nothing <- get "key"
+    timeAction "get" $ \redis -> do
+        RBulk Nothing <- (get redis ("key" :: ByteString)) :: IO (Reply ByteString)
         return ()
-    
-    timeAction "mget" $ do
-        Right vs <- mget ["k1","k2","k3","k4","k5"]
-        let expected = map Just ["v1","v2","v3","v4","v5"]
+        
+    timeAction "mget" $ \redis -> do
+        reply <- mGet redis ["k1","k2","k3","k4","k5" :: ByteString]
+        vs <- fromRMultiBulk' (reply :: Reply ByteString)
+        let expected = ["v1","v2","v3","v4","v5"]
         True <- return $ vs == expected
         return ()
-        
