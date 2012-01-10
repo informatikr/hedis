@@ -27,7 +27,7 @@ parseReply input =
 -- Reply parsers
 --
 reply :: Parser Reply
-reply = choice [singleLine, error, integer, bulk, multiBulk]
+reply = choice [singleLine, integer, bulk, multiBulk, error]
 
 singleLine :: Parser Reply
 singleLine = SingleLine <$> '+' `prefixing` line
