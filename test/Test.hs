@@ -5,6 +5,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Data.ByteString.Char8 (ByteString, pack)
+import Data.Time
 import System.Time
 import qualified Test.HUnit as Test
 import Test.HUnit (runTestTT, (~:))
@@ -36,18 +37,39 @@ redis >>=? expected = do
         Left reply   -> Test.assertFailure $ "Redis error: " ++ show reply
         Right actual -> expected Test.@=? actual
 
-(@=?) :: (Eq a, Show a) => a -> a -> Redis ()
-x @=? y = liftIO $ (Test.@=?) x y
+assert :: Bool -> Redis ()
+assert = liftIO . Test.assert
 
 ------------------------------------------------------------------------------
 -- Tests
 --
 tests :: [Test]
 tests = concat
-    [ testsKeys, testsStrings, testsHashes, testsLists, testsZSets
+    [ [testPipelining]
+    , testsKeys, testsStrings, testsHashes, testsLists, testsZSets
     , testsConnection, testsServer, [testQuit]
     ]
 
+------------------------------------------------------------------------------
+-- Pipelinging
+--
+testPipelining :: Test
+testPipelining = testCase "pipelining" $ do
+    let n = 10
+    tPipe <- time $ do
+        pongs <- replicateM n ping
+        assert $ pongs == replicate n (Right Pong)
+    
+    tNoPipe <- time $ replicateM_ n (ping >>=? Pong)
+    -- pipelining should at least be twice as fast.    
+    assert $ tNoPipe / tPipe > 2
+    
+    
+time :: Redis () -> Redis NominalDiffTime
+time redis = do
+    start <- liftIO $ getCurrentTime
+    redis
+    liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
 ------------------------------------------------------------------------------
 -- Keys
@@ -94,9 +116,9 @@ testKeys = testCase "keys" $ do
     set "key1" "value" >>=? Ok
     set "key2" "value" >>=? Ok
     Right ks <- keys "key*"
-    2    @=? length ks
-    True @=? elem "key1" ks
-    True @=? elem "key2" ks
+    assert $ length ks == 2
+    assert $ elem "key1" ks
+    assert $ elem "key2" ks
 
 testMove :: Test
 testMove = testCase "move" $ do
@@ -119,7 +141,7 @@ testRandomkey = testCase "randomkey" $ do
     set "k1" "value" >>=? Ok
     set "k2" "value" >>=? Ok
     Right k <- randomkey
-    True @=? (k `elem` ["k1", "k2"])
+    assert $ k `elem` ["k1", "k2"]
 
 testRename :: Test
 testRename = testCase "rename" $ do
@@ -535,8 +557,7 @@ testInfo = testCase "info/lastsave/dbsize" $ do
 
 testSlowlog :: Test
 testSlowlog = testCase "slowlog" $ do
-    reply <- slowlogGet 5
-    Right (MultiBulk (Just [])) @=? reply
+    slowlogGet 5 >>=? MultiBulk (Just [])
     slowlogLen   >>=? 0
     slowlogReset >>=? Ok
 
