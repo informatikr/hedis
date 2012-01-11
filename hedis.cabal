@@ -48,11 +48,11 @@ library
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    attoparsec == 0.10.*,
-                    base >= 4,
-                    bytestring >= 0.9,
+                    base == 4.*,
+                    bytestring == 0.9.*,
                     bytestring-lexing == 0.2.*,
-                    mtl >= 2,
-                    network >= 2
+                    mtl == 2.*,
+                    network == 2.*
 
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,
