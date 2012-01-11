@@ -38,9 +38,6 @@ cabal-version:      >=1.8
 
 bug-reports: https://github.com/informatikr/hedis/issues
 
-extra-source-files:
-    commands.json
-
 flag benchmark
     description: Build the benchmark executable.
     default: False
@@ -50,7 +47,7 @@ library
   ghc-options:      -Wall
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
-  build-depends:    attoparsec >= 0.8,
+  build-depends:    attoparsec == 0.10.*,
                     base >= 4,
                     bytestring >= 0.9,
                     bytestring-lexing == 0.2.*,
