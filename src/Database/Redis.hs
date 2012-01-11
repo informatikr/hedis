@@ -16,7 +16,6 @@ module Database.Redis (
     module Database.Redis.PubSub,
 
     -- * Low-Level Requests and Replies
-    Reply(..),
     sendRequest,
     -- |'sendRequest' can be used to implement one of the unimplemented 
     --  commands, as shown below.
@@ -27,7 +26,7 @@ module Database.Redis (
     -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
     -- @
     --
-    module Database.Redis.Types
+    Reply(..),Status(..),RedisResult(..)
     
 ) where
 
