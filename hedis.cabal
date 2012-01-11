@@ -1,8 +1,8 @@
 name:               hedis
 version:            0.1
 synopsis:
-    A client library for the Redis datastore: complete command set, pipelining 
-    Just Works, enforced Pub/Sub semantics.
+    Client library for the Redis datastore: supports full command set,  
+    pipelining.
 Description:
     Redis is an open source, advanced key-value store. It is often referred to
     as a data structure server since keys can contain strings, hashes, lists,
