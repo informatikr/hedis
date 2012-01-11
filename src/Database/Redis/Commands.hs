@@ -74,6 +74,8 @@ configGet, -- |Get the value of a configuration parameter (<http://redis.io/comm
 configResetstat, -- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>).
 configSet, -- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>).
 dbsize, -- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>).
+debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>).
+debugSegfault, -- |Make the server crash (<http://redis.io/commands/debug-segfault>).
 flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>).
 flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
 info, -- |Get information and statistics about the server (<http://redis.io/commands/info>).
@@ -158,18 +160,12 @@ unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
 watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (<http://redis.io/commands/watch>).
 
 -- * Unimplemented Commands
--- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
+-- |These commands are not implemented, as of now.
 --
 -- * EVAL (<http://redis.io/commands/eval>)
 --
 --
 -- * MONITOR (<http://redis.io/commands/monitor>)
---
---
--- * DEBUG OBJECT (<http://redis.io/commands/debug-object>)
---
---
--- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)
@@ -464,6 +460,11 @@ slaveof
     -> Redis (Either Reply Status)
 slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
 
+debugObject
+    :: ByteString -- ^ key
+    -> Redis (Either Reply ByteString)
+debugObject key = sendRequest (["DEBUG","OBJECT"] ++ [encode key] )
+
 getset
     :: ByteString -- ^ key
     -> ByteString -- ^ value
@@ -748,6 +749,10 @@ discard
     :: Redis (Either Reply Status)
 discard  = sendRequest (["DISCARD"] )
 
+debugSegfault
+    :: Redis (Either Reply Status)
+debugSegfault  = sendRequest (["DEBUG","SEGFAULT"] )
+
 srandmember
     :: ByteString -- ^ key
     -> Redis (Either Reply ByteString)
@@ -760,18 +765,12 @@ persist key = sendRequest (["PERSIST"] ++ [encode key] )
 
 
 -- * Unimplemented Commands
--- |These commands are not implemented, as of now. Library users can implement them with the 'sendRequest' function.
+-- |These commands are not implemented, as of now.
 --
 -- * EVAL (<http://redis.io/commands/eval>)
 --
 --
 -- * MONITOR (<http://redis.io/commands/monitor>)
---
---
--- * DEBUG OBJECT (<http://redis.io/commands/debug-object>)
---
---
--- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)

@@ -15,18 +15,8 @@ module Database.Redis (
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
-    -- * Low-Level Requests and Replies
-    sendRequest,
-    -- |'sendRequest' can be used to implement one of the unimplemented 
-    --  commands, as shown below.
-    --
-    -- @
-    -- -- |Redis DEBUG OBJECT command
-    -- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
-    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
-    -- @
-    --
-    Reply(..),Status(..),RedisResult(..)
+    -- * Redis Return Types
+    Reply(..),Status(..)
     
 ) where
 

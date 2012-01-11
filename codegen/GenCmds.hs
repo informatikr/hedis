@@ -59,8 +59,6 @@ blacklist = [ ("OBJECT", Just (["objectRefcount"
                             ))
             , ("LINSERT",Just (["linsertBefore", "linsertAfter"],[]))
             , ("MONITOR", Nothing)        -- debugging command
-            , ("DEBUG OBJECT", Nothing)   -- debugging command
-            , ("DEBUG SEGFAULT", Nothing) -- debugging command
             , ("SLOWLOG"
                 ,Just (["slowlogGet", "slowlogLen", "slowlogReset"],[]))
             , ("SYNC", Nothing)           -- internal command
@@ -174,8 +172,7 @@ hsFile (Cmds cmds) = mconcat
 unimplementedCmds :: Builder
 unimplementedCmds =
     fromString "-- * Unimplemented Commands\n\
-               \-- |These commands are not implemented, as of now. Library \
-                   \users can implement them with the 'sendRequest' function.\n"
+               \-- |These commands are not implemented, as of now.\n"
     `mappend`
     mconcat (map unimplementedCmd unimplemented)
   where

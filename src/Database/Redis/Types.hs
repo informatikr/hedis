@@ -41,6 +41,7 @@ instance RedisResult Reply where
     decode = Right
 
 instance RedisResult ByteString where
+    decode (SingleLine s)  = Right s
     decode (Bulk (Just s)) = Right s
     decode r               = Left r
 

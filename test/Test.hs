@@ -505,7 +505,8 @@ testSelect = testCase "select" $ do
 -- Server
 --
 testsServer =
-    [testBgrewriteaof, testFlushall, testInfo, testConfig, testSlowlog]
+    [testBgrewriteaof, testFlushall, testInfo, testConfig, testSlowlog
+    ,testDebugObject]
 
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
@@ -538,3 +539,10 @@ testSlowlog = testCase "slowlog" $ do
     Right (MultiBulk (Just [])) @=? reply
     slowlogLen   >>=? 0
     slowlogReset >>=? Ok
+
+testDebugObject :: Test
+testDebugObject = testCase "debugObject/debugSegfault" $ do
+    set "key" "value" >>=? Ok
+    Right _ <- debugObject "key"
+    -- Right Ok <- debugSegfault
+    return ()

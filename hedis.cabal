@@ -12,10 +12,7 @@ Description:
     .
     [Complete Redis 2.4 command set:] All Redis commands 
         (<http://redis.io/commands>) are available as haskell functions. The 
-        exceptions to the rule are a handfull of internal and debugging
-        commands: MONITOR, DEBUG OBJECT, DEBUG SEGFAULT, SYNC. If needed, these
-        commands can easily be implemented by the library user with the
-        'sendRequest' function.
+        exceptions to the rule are the MONITOR and SYNC commands.
     .
     [Pipelining \"Just Works\":] Commands are pipelined 
         (<http://redis.io/topics/pipelining>) as much as possible without any
