@@ -11,4 +11,3 @@
 
 - clean up GenCmds.hs
     - use Text.Lazy.Builder?
-- AUTH when connecting (User can do this easily, right after connecting)

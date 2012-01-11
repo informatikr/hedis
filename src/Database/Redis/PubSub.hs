@@ -13,8 +13,7 @@ import Control.Applicative
 import Control.Monad.Writer
 import Data.ByteString.Char8 (ByteString)
 import Data.Maybe
-import Database.Redis.Internal (Redis)
-import qualified Database.Redis.Internal as Internal
+import qualified Database.Redis.Core as Core
 import Database.Redis.Reply
 import Database.Redis.Types
 
@@ -39,7 +38,7 @@ publish
     -> ByteString -- ^ message
     -> Redis (Either Reply Integer)
 publish channel message =
-    Internal.sendRequest ["PUBLISH", channel, message]
+    Core.sendRequest ["PUBLISH", channel, message]
 
 -- |Listen for messages published to the given channels
 --  (<http://redis.io/commands/subscribe>).
@@ -98,11 +97,11 @@ pubSub
 pubSub p callback = send p 0
   where
     send (PubSub cmds) pending = do
-        mapM_ Internal.send cmds
+        mapM_ Core.send cmds
         recv (pending + length cmds)
 
     recv pending = do
-        reply <- Internal.recv        
+        reply <- Core.recv        
         case decodeMsg reply of
             Left cnt
                 | cnt == 0 && pending == 0

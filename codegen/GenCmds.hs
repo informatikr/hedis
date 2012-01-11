@@ -273,7 +273,7 @@ imprts = mconcat $ flip map moduls (\modul ->
              , "Data.ByteString (ByteString)"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
-             , "Database.Redis.Internal"
+             , "Database.Redis.Core"
              , "Database.Redis.Reply"
              ]
 

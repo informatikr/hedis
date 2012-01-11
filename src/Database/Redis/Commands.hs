@@ -176,7 +176,7 @@ import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
-import Database.Redis.Internal
+import Database.Redis.Core
 import Database.Redis.Reply
 
 flushall

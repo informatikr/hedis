@@ -4,7 +4,7 @@ module Database.Redis.ManualCommands where
 
 import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
-import Database.Redis.Internal
+import Database.Redis.Core
 import Database.Redis.Reply
 import Database.Redis.Types
 
