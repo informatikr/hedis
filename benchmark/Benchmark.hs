@@ -19,13 +19,11 @@ main = do
     ----------------------------------------------------------------------
     -- Preparation
     --
-    conn <- connect "localhost" (PortNumber 6379)
+    conn <- connect defaultConnectInfo
     runRedis conn $ do
         Right _ <- mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
                         , ("k4","v4"), ("k5","v5") ]
         return ()
-    
-    disconnect conn
     
     ----------------------------------------------------------------------
     -- Spawn clients
@@ -33,7 +31,7 @@ main = do
     start <- newEmptyMVar
     done  <- newEmptyMVar
     replicateM_ nClients $ forkIO $ do
-        c <- connect "localhost" (PortNumber 6379)
+        c <- connect defaultConnectInfo
         runRedis c $ forever $ do
             action <- liftIO $ takeMVar start
             replicateM_ (nRequests `div` nClients) $ action

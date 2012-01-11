@@ -1,7 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving,RecordWildCards #-}
 module Database.Redis.Internal (
-    HostName,PortID(..), defaultPort,
-    RedisConn(), connect, disconnect,
+    HostName,PortID(..),
+    ConnectInfo(..),defaultConnectInfo,
+    Connection(), connect,
     Redis(),runRedis,
     send,
     recv,
@@ -13,6 +14,7 @@ import Control.Monad.RWS
 import Control.Concurrent
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
+import Data.Pool
 import Network (HostName, PortID(..), connectTo)
 import System.IO (Handle, hFlush, hClose, hIsOpen)
 
@@ -26,58 +28,65 @@ import Database.Redis.Types
 
 -- |Connection to a Redis server. Use the 'connect' function to create one.
 --
---  A 'RedisConn' can only be used by a single thread at a time. This means that
---  calls to 'runRedis' or 'disconnet' may block when the 'RedisConn' is shared
---  between multiple threads.
-data RedisConn = Conn (MVar (Handle, [Reply]))
+--  A 'Connection' is actually a pool of network connections.
+newtype Connection = Conn (Pool (MVar (Handle, [Reply])))
 
-withConn :: RedisConn
-         -> (Handle -> [Reply] -> IO ([Reply], a))
-         -> IO a
-withConn (Conn conn) f = do
-    (h,rs)     <- takeMVar conn
-    (rs',a) <- f h rs
-    putMVar conn (h,rs')
-    return a
+-- |Information for connnecting to a Redis server.
+data ConnectInfo = ConnInfo
+    { connectHost :: HostName
+    , connectPort :: PortID
+    , connectAuth :: Maybe B.ByteString
+    }
 
--- |Opens a connection to a Redis server at the given host and port.
-connect :: HostName -> PortID -> IO RedisConn
-connect host port = do
-    h       <- connectTo host port
-    replies <- parseReply <$> LB.hGetContents h
-    Conn <$> newMVar (h, replies)
-
--- |Close the given connection.
+-- |Default information for connecting:
 --
---  May block when the given 'RedisConn' is shared between multiple threads. The
--- 'RedisConn' can not be re-used.
-disconnect :: RedisConn -> IO ()
-disconnect conn = withConn conn $ \h rs -> do
-    open <- hIsOpen h
-    when open (hClose h)
-    return (rs, ())
+-- @
+--  connectHost = \"localhost\"
+--  connectPort = PortNumber 6379 -- Redis default port
+--  connectAuth = Nothing         -- No password
+-- @
+--
+defaultConnectInfo :: ConnectInfo
+defaultConnectInfo = ConnInfo
+    { connectHost = "localhost"
+    , connectPort = PortNumber 6379
+    , connectAuth = Nothing
+    }
 
--- | The Redis default port 6379. Equivalent to @'PortNumber' 6379@.
-defaultPort :: PortID
-defaultPort = PortNumber 6379
+-- |Opens a connection to a Redis server designated by the given 'ConnectInfo'.
+connect :: ConnectInfo -> IO Connection
+connect ConnInfo{..} = do
+    let maxIdleTime    = 10
+        maxConnections = 50
+    Conn <$> createPool create destroy 1 maxIdleTime maxConnections
+  where
+    create = do
+        h       <- connectTo connectHost connectPort
+        replies <- parseReply <$> LB.hGetContents h
+        newMVar (h, replies)
+    
+    destroy conn = withMVar conn $ \(h,_) -> do
+        open <- hIsOpen h
+        when open (hClose h)
 
 ------------------------------------------------------------------------------
 -- The Redis Monad
 --
+
+-- |All Redis commands run in the 'Redis' monad.
 newtype Redis a = Redis (RWST Handle () [Reply] IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
--- |Interact with a Redis datastore specified by the given 'RedisConn'.
+-- |Interact with a Redis datastore specified by the given 'Connection'.
 --
---  May block when the given 'RedisConn' is shared between multiple threads.
-runRedis :: RedisConn -> Redis a -> IO a
-runRedis conn (Redis redis) = withConn conn $ \h rs -> do
-    open <- hIsOpen h
-    if open
-        then do
-            (a,rs',_) <- runRWST redis h rs
-            return (rs',a)
-        else error "Redis: disconnected"
+--  Each call of 'runRedis' takes a network connection from the 'Connection'
+--  pool and runs the given 'Redis' action. Calls to 'runRedis' may thus block, --  while all connections from the pool are in use.
+runRedis :: Connection -> Redis a -> IO a
+runRedis (Conn pool) (Redis redis) =
+    withResource pool $ \conn ->
+    modifyMVar conn $ \(h,rs) -> do
+        (a,rs',_) <- runRWST redis h rs
+        return ((h,rs'),a)
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
@@ -94,6 +103,5 @@ recv = Redis $ do
     put (tail rs)
     return (head rs)
 
--- |Sends a request to the Redis server, returning the 'decode'd reply.
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
 sendRequest req = decode <$> (send req >> recv)

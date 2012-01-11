@@ -19,11 +19,11 @@ type BS = ByteString
 --
 main :: IO ()
 main = do
-    c <- connect "127.0.0.1" defaultPort
+    c <- connect defaultConnectInfo
     runTestTT $ Test.TestList $ map ($c) tests
-    disconnect c
+    return ()
 
-type Test = RedisConn -> Test.Test
+type Test = Connection -> Test.Test
 
 testCase :: String -> Redis () -> Test
 testCase name r conn = name ~:

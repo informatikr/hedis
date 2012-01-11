@@ -11,5 +11,4 @@
 
 - clean up GenCmds.hs
     - use Text.Lazy.Builder?
-- use pool library by bos for connection pooling
 - AUTH when connecting (User can do this easily, right after connecting)

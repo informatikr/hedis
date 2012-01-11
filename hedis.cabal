@@ -49,7 +49,8 @@ library
                     bytestring == 0.9.*,
                     bytestring-lexing == 0.2.*,
                     mtl == 2.*,
-                    network == 2.*
+                    network == 2.*,
+                    resource-pool == 0.2.0.*
 
   other-modules:    Database.Redis.Internal,
                     Database.Redis.PubSub,

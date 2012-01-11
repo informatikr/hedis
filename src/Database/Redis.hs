@@ -6,8 +6,9 @@ module Database.Redis (
     Redis(), runRedis,
     
     -- * Connection
-    RedisConn, connect, disconnect,
-    HostName,PortID(..),defaultPort,
+    Connection, connect,
+    ConnectInfo(..),defaultConnectInfo,
+    HostName,PortID(..),
     
     -- * Commands
 	module Database.Redis.Commands,
