@@ -14,7 +14,6 @@ module Database.Redis (
 
     -- * Pub\/Sub
     module Database.Redis.PubSub,
-    module Database.Redis.Types,
 
     -- * Low-Level Requests and Replies
     Reply(..),
@@ -28,6 +27,8 @@ module Database.Redis (
     -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
     -- @
     --
+    module Database.Redis.Types
+    
 ) where
 
 import Database.Redis.Internal

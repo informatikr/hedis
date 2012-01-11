@@ -24,8 +24,7 @@ library
   hs-source-dirs:   src
   ghc-options:      -Wall
   ghc-prof-options: -auto-all
-  exposed-modules:  Database.Redis,
-                    Database.Redis.Types
+  exposed-modules:  Database.Redis
   build-depends:    attoparsec >= 0.8,
                     base >= 4,
                     bytestring >= 0.9,
@@ -37,6 +36,7 @@ library
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
                     Database.Redis.Request,
+                    Database.Redis.Types
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands
 
