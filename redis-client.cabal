@@ -1,4 +1,4 @@
-name:               redis-client
+name:               hedis
 version:            0.1
 synopsis:
     A client library for the Redis datastore: complete command set, pipelining 
@@ -36,7 +36,7 @@ category:           Database
 build-type:         Simple
 cabal-version:      >=1.8
 
-bug-reports: https://github.com/informatikr/redis-client/issues
+bug-reports: https://github.com/informatikr/hedis/issues
 
 extra-source-files:
     commands.json
@@ -65,7 +65,7 @@ library
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands
 
-executable redis-client-benchmark
+executable hedis-benchmark
     main-is: benchmark/Benchmark.hs
     ghc-options: -Wall -rtsopts
     ghc-prof-options: -auto-all
@@ -75,9 +75,9 @@ executable redis-client-benchmark
         build-depends:
             base >= 4,
             mtl == 2.0.*,
-            redis-client,
+            hedis,
             time >= 1.2
 
 source-repository head
   type:     git
-  location: https://github.com/informatikr/redis-client
+  location: https://github.com/informatikr/hedis
