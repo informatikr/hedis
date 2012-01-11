@@ -1,7 +1,32 @@
 name:               redis-client
 version:            0.1
-synopsis:           A client library for the Redis datastore.
-Description:        TODO cabal description
+synopsis:
+    A client library for the Redis datastore: complete command set, pipelining 
+    Just Works, enforced Pub/Sub semantics.
+Description:
+    Redis is an open source, advanced key-value store. It is often referred to
+    as a data structure server since keys can contain strings, hashes, lists,
+    sets and sorted sets. This library is a Haskell client for the Redis
+    datastore. Compared to other Haskell client libraries it has some
+    advantages:
+    .
+    [Complete Redis 2.4 command set:] All Redis commands 
+        (<http://redis.io/commands>) are available as haskell functions. The 
+        exceptions to the rule are a handfull of internal and debugging
+        commands: MONITOR, DEBUG OBJECT, DEBUG SEGFAULT, SYNC. If needed, these
+        commands can easily be implemented by the library user with the
+        'sendRequest' function.
+    .
+    [Pipelining \"Just Works\":] Commands are pipelined 
+        (<http://redis.io/topics/pipelining>) as much as possible without any
+        work by the user.
+    .
+    [Enforced Pub\/Sub semantics:] When subscribed to the Redis Pub\/Sub server
+        (<http://redis.io/topics/pubsub>), clients are not allowed to issue
+        commands other than subscribing to or unsubscribing from channels. This
+        library uses the type system to enforce the correct behavior.
+    .
+    For detailed documentation, see the "Database.Redis" module.
 license:            BSD3
 license-file:       LICENSE
 author:             Falko Peters
