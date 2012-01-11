@@ -39,33 +39,33 @@ publish
     -> ByteString -- ^ message
     -> Redis (Either Reply Integer)
 publish channel message =
-    Internal.sendRequest ["PUBLISH", encode channel, encode message]
+    Internal.sendRequest ["PUBLISH", channel, message]
 
 -- |Listen for messages published to the given channels
 --  (<http://redis.io/commands/subscribe>).
-subscribe :: RedisArg channel
-    => [channel] -- ^
+subscribe
+    :: [ByteString] -- ^ channel
     -> PubSub
 subscribe = pubSubAction "SUBSCRIBE"
 
 -- |Stop listening for messages posted to the given channels 
 --  (<http://redis.io/commands/unsubscribe>).
-unsubscribe :: RedisArg channel
-    => [channel] -- ^
+unsubscribe
+    :: [ByteString] -- ^ channel
     -> PubSub
 unsubscribe = pubSubAction "UNSUBSCRIBE"
 
 -- |Listen for messages published to channels matching the given patterns 
 --  (<http://redis.io/commands/psubscribe>).
-psubscribe :: RedisArg pattern
-    => [pattern] -- ^
+psubscribe
+    :: [ByteString] -- ^ pattern
     -> PubSub
 psubscribe = pubSubAction "PSUBSCRIBE"
 
 -- |Stop listening for messages posted to channels matching the given patterns 
 --  (<http://redis.io/commands/punsubscribe>).
-punsubscribe :: RedisArg pattern
-    => [pattern] -- ^
+punsubscribe
+    :: [ByteString] -- ^ pattern
     -> PubSub
 punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
@@ -115,8 +115,8 @@ pubSub p callback = send p 0
 -- Helpers
 --
 
-pubSubAction :: (RedisArg chan) => ByteString -> [chan] -> PubSub
-pubSubAction cmd chans = PubSub [cmd : map encode chans]
+pubSubAction :: ByteString -> [ByteString] -> PubSub
+pubSubAction cmd chans = PubSub [cmd : chans]
 
 decodeMsg :: Reply -> Either Integer Message
 decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = either (error "decodeMsg") id $ do
