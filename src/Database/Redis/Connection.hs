@@ -13,7 +13,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.Pool
 import Network (HostName, PortID(..), connectTo)
-import System.IO (hClose, hIsOpen)
+import System.IO (hClose, hIsOpen, hSetBinaryMode)
 
 import Database.Redis.Core (runRedis')
 import Database.Redis.Commands (auth)
@@ -55,6 +55,7 @@ connect ConnInfo{..} = do
         rs' <- maybe (return rs)
                    (\password -> fst <$> runRedis' h rs (auth password))
                    connectAuth
+        hSetBinaryMode h True
         newMVar (h, rs')
 
     destroy conn = withMVar conn $ \(h,_) -> do
