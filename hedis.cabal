@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.1
+version:            0.2
 synopsis:
     Client library for the Redis datastore: supports full command set,  
     pipelining.
@@ -32,8 +32,12 @@ copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
 build-type:         Simple
 cabal-version:      >=1.8
+homepage:           https://github.com/informatikr/hedis
+bug-reports:        https://github.com/informatikr/hedis/issues
 
-bug-reports: https://github.com/informatikr/hedis/issues
+source-repository head
+  type:     git
+  location: https://github.com/informatikr/hedis
 
 flag benchmark
     description: Build the benchmark executable.
@@ -63,17 +67,13 @@ library
 
 executable hedis-benchmark
     main-is: benchmark/Benchmark.hs
-    ghc-options: -Wall -rtsopts
-    ghc-prof-options: -auto-all
-    if ! flag(benchmark)
-        buildable: False
-    else
+    if flag(benchmark)
         build-depends:
             base >= 4,
             mtl == 2.0.*,
             hedis,
-            time >= 1.2
-
-source-repository head
-  type:     git
-  location: https://github.com/informatikr/hedis
+            time >= 1.2        
+    else
+        buildable: False
+    ghc-options: -Wall -rtsopts
+    ghc-prof-options: -auto-all
