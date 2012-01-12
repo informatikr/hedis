@@ -7,10 +7,11 @@ module Database.Redis.Connection (
 ) where
 
 import Control.Applicative
-import Control.Monad.RWS
+import Control.Monad.Reader
 import Control.Concurrent
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LB
+import Data.IORef
 import Data.Pool
 import Network (HostName, PortID(..), connectTo)
 import System.IO (hClose, hIsOpen, hSetBinaryMode)
@@ -51,12 +52,14 @@ connect ConnInfo{..} = do
   where
     create = do
         h   <- connectTo connectHost connectPort
-        rs  <- parseReply <$> LB.hGetContents h
-        rs' <- maybe (return rs)
-                   (\password -> fst <$> runRedis' h rs (auth password))
-                   connectAuth
+        rs' <- parseReply <$> {-# SCC "LB.hgetContents" #-} LB.hGetContents h
+        rs  <- newIORef rs'
+        let conn = (h,rs)
+        maybe (return ())
+            (\pass -> runRedis' conn (auth pass) >> return ())
+            connectAuth
         hSetBinaryMode h True
-        newMVar (h, rs')
+        newMVar conn
 
     destroy conn = withMVar conn $ \(h,_) -> do
         open <- hIsOpen h

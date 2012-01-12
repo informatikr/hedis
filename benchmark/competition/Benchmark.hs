@@ -12,7 +12,7 @@ import Database.Redis.Redis
 import Text.Printf
 
 nRequests, nClients :: Int
-nRequests = 10000
+nRequests = 100000
 nClients  = 50
 
 

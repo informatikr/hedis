@@ -10,7 +10,7 @@ import Database.Redis
 import Text.Printf
 
 nRequests, nClients :: Int
-nRequests = 10000
+nRequests = 100000
 nClients  = 50
 
 
@@ -23,6 +23,7 @@ main = do
     runRedis conn $ do
         Right _ <- mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
                         , ("k4","v4"), ("k5","v5") ]
+    
         return ()
     
     ----------------------------------------------------------------------
@@ -62,4 +63,3 @@ main = do
         let expected = map Just ["v1","v2","v3","v4","v5"]
         True <- return $ vs == expected
         return ()
-        

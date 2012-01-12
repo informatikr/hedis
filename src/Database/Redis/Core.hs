@@ -6,9 +6,11 @@ module Database.Redis.Core (
 ) where
 
 import Control.Applicative
-import Control.Monad.RWS
+import Control.Arrow
+import Control.Monad.Reader
 import Control.Concurrent
 import qualified Data.ByteString as B
+import Data.IORef
 import Data.Pool
 import System.IO (Handle, hFlush)
 
@@ -24,31 +26,26 @@ import Database.Redis.Types
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
     withResource pool $ \conn ->
-    modifyMVar conn $ \(h,rs) -> do
-        (rs',a) <- runRedis' h rs redis
-        return ((h,rs'),a)
+    withMVar conn $ \conn' -> runRedis' conn' redis
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting. 
-runRedis' :: Handle -> [Reply] -> Redis a -> IO ([Reply],a)
-runRedis' h rs (Redis redis) = do
-    (a,rs',_) <- runRWST redis h rs
-    return (rs',a)
+runRedis' :: (Handle,IORef [Reply]) -> Redis a -> IO a
+runRedis' conn (Redis redis) = runReaderT redis conn
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    h <- ask
+    h <- asks fst
     liftIO $ do
-        B.hPut h $ renderRequest req
-        hFlush h
+        {-# SCC "send.hPut" #-} B.hPut h $ renderRequest req
+        {-# SCC "send.hFlush" #-} hFlush h
 
 recv :: Redis Reply
 recv = Redis $ do
     -- head/tail avoids forcing the ':' constructor, enabling automatic
     -- pipelining.
-    rs <- get
-    put (tail rs)
-    return (head rs)
+    replies <- asks snd
+    liftIO $ atomicModifyIORef replies (tail &&& head)
 
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
 sendRequest req = decode <$> (send req >> recv)
