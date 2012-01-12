@@ -36,7 +36,7 @@ data Message = Message  { msgChannel, msgMessage :: ByteString}
 publish
     :: ByteString -- ^ channel
     -> ByteString -- ^ message
-    -> Redis (Either Reply Integer)
+    -> Core.Redis (Either Reply Integer)
 publish channel message =
     Core.sendRequest ["PUBLISH", channel, message]
 
@@ -93,7 +93,7 @@ punsubscribe = pubSubAction "PUNSUBSCRIBE"
 pubSub
     :: PubSub                 -- ^ Initial subscriptions.
     -> (Message -> IO PubSub) -- ^ Callback function.
-    -> Redis ()
+    -> Core.Redis ()
 pubSub p callback = send p 0
   where
     send (PubSub cmds) pending = do

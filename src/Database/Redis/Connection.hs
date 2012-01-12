@@ -16,10 +16,9 @@ import Data.Pool
 import Network (HostName, PortID(..), connectTo)
 import System.IO (hClose, hIsOpen, hSetBinaryMode)
 
-import Database.Redis.Core (runRedis')
+import Database.Redis.Core
 import Database.Redis.Commands (auth)
 import Database.Redis.Reply
-import Database.Redis.Types
 
 -- |Information for connnecting to a Redis server.
 --
@@ -67,7 +66,7 @@ connect ConnInfo{..} = do
         rs  <- newIORef rs'
         let conn = (h,rs)
         maybe (return ())
-            (\pass -> runRedis' conn (auth pass) >> return ())
+            (\pass -> runRedisInternal conn (auth pass) >> return ())
             connectAuth
         hSetBinaryMode h True
         newMVar conn

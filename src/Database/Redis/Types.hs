@@ -5,26 +5,12 @@ module Database.Redis.Types where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Reader
-import Control.Concurrent
 import Data.ByteString.Char8 (ByteString, pack)
 import Data.ByteString.Lex.Double (readDouble)
-import Data.IORef
 import Data.Maybe
-import Data.Pool
-import System.IO (Handle)
 
 import Database.Redis.Reply
 
-
--- |All Redis commands run in the 'Redis' monad.
-newtype Redis a = Redis (ReaderT (Handle, IORef [Reply]) IO a)
-    deriving (Monad, MonadIO, Functor, Applicative)
-
--- |Connection to a Redis server. Use the 'connect' function to create one.
---
---  A 'Connection' is actually a pool of network connections.
-newtype Connection = Conn (Pool (MVar (Handle, IORef [Reply])))
 
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands

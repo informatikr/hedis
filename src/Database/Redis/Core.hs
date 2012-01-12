@@ -1,5 +1,8 @@
+{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances,
+        TypeSynonymInstances, OverloadedStrings, GeneralizedNewtypeDeriving #-}
 module Database.Redis.Core (
-    Redis(),runRedis,runRedis',
+    Connection(..),
+    Redis(),runRedis,runRedisInternal,
     send,
     recv,
     sendRequest
@@ -18,6 +21,22 @@ import Database.Redis.Reply
 import Database.Redis.Request
 import Database.Redis.Types
 
+-- |Connection to a Redis server. Use the 'connect' function to create one.
+--
+--  A 'Connection' is actually a pool of network connections.
+newtype Connection = Conn (Pool (MVar (Handle, IORef [Reply])))
+
+-- |All Redis commands run in the 'Redis' monad.
+newtype Redis a = Redis (ReaderT RedisEnv IO a)
+    deriving (Monad, MonadIO, Functor, Applicative)
+
+type RedisEnv = (Handle, IORef [Reply])
+
+askHandle :: ReaderT RedisEnv IO Handle
+askHandle = asks fst
+
+askReplies :: ReaderT RedisEnv IO (IORef [Reply])
+askReplies = asks snd
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
 --
@@ -26,16 +45,16 @@ import Database.Redis.Types
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
     withResource pool $ \conn ->
-    withMVar conn $ \conn' -> runRedis' conn' redis
+    withMVar conn $ \conn' -> runRedisInternal conn' redis
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting. 
-runRedis' :: (Handle,IORef [Reply]) -> Redis a -> IO a
-runRedis' conn (Redis redis) = runReaderT redis conn
+runRedisInternal :: RedisEnv -> Redis a -> IO a
+runRedisInternal env (Redis redis) = runReaderT redis env
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    h <- asks fst
+    h <- askHandle
     liftIO $ do
         {-# SCC "send.hPut" #-} B.hPut h $ renderRequest req
         {-# SCC "send.hFlush" #-} hFlush h
@@ -44,8 +63,8 @@ recv :: Redis Reply
 recv = Redis $ do
     -- head/tail avoids forcing the ':' constructor, enabling automatic
     -- pipelining.
-    replies <- asks snd
-    liftIO $ atomicModifyIORef replies (tail &&& head)
+    rs <- askReplies
+    liftIO $ atomicModifyIORef rs (tail &&& head)
 
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
 sendRequest req = decode <$> (send req >> recv)
