@@ -22,6 +22,17 @@ import Database.Redis.Reply
 import Database.Redis.Types
 
 -- |Information for connnecting to a Redis server.
+--
+-- It is recommended to not use the 'ConnInfo' data constructor directly.
+-- Instead use 'defaultConnectInfo' and update it with record syntax. For
+-- example to connect to a password protected Redis server running on localhost
+-- and listening to the default port:
+-- 
+-- @
+-- myConnectInfo :: ConnectInfo
+-- myConnectInfo = defaultConnectInfo {connectAuth = Just \"secret\"}
+-- @
+--
 data ConnectInfo = ConnInfo
     { connectHost :: HostName
     , connectPort :: PortID
