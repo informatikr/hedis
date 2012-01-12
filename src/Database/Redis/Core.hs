@@ -1,5 +1,4 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances, OverlappingInstances,
-        TypeSynonymInstances, OverloadedStrings, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Core (
     Connection(..),
     Redis(),runRedis,runRedisInternal,
