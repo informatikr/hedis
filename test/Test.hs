@@ -1,10 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Main (main) where
 
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Data.ByteString.Char8 (ByteString, pack)
+import Data.Monoid (mappend)
 import Data.Time
 import System.Time
 import qualified Test.HUnit as Test
@@ -47,7 +48,7 @@ tests :: [Test]
 tests = concat
     [ [testPipelining]
     , testsKeys, testsStrings, testsHashes, testsLists, testsZSets
-    , testsConnection, testsServer, [testQuit]
+    , [testPubSub], testsConnection, testsServer, [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -496,6 +497,27 @@ testZStore = testCase "zunionstore/zinterstore" $ do
 ------------------------------------------------------------------------------
 -- Pub/Sub
 --
+testPubSub :: Test
+testPubSub conn = testCase "pubSub" go conn
+  where
+    go = do
+        lock <- liftIO newEmptyMVar
+        
+        -- producer
+        liftIO $ forkIO $ do
+            runRedis conn $ do
+                publish "chan1" "hello" >>=? 1
+                publish "chan2" "world" >>=? 1
+            return ()
+
+        -- consumer
+        pubSub (subscribe ["chan1"]) $ \msg -> do
+            -- ready for a message
+            case msg of
+                Message{..} -> return
+                    (unsubscribe [msgChannel] `mappend` psubscribe ["chan*"])
+                PMessage{..} -> return (punsubscribe [msgPattern])
+
 
 ------------------------------------------------------------------------------
 -- Transaction

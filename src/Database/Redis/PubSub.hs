@@ -100,14 +100,13 @@ pubSub p callback = send p 0
         recv (pending + length cmds)
 
     recv pending = do
-        reply <- Core.recv        
+        reply <- Core.recv
         case decodeMsg reply of
-            Left cnt
-                | cnt == 0 && pending == 0
-                            -> return ()
-                | otherwise -> send mempty (pending - 1)
-            Right msg       -> do act <- liftIO $ callback msg
-                                  send act pending
+            Left cnt  -> let pending' = pending - 1
+                         in unless (cnt == 0 && pending' == 0) $
+                            send mempty pending'
+            Right msg -> do act <- liftIO $ callback msg
+                            send act pending
 
 ------------------------------------------------------------------------------
 -- Helpers
