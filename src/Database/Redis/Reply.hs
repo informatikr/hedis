@@ -1,27 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Database.Redis.Reply (Reply(..), parseReply) where
+module Database.Redis.Reply (Reply(..), reply) where
 
 import Prelude hiding (error, take)
 import Control.Applicative
 import Data.Attoparsec.Char8
-import qualified Data.Attoparsec.Lazy as P
-import qualified Data.ByteString.Char8 as S
-import qualified Data.ByteString.Lazy.Char8 as L
+import qualified Data.Attoparsec as P
+import Data.ByteString.Char8
 
 -- |Low-level representation of replies from the Redis server.
-data Reply = SingleLine S.ByteString
-           | Error S.ByteString
+data Reply = SingleLine ByteString
+           | Error ByteString
            | Integer Integer
-           | Bulk (Maybe S.ByteString)
+           | Bulk (Maybe ByteString)
            | MultiBulk (Maybe [Reply])
          deriving (Eq, Show)
-
--- |Parse a lazy 'L.ByteString' into a (possibly infinite) list of 'Reply's.
-parseReply :: L.ByteString -> [Reply]
-parseReply input =
-    case P.parse reply input of
-        P.Fail _ _ _  -> []
-        P.Done rest r -> r : parseReply rest
 
 ------------------------------------------------------------------------------
 -- Reply parsers
@@ -50,7 +42,7 @@ multiBulk = MultiBulk <$> do
         len <- '*' `prefixing` signed decimal
         if len < 0
             then return Nothing
-            else Just <$> count len reply
+            else Just <$> P.count len reply
 
 
 ------------------------------------------------------------------------------
@@ -59,8 +51,8 @@ multiBulk = MultiBulk <$> do
 prefixing :: Char -> Parser a -> Parser a
 c `prefixing` a = char c *> a <* crlf
 
-crlf :: Parser S.ByteString
+crlf :: Parser ByteString
 crlf = string "\r\n"
 
-line :: Parser S.ByteString
+line :: Parser ByteString
 line = takeTill (=='\r')

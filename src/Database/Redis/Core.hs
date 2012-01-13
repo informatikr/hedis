@@ -14,7 +14,7 @@ import Control.Concurrent
 import qualified Data.ByteString as B
 import Data.IORef
 import Data.Pool
-import System.IO (Handle, hFlush)
+import System.IO (Handle)
 
 import Database.Redis.Reply
 import Database.Redis.Request
@@ -56,7 +56,7 @@ send req = Redis $ do
     h <- askHandle
     liftIO $ do
         {-# SCC "send.hPut" #-} B.hPut h $ renderRequest req
-        {-# SCC "send.hFlush" #-} hFlush h
+        -- {-# SCC "send.hFlush" #-} hFlush h
 
 recv :: Redis Reply
 recv = Redis $ do
