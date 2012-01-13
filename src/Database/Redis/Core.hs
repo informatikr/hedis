@@ -54,9 +54,8 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
     h <- askHandle
-    liftIO $ do
-        {-# SCC "send.hPut" #-} B.hPut h $ renderRequest req
-        -- {-# SCC "send.hFlush" #-} hFlush h
+    -- hFlushing the handle is done while reading replies.
+    liftIO $ {-# SCC "send.hPut" #-} B.hPut h (renderRequest req)
 
 recv :: Redis Reply
 recv = Redis $ do

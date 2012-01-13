@@ -15,7 +15,7 @@ import Data.IORef
 import Data.Pool
 import Data.Time
 import Network (HostName, PortID(..), connectTo)
-import System.IO (Handle, hClose, hIsOpen, hSetBinaryMode,hFlush)
+import System.IO (Handle, hClose, hIsOpen, hSetBinaryMode, hFlush)
 import System.IO.Unsafe (unsafeInterleaveIO)
 
 import Database.Redis.Core
@@ -97,18 +97,19 @@ hGetReplies h = lazyRead (Right B.empty)
             P.Partial cont -> lazyRead (Left cont)
             P.Done rest' r -> do
                 rs <- lazyRead (Right rest')
-                return (r:rs)    
+                return (r:rs)
     
-    continueParse cont = cont <$> B.hGetSome h 4096
+    continueParse cont = cont <$> B.hGetSome h maxRead
     
     readAndParse rest  = do    
         s <- if B.null rest
             then do
                 hFlush h -- send any pending requests
-                s <- B.hGetSome h 4096
-                when (B.null s) $ errConnClosed
+                s <- B.hGetSome h maxRead
+                when (B.null s) errConnClosed
                 return s
             else return rest
         return $ P.parse reply s
 
+    maxRead       = 4*1024
     errConnClosed = error "Redis: Connection closed"
