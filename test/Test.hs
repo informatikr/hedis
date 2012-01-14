@@ -52,7 +52,16 @@ tests = concat
 -- Miscellaneous
 --
 testsMisc :: [Test]
-testsMisc = [testPipelining]
+testsMisc = [testForceErrorReply, testPipelining]
+
+testForceErrorReply :: Test
+testForceErrorReply = testCase "force error reply" $ do
+    set "key" "value"
+    -- key is not a hash -> wrong kind of value
+    reply <- hkeys "key"
+    assert $ case reply of
+        Left (Error _) -> True
+        _              -> False
 
 testPipelining :: Test
 testPipelining = testCase "pipelining" $ do
@@ -64,7 +73,6 @@ testPipelining = testCase "pipelining" $ do
     tNoPipe <- time $ replicateM_ n (ping >>=? Pong)
     -- pipelining should at least be twice as fast.    
     assert $ tNoPipe / tPipe > 2
-    
     
 time :: Redis () -> Redis NominalDiffTime
 time redis = do
