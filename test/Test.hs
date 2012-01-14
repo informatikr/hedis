@@ -44,14 +44,16 @@ assert = liftIO . Test.assert
 --
 tests :: [Test]
 tests = concat
-    [ [testPipelining]
-    , testsKeys, testsStrings, testsHashes, testsLists, testsZSets
+    [ testsMisc, testsKeys, testsStrings, testsHashes, testsLists, testsZSets
     , [testPubSub], testsConnection, testsServer, [testQuit]
     ]
 
 ------------------------------------------------------------------------------
--- Pipelinging
+-- Miscellaneous
 --
+testsMisc :: [Test]
+testsMisc = [testPipelining]
+
 testPipelining :: Test
 testPipelining = testCase "pipelining" $ do
     let n = 10
@@ -388,8 +390,10 @@ testsLists =
 testBlpop :: Test
 testBlpop = testCase "blpop/brpop" $ do
     lpush "key" ["v3","v2","v1"] >>=? 3
-    blpop ["notAKey","key"] 1    >>=? ("key","v1")
-    brpop ["notAKey","key"] 1    >>=? ("key","v3")
+    blpop ["notAKey","key"] 1    >>=? Just ("key","v1")
+    brpop ["notAKey","key"] 1    >>=? Just ("key","v3")
+    -- run into timeout
+    blpop ["notAKey"] 1          >>=? Nothing
 
 testBrpoplpush :: Test
 testBrpoplpush = testCase "brpoplpush/rpoplpush" $ do

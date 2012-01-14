@@ -255,7 +255,7 @@ echo message = sendRequest (["ECHO"] ++ [encode message] )
 blpop
     :: [ByteString] -- ^ key
     -> Integer -- ^ timeout
-    -> Redis (Either Reply (ByteString,ByteString))
+    -> Redis (Either Reply (Maybe (ByteString,ByteString)))
 blpop key timeout = sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
 
 sdiffstore
@@ -379,7 +379,7 @@ sunionstore destination key = sendRequest (["SUNIONSTORE"] ++ [encode destinatio
 brpop
     :: [ByteString] -- ^ key
     -> Integer -- ^ timeout
-    -> Redis (Either Reply (ByteString,ByteString))
+    -> Redis (Either Reply (Maybe (ByteString,ByteString)))
 brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
 
 hgetall

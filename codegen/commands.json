@@ -54,7 +54,7 @@
     ],
     "since": "1.3.1",
     "group": "list",
-    "returns": "pair"
+    "returns": "maybe-pair"
   },
   "BRPOP": {
     "summary": "Remove and get the last element in a list, or block until one is available",
@@ -71,7 +71,7 @@
     ],
     "since": "1.3.1",
     "group": "list",
-    "returns": "pair"
+    "returns": "maybe-pair"
   },
   "BRPOPLPUSH": {
     "summary": "Pop a value from a list, push it to another list and return it; or block until one is available",
