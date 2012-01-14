@@ -54,7 +54,7 @@ library
                     bytestring-lexing == 0.2.*,
                     mtl == 2.*,
                     network == 2.*,
-                    resource-pool == 0.2.0.*,
+                    resource-pool == 0.2.1.*,
                     time
 
   other-modules:    Database.Redis.Core,
