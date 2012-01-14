@@ -116,7 +116,7 @@ pubSubAction :: ByteString -> [ByteString] -> PubSub
 pubSubAction cmd chans = PubSub [cmd : chans]
 
 decodeMsg :: Reply -> Either Integer Message
-decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = either (error "decodeMsg") id $ do
+decodeMsg r@(MultiBulk (Just (r0:r1:r2:rs))) = either (errMsg r) id $ do
     kind <- decode r0
     case kind :: ByteString of
         "message"  -> Right <$> decodeMessage
@@ -128,4 +128,7 @@ decodeMsg (MultiBulk (Just (r0:r1:r2:rs))) = either (error "decodeMsg") id $ do
     decodePMessage = PMessage <$> decode r1 <*> decode r2
                                     <*> decode (head rs)
         
-decodeMsg r = error $ "not a message: " ++ show r
+decodeMsg r = errMsg r
+
+errMsg :: Reply -> a
+errMsg r = error $ "Hedis: expected pub/sub-message but got: " ++ show r
