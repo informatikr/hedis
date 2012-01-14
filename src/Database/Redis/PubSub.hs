@@ -13,7 +13,7 @@ import Control.Monad.Writer
 import Data.ByteString.Char8 (ByteString)
 import Data.Maybe
 import qualified Database.Redis.Core as Core
-import Database.Redis.Reply
+import Database.Redis.Reply (Reply(..))
 import Database.Redis.Types
 
 

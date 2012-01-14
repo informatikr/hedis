@@ -9,13 +9,14 @@ module Database.Redis.Connection (
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Concurrent
+import qualified Data.Attoparsec as P
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.IORef
 import Data.Pool
 import Data.Time
 import Network (HostName, PortID(..), connectTo)
-import System.IO (hClose, hIsOpen, hSetBinaryMode)
+import System.IO (Handle, hClose, hIsOpen, hSetBinaryMode, hFlush)
+import System.IO.Unsafe (unsafeInterleaveIO)
 
 import Database.Redis.Core
 import Database.Redis.Commands (auth)
@@ -74,15 +75,41 @@ connect ConnInfo{..} = Conn <$>
   where
     create = do
         h   <- connectTo connectHost connectPort
-        rs' <- parseReply <$> {-# SCC "LB.hgetContents" #-} LB.hGetContents h
-        rs  <- newIORef rs'
+        rs  <- hGetReplies h >>= newIORef
+        hSetBinaryMode h True
         let conn = (h,rs)
         maybe (return ())
             (\pass -> runRedisInternal conn (auth pass) >> return ())
             connectAuth
-        hSetBinaryMode h True
         newMVar conn
 
     destroy conn = withMVar conn $ \(h,_) -> do
         open <- hIsOpen h
         when open (hClose h)
+
+hGetReplies :: Handle -> IO [Reply]
+hGetReplies h = lazyRead (Right B.empty)
+  where
+    lazyRead rest = unsafeInterleaveIO $ do
+        parseResult <- either continueParse readAndParse rest
+        case parseResult of
+            P.Fail _ _ _   -> error "Redis: Connection closed"
+            P.Partial cont -> lazyRead (Left cont)
+            P.Done rest' r -> do
+                rs <- lazyRead (Right rest')
+                return (r:rs)
+    
+    continueParse cont = cont <$> B.hGetSome h maxRead
+    
+    readAndParse rest  = do    
+        s <- if B.null rest
+            then do
+                hFlush h -- send any pending requests
+                s <- B.hGetSome h maxRead
+                when (B.null s) errConnClosed
+                return s
+            else return rest
+        return $ P.parse reply s
+
+    maxRead       = 4*1024
+    errConnClosed = error "Redis: Connection closed"
