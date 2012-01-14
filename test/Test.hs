@@ -1,20 +1,18 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Main (main) where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
-import Data.ByteString.Char8 (ByteString, pack)
 import Data.Monoid (mappend)
 import Data.Time
-import System.Time
+import Data.Time.Clock.POSIX
 import qualified Test.HUnit as Test
 import Test.HUnit (runTestTT, (~:))
 
 import Database.Redis
 
-
-type BS = ByteString
 
 ------------------------------------------------------------------------------
 -- Main and helpers
@@ -105,7 +103,7 @@ testExpire = testCase "expire" $ do
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
     set "key" "value"         >>=? Ok
-    TOD seconds _ <- liftIO getClockTime
+    seconds <- floor . utcTimeToPOSIXSeconds <$> liftIO getCurrentTime
     let expiry = seconds + 1
     expireat "key" expiry     >>=? True
     expireat "notAKey" expiry >>=? False
@@ -193,7 +191,6 @@ testGetType = testCase "getType" $ do
         getType "key" >>=? typ
         del ["key"]   >>=? 1
   where
-    [k,v,f,mem] = ["key","value","field","member"] 
     ts = [ (set "key" "value"                         >>=? Ok,   String)
          , (hset "key" "field" "value"                >>=? True, Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
@@ -302,7 +299,6 @@ testStrlen = testCase "strlen" $ do
 
 testSetAndGet :: Test
 testSetAndGet = testCase "set/get" $ do
-    let [k,v] = ["key","value"] 
     get "key"         >>=? Nothing
     set "key" "value" >>=? Ok
     get "key"         >>=? Just "value"
@@ -501,8 +497,6 @@ testPubSub :: Test
 testPubSub conn = testCase "pubSub" go conn
   where
     go = do
-        lock <- liftIO newEmptyMVar
-        
         -- producer
         liftIO $ forkIO $ do
             runRedis conn $ do
@@ -548,6 +542,7 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
+testsServer :: [Test]
 testsServer =
     [testBgrewriteaof, testFlushall, testInfo, testConfig, testSlowlog
     ,testDebugObject]
