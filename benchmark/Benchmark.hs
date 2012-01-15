@@ -33,8 +33,7 @@ main = do
     start <- newEmptyMVar
     done  <- newEmptyMVar
     replicateM_ nClients $ forkIO $ do
-        c <- connect defaultConnectInfo
-        runRedis c $ forever $ do
+        runRedis conn $ forever $ do
             action <- liftIO $ takeMVar start
             action
             liftIO $ putMVar done ()
