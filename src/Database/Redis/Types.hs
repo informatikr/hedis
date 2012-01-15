@@ -65,7 +65,7 @@ instance RedisResult Status where
         "set"    -> Set
         "zset"   -> ZSet
         "QUEUED" -> Queued
-        _        -> error $ "unhandled status-code: " ++ show s
+        _        -> error $ "Hedis: unhandled status-code: " ++ show s
     decode r = Left r
 
 instance RedisResult Bool where
