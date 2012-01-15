@@ -110,7 +110,7 @@ hGetReplies h = lazyRead (Right B.empty)
     
     continueParse cont = cont <$> B.hGetSome h maxRead
     
-    readAndParse rest  = P.parse reply <$> do
+    readAndParse rest  = P.parse reply <$>
         if B.null rest
             then do
                 hFlush h -- send any pending requests
