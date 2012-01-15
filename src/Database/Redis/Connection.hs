@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
 
 module Database.Redis.Connection (
     HostName,PortID(..),
@@ -6,21 +6,30 @@ module Database.Redis.Connection (
     Connection(), connect
 ) where
 
+import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Concurrent
+import Control.Exception (Exception, throwIO)
 import qualified Data.Attoparsec as P
 import qualified Data.ByteString as B
 import Data.IORef
 import Data.Pool
 import Data.Time
+import Data.Typeable
 import Network (HostName, PortID(..), connectTo)
 import System.IO (Handle, hClose, hIsOpen, hSetBinaryMode, hFlush)
+import System.IO.Error
 import System.IO.Unsafe (unsafeInterleaveIO)
 
 import Database.Redis.Core
 import Database.Redis.Commands (auth)
 import Database.Redis.Reply
+
+data ConnectionLostException = ConnectionLost
+    deriving (Show, Typeable)
+
+instance Exception ConnectionLostException
 
 -- |Information for connnecting to a Redis server.
 --
@@ -93,7 +102,7 @@ hGetReplies h = lazyRead (Right B.empty)
     lazyRead rest = unsafeInterleaveIO $ do
         parseResult <- either continueParse readAndParse rest
         case parseResult of
-            P.Fail _ _ _   -> error "Redis: Connection closed"
+            P.Fail _ _ _   -> error "Hedis: reply parse failed"
             P.Partial cont -> lazyRead (Left cont)
             P.Done rest' r -> do
                 rs <- lazyRead (Right rest')
@@ -101,15 +110,14 @@ hGetReplies h = lazyRead (Right B.empty)
     
     continueParse cont = cont <$> B.hGetSome h maxRead
     
-    readAndParse rest  = do    
-        s <- if B.null rest
+    readAndParse rest  = P.parse reply <$> do
+        if B.null rest
             then do
                 hFlush h -- send any pending requests
-                s <- B.hGetSome h maxRead
+                s <- B.hGetSome h maxRead `catchIOError` const errConnClosed
                 when (B.null s) errConnClosed
                 return s
             else return rest
-        return $ P.parse reply s
 
     maxRead       = 4*1024
-    errConnClosed = error "Redis: Connection closed"
+    errConnClosed = throwIO ConnectionLost
