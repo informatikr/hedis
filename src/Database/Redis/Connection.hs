@@ -96,6 +96,16 @@ connect ConnInfo{..} = Conn <$>
         open <- hIsOpen h
         when open (hClose h)
 
+-- |Read all the 'Reply's from the Handle and return them as a lazy list.
+--
+--  The actual reading and parsing of each 'Reply' is deferred until the spine
+--  of the list is evaluated up to that 'Reply'. Each 'Reply' is cons'd in front
+--  of the (unevaluated) list of all remaining replies.
+--
+--  'unsafeInterleaveIO' only evaluates it's result once, making this function 
+--  thread-safe. 'Handle' as implemented by GHC is also threadsafe, it is safe
+--  to call 'hFlush' here. The list constructor '(:)' must be called from
+--  /within/ unsafeInterleaveIO, to keep the replies in correct order.
 hGetReplies :: Handle -> IO [Reply]
 hGetReplies h = lazyRead (Right B.empty)
   where
