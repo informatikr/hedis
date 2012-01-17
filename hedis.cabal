@@ -10,11 +10,11 @@ Description:
     datastore. Compared to other Haskell client libraries it has some
     advantages:
     .
-    [Complete Redis 2.4 command set:] All Redis commands 
+    [Complete Redis 2.4 command set:] All Redis commands
         (<http://redis.io/commands>) are available as haskell functions. The 
         exceptions to the rule are the MONITOR and SYNC commands.
     .
-    [Pipelining \"Just Works\":] Commands are pipelined 
+    [Automatic Optimal Pipelining:] Commands are pipelined
         (<http://redis.io/topics/pipelining>) as much as possible without any
         work by the user.
     .
@@ -22,6 +22,11 @@ Description:
         (<http://redis.io/topics/pubsub>), clients are not allowed to issue
         commands other than subscribing to or unsubscribing from channels. This
         library uses the type system to enforce the correct behavior.
+    .
+    [Connect via TCP or Unix Domain Socket:] TCP sockets are the default way to
+        connect to a Redis server. For connections to a server on the same
+        machine, Unix domain sockets offer higher performance than the standard
+        TCP connection.
     .
     For detailed documentation, see the "Database.Redis" module.
 license:            BSD3
