@@ -11,8 +11,10 @@ Description:
     advantages:
     .
     [Complete Redis 2.4 command set:] All Redis commands
-        (<http://redis.io/commands>) are available as haskell functions. The 
-        exceptions to the rule are the MONITOR and SYNC commands.
+        (<http://redis.io/commands>) are available as haskell functions, except
+        for the MONITOR and SYNC commands. Additionally, a low-level API is
+        exposed that  makes it easy for the library user to implement additional
+        commands, such as new commands from an experimental Redis version.
     .
     [Automatic Optimal Pipelining:] Commands are pipelined
         (<http://redis.io/topics/pipelining>) as much as possible without any

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Redis (
-    
+
     -- * The Redis Monad
     Redis(), runRedis,
     
@@ -16,8 +16,19 @@ module Database.Redis (
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
-    -- * Redis Return Types
-    Reply(..),Status(..)
+    -- * Low-Level Command API
+    sendRequest,
+    -- |'sendRequest' can be used to implement commands from experimental
+    --  versions of Redis. An example of how to implement a command is given
+    --  below.
+    --
+    -- @
+    -- -- |Redis DEBUG OBJECT command
+    -- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
+    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
+    -- @
+    --
+    Reply(..),Status(..),RedisResult(..)
     
 ) where
 

@@ -160,7 +160,10 @@ unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
 watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (<http://redis.io/commands/watch>).
 
 -- * Unimplemented Commands
--- |These commands are not implemented, as of now.
+-- |These commands are not implemented, as of now. Library
+--  users can implement these or other commands from
+--  experimental Redis versions by using the 'sendRequest'
+--  function.
 --
 -- * EVAL (<http://redis.io/commands/eval>)
 --
@@ -764,15 +767,4 @@ persist
 persist key = sendRequest (["PERSIST"] ++ [encode key] )
 
 
--- * Unimplemented Commands
--- |These commands are not implemented, as of now.
---
--- * EVAL (<http://redis.io/commands/eval>)
---
---
--- * MONITOR (<http://redis.io/commands/monitor>)
---
---
--- * SYNC (<http://redis.io/commands/sync>)
---
 

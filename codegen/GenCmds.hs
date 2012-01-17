@@ -165,14 +165,16 @@ hsFile (Cmds cmds) = mconcat
     , imprts, newline
     , mconcat (map fromCmd cmds)
     , newline
-    , unimplementedCmds
     , newline
     ]
 
 unimplementedCmds :: Builder
 unimplementedCmds =
     fromString "-- * Unimplemented Commands\n\
-               \-- |These commands are not implemented, as of now.\n"
+               \-- |These commands are not implemented, as of now. Library\n\
+               \--  users can implement these or other commands from\n\
+               \--  experimental Redis versions by using the 'sendRequest'\n\
+               \--  function.\n"
     `mappend`
     mconcat (map unimplementedCmd unimplemented)
   where
