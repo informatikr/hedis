@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.3
+version:            0.3.1
 synopsis:
     Client library for the Redis datastore: supports full command set,  
     pipelining.
