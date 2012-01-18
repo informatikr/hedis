@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.2
+version:            0.3
 synopsis:
     Client library for the Redis datastore: supports full command set,  
     pipelining.
@@ -18,7 +18,9 @@ Description:
     .
     [Automatic Optimal Pipelining:] Commands are pipelined
         (<http://redis.io/topics/pipelining>) as much as possible without any
-        work by the user.
+        work by the user. See
+        <http://informatikr.com/2012/redis-pipelining.html> for a
+        technical explanation of automatic optimal pipelining.
     .
     [Enforced Pub\/Sub semantics:] When subscribed to the Redis Pub\/Sub server
         (<http://redis.io/topics/pubsub>), clients are not allowed to issue
