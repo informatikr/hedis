@@ -1,9 +1,10 @@
 {-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
 
 module Database.Redis.Connection (
-    HostName,PortID(..),
+    HostName,PortID(PortNumber,UnixSocket),
     ConnectInfo(..),defaultConnectInfo,
-    Connection(), connect
+    Connection(), connect,
+    ConnectionLostException(..)
 ) where
 
 import Prelude hiding (catch)
@@ -77,7 +78,8 @@ defaultConnectInfo = ConnInfo
     , connectMaxIdleTime    = 30
     }
 
--- |Opens a connection to a Redis server designated by the given 'ConnectInfo'.
+-- |Opens a 'Connection' to a Redis server designated by the given
+--  'ConnectInfo'.
 connect :: ConnectInfo -> IO Connection
 connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections

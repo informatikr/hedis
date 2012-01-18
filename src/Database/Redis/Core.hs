@@ -20,9 +20,8 @@ import Database.Redis.Reply
 import Database.Redis.Request
 import Database.Redis.Types
 
--- |Connection to a Redis server. Use the 'connect' function to create one.
---
---  A 'Connection' is actually a pool of network connections.
+-- |A threadsafe pool of network connections to a Redis server. Use the
+--  'connect' function to create one.
 newtype Connection = Conn (Pool (MVar (Handle, IORef [Reply])))
 
 -- |All Redis commands run in the 'Redis' monad.
@@ -40,7 +39,8 @@ askReplies = asks snd
 -- |Interact with a Redis datastore specified by the given 'Connection'.
 --
 --  Each call of 'runRedis' takes a network connection from the 'Connection'
---  pool and runs the given 'Redis' action. Calls to 'runRedis' may thus block, --  while all connections from the pool are in use.
+--  pool and runs the given 'Redis' action. Calls to 'runRedis' may thus block
+--  while all connections from the pool are in use.
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
     withResource pool $ \conn ->

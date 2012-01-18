@@ -1,7 +1,39 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Redis (
+    -- * How To Use This Module
+    -- |
+    -- Connect to a Redis server:
+    --
+    -- @
+    -- -- connects to localhost:6379
+    -- conn <- 'connect' 'defaultConnectInfo'
+    -- @
+    --
+    -- Send commands to the server:
+    -- 
+    -- @
+    -- 'runRedis' conn $ do
+    --      'set' \"hello\" \"hello\"
+    --      set \"world\" \"world\"
+    --      hello <- 'get' \"hello\"
+    --      world <- get \"world\"
+    --      liftIO $ print (hello,world)
+    -- @
 
+    -- ** Error Behavior
+    -- |
+    --  [Operations against keys holding the wrong kind of value:] If the Redis
+    --    server returns an 'Error', command functions will return 'Left' the
+    --    'Reply'. The library user can inspect the error message to gain 
+    --    information on what kind of error occured.
+    --
+    --  [Connection to the server lost:] In case of a lost connection, command
+    --    functions throw a 
+    --    'ConnectionLostException'. It can only be caught outside of
+    --    'runRedis', to make sure the connection pool can properly destroy the
+    --    connection.
+    
     -- * The Redis Monad
     Redis(), runRedis,
     
@@ -28,7 +60,7 @@ module Database.Redis (
     -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
     -- @
     --
-    Reply(..),Status(..),RedisResult(..)
+    Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
     
 ) where
 
