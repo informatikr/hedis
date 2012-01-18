@@ -11,7 +11,7 @@ import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Concurrent
-import Control.Exception (Exception, throwIO)
+import Control.Exception (Exception, catch, throwIO)
 import qualified Data.Attoparsec as P
 import qualified Data.ByteString as B
 import Data.IORef
@@ -20,7 +20,6 @@ import Data.Time
 import Data.Typeable
 import Network (HostName, PortID(..), connectTo)
 import System.IO (Handle, hClose, hIsOpen, hSetBinaryMode, hFlush)
-import System.IO.Error
 import System.IO.Unsafe (unsafeInterleaveIO)
 
 import Database.Redis.Core
@@ -133,3 +132,6 @@ hGetReplies h = lazyRead (Right B.empty)
 
     maxRead       = 4*1024
     errConnClosed = throwIO ConnectionLost
+
+    catchIOError :: IO a -> (IOError -> IO a) -> IO a
+    catchIOError = catch
