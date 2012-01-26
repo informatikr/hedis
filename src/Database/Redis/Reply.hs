@@ -3,9 +3,9 @@ module Database.Redis.Reply (Reply(..), reply) where
 
 import Prelude hiding (error, take)
 import Control.Applicative
-import Data.Attoparsec.Char8
-import qualified Data.Attoparsec as P
-import Data.ByteString.Char8
+import Data.Attoparsec (takeTill)
+import Data.Attoparsec.Char8 hiding (takeTill)
+import Data.ByteString.Char8 (ByteString)
 
 -- |Low-level representation of replies from the Redis server.
 data Reply = SingleLine ByteString
@@ -22,37 +22,24 @@ reply :: Parser Reply
 reply = choice [singleLine, integer, bulk, multiBulk, error]
 
 singleLine :: Parser Reply
-singleLine = SingleLine <$> '+' `prefixing` line
+singleLine = SingleLine <$> (char '+' *> takeTill isEndOfLine <* endOfLine)
 
 error :: Parser Reply
-error = Error <$> '-' `prefixing` line
+error = Error <$> (char '-' *> takeTill isEndOfLine <* endOfLine)
 
 integer :: Parser Reply
-integer = Integer <$> ':' `prefixing` signed decimal
+integer = Integer <$> (char ':' *> signed decimal <* endOfLine)
 
 bulk :: Parser Reply
-bulk = Bulk <$> do    
-    len <- '$' `prefixing` signed decimal
+bulk = Bulk <$> do
+    len <- char '$' *> signed decimal <* endOfLine
     if len < 0
         then return Nothing
-        else Just <$> P.take len <* crlf
+        else Just <$> take len <* endOfLine
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do
-        len <- '*' `prefixing` signed decimal
+        len <- char '*' *> signed decimal <* endOfLine
         if len < 0
             then return Nothing
-            else Just <$> P.count len reply
-
-
-------------------------------------------------------------------------------
--- Helpers & Combinators
---
-prefixing :: Char -> Parser a -> Parser a
-c `prefixing` a = char c *> a <* crlf
-
-crlf :: Parser ByteString
-crlf = string "\r\n"
-
-line :: Parser ByteString
-line = takeTill (=='\r')
+            else Just <$> count len reply
