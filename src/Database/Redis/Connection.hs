@@ -113,7 +113,7 @@ hGetReplies h = lazyRead B.empty
     lazyRead rest = unsafeInterleaveIO $ do        
         parseResult <- P.parseWith readMore reply rest
         case parseResult of
-            P.Fail _ _ _   -> error "Hedis: reply parse failed"
+            P.Fail _ _ _   -> errConnClosed
             P.Partial _    -> error "Hedis: parseWith returned Partial"
             P.Done rest' r -> do
                 rs <- lazyRead rest'
