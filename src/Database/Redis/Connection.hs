@@ -108,27 +108,20 @@ connect ConnInfo{..} = Conn <$>
 --  to call 'hFlush' here. The list constructor '(:)' must be called from
 --  /within/ unsafeInterleaveIO, to keep the replies in correct order.
 hGetReplies :: Handle -> IO [Reply]
-hGetReplies h = lazyRead (Right B.empty)
+hGetReplies h = lazyRead B.empty
   where
-    lazyRead rest = unsafeInterleaveIO $ do
-        parseResult <- either continueParse readAndParse rest
+    lazyRead rest = unsafeInterleaveIO $ do        
+        parseResult <- P.parseWith readMore reply rest
         case parseResult of
             P.Fail _ _ _   -> error "Hedis: reply parse failed"
-            P.Partial cont -> lazyRead (Left cont)
+            P.Partial _    -> error "Hedis: parseWith returned Partial"
             P.Done rest' r -> do
-                rs <- lazyRead (Right rest')
+                rs <- lazyRead rest'
                 return (r:rs)
-    
-    continueParse cont = cont <$> B.hGetSome h maxRead
-    
-    readAndParse rest  = P.parse reply <$>
-        if B.null rest
-            then do
-                hFlush h -- send any pending requests
-                s <- B.hGetSome h maxRead `catchIOError` const errConnClosed
-                when (B.null s) errConnClosed
-                return s
-            else return rest
+
+    readMore = do
+        hFlush h -- send any pending requests
+        B.hGetSome h maxRead `catchIOError` const errConnClosed
 
     maxRead       = 4*1024
     errConnClosed = throwIO ConnectionLost
