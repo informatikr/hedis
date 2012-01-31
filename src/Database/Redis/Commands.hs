@@ -588,11 +588,6 @@ hexists
     -> Redis (Either Reply Bool)
 hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
 
-auth
-    :: ByteString -- ^ password
-    -> Redis (Either Reply Status)
-auth password = sendRequest (["AUTH"] ++ [encode password] )
-
 sinterstore
     :: ByteString -- ^ destination
     -> [ByteString] -- ^ key

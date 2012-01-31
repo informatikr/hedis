@@ -48,7 +48,8 @@ groupCmds (Cmds cmds) =
 -- |Blacklisted commands, optionally paired with the name of their
 --  implementation in the "Database.Redis.ManualCommands" module.
 blacklist :: [(String, Maybe ([String],[String]))]
-blacklist = [ ("OBJECT", Just (["objectRefcount"
+blacklist = [ ("AUTH", Just (["auth"],[]))
+            , ("OBJECT", Just (["objectRefcount"
                                ,"objectEncoding"
                                ,"objectIdletime"]
                               ,[]))
