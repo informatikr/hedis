@@ -84,18 +84,22 @@ connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
   where
     create = do
-        h   <- connectTo connectHost connectPort
-        rs  <- hGetReplies h >>= newIORef
-        hSetBinaryMode h True
-        let conn = (h,rs)
+        envHandle  <- connectTo connectHost connectPort
+        envReplies <- hGetReplies envHandle >>= newIORef
+        hSetBinaryMode envHandle True
+        
+        envThunkChan <- newChan
+        forkIO $ getChanContents envThunkChan >>= mapM_ (`seq` return ())
+        
+        let conn = Env{..}
         maybe (return ())
             (\pass -> runRedisInternal conn (auth pass) >> return ())
             connectAuth
         newMVar conn
 
-    destroy conn = withMVar conn $ \(h,_) -> do
-        open <- hIsOpen h
-        when open (hClose h)
+    destroy conn = withMVar conn $ \Env{..} -> do
+        open <- hIsOpen envHandle
+        when open (hClose envHandle)
 
 -- |Read all the 'Reply's from the Handle and return them as a lazy list.
 --

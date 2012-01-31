@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Redis.Core (
-    Connection(..),
+    Connection(..), RedisEnv(..),
     Redis(),runRedis,runRedisInternal,
     send,
     recv,
@@ -22,19 +22,17 @@ import Database.Redis.Types
 
 -- |A threadsafe pool of network connections to a Redis server. Use the
 --  'connect' function to create one.
-newtype Connection = Conn (Pool (MVar (Handle, IORef [Reply])))
+newtype Connection = Conn (Pool (MVar RedisEnv))
 
 -- |All Redis commands run in the 'Redis' monad.
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
-type RedisEnv = (Handle, IORef [Reply])
-
-askHandle :: ReaderT RedisEnv IO Handle
-askHandle = asks fst
-
-askReplies :: ReaderT RedisEnv IO (IORef [Reply])
-askReplies = asks snd
+data RedisEnv = Env
+    { envHandle    :: Handle
+    , envReplies   :: IORef [Reply]
+    , envThunkChan :: Chan Reply
+    }
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
 --
@@ -53,7 +51,7 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 
 send :: [B.ByteString] -> Redis ()
 send req = Redis $ do
-    h <- askHandle
+    h <- asks envHandle
     -- hFlushing the handle is done while reading replies.
     liftIO $ {-# SCC "send.hPut" #-} B.hPut h (renderRequest req)
 
@@ -61,8 +59,12 @@ recv :: Redis Reply
 recv = Redis $ do
     -- head/tail avoids forcing the ':' constructor, enabling automatic
     -- pipelining.
-    rs <- askReplies
-    liftIO $ atomicModifyIORef rs (tail &&& head)
+    rs <- asks envReplies
+    chan <- asks envThunkChan
+    liftIO $ do
+        r <- atomicModifyIORef rs (tail &&& head)
+        writeChan chan r
+        return r
 
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
 sendRequest req = decode <$> (send req >> recv)
