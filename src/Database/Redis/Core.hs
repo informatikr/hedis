@@ -8,11 +8,10 @@ module Database.Redis.Core (
 ) where
 
 import Control.Applicative
-import Control.Arrow
 import Control.Monad.Reader
 import Control.Concurrent
+import Control.Concurrent.STM
 import qualified Data.ByteString as B
-import Data.IORef
 import Data.Pool
 import System.IO (Handle)
 
@@ -30,8 +29,9 @@ newtype Redis a = Redis (ReaderT RedisEnv IO a)
 
 data RedisEnv = Env
     { envHandle    :: Handle
-    , envReplies   :: IORef [Reply]
-    , envThunkChan :: Chan Reply
+    , envReplies   :: TVar [Reply]
+    , envThunkChan :: TChan Reply
+    , envThunkCnt  :: TVar Integer
     }
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
@@ -59,11 +59,19 @@ recv :: Redis Reply
 recv = Redis $ do
     -- head/tail avoids forcing the ':' constructor, enabling automatic
     -- pipelining.
-    rs <- asks envReplies
+    replies <- asks envReplies
     chan <- asks envThunkChan
-    liftIO $ do
-        r <- atomicModifyIORef rs (tail &&& head)
-        writeChan chan r
+    thunkCnt <- asks envThunkCnt
+    liftIO $ atomically $ do
+        
+        cnt <- readTVar thunkCnt
+        guard $ cnt < 1000
+                
+        rs <- readTVar replies
+        writeTVar replies (tail rs)
+        let r = head rs
+        writeTChan chan r
+        writeTVar thunkCnt (cnt + 1)
         return r
 
 sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)

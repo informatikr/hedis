@@ -11,10 +11,10 @@ import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Concurrent
+import Control.Concurrent.STM
 import Control.Exception (Exception, catch, throwIO)
 import qualified Data.Attoparsec as P
 import qualified Data.ByteString as B
-import Data.IORef
 import Data.Pool
 import Data.Time
 import Data.Typeable
@@ -85,11 +85,14 @@ connect ConnInfo{..} = Conn <$>
   where
     create = do
         envHandle  <- connectTo connectHost connectPort
-        envReplies <- hGetReplies envHandle >>= newIORef
+        envReplies <- hGetReplies envHandle >>= newTVarIO
         hSetBinaryMode envHandle True
         
-        envThunkChan <- newChan
-        forkIO $ getChanContents envThunkChan >>= mapM_ (`seq` return ())
+        envThunkCnt <- newTVarIO 0
+        envThunkChan <- newTChanIO
+        forkIO $ forceChanContents envThunkChan envThunkCnt
+        
+
         
         let conn = Env{..}
         maybe (return ())
@@ -100,6 +103,18 @@ connect ConnInfo{..} = Conn <$>
     destroy conn = withMVar conn $ \Env{..} -> do
         open <- hIsOpen envHandle
         when open (hClose envHandle)
+
+forceChanContents :: TChan a -> TVar Integer -> IO ()
+forceChanContents chan thunkCnt = do
+    x <- atomically $ do        
+        cnt <- readTVar thunkCnt
+        guard (cnt > 0)
+        
+        writeTVar thunkCnt (cnt - 1)
+        readTChan chan
+        
+    x `seq` forceChanContents chan thunkCnt
+
 
 -- |Read all the 'Reply's from the Handle and return them as a lazy list.
 --
