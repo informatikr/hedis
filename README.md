@@ -1,6 +1,6 @@
 # Welcome to hedis
 
-This is a Redis client library for the Haskell programming language.
+This is a Redis client library for the Haskell programming language. Please consult the library's [Hackage page](http://hackage.haskell.org/package/hedis) for documentation.
 
 # Join in!
 
