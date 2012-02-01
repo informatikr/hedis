@@ -21,6 +21,13 @@ module Database.Redis (
     --      liftIO $ print (hello,world)
     -- @
 
+    -- ** Automatic Pipelining
+    -- |Commands are automatically pipelined as much as possible. For example,
+    --  in the above \"hello world\" example, all four commands are pipelined.
+    --  Automatic pipelining makes use of Haskell's laziness. As long as a
+    --  previous reply is not evaluated, subsequent commands can be pipelined.
+    --
+    
     -- ** Error Behavior
     -- |
     --  [Operations against keys holding the wrong kind of value:] If the Redis
