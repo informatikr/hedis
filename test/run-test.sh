@@ -3,7 +3,8 @@
 echo "---------------"
 echo "program output:"
 echo "---------------"
-./dist/build/hedis-test/hedis-test
+# The -M argument limits heap size for 'testConstantSpacePipelining'.
+./dist/build/hedis-test/hedis-test +RTS -M1m
 
 echo "---------------"
 hpc markup --destdir=test/coverage hedis-test.tix

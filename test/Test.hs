@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Main (main) where
 
+import Prelude hiding (catch)
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
@@ -52,7 +53,15 @@ tests = concat
 -- Miscellaneous
 --
 testsMisc :: [Test]
-testsMisc = [testForceErrorReply, testPipelining]
+testsMisc = [testConstantSpacePipelining, testForceErrorReply, testPipelining]
+
+testConstantSpacePipelining :: Test
+testConstantSpacePipelining = testCase "constant-space pipelining" $ do
+    -- This testcase should not exceed the maximum heap size, as set in
+    -- the run-test.sh script.
+    replicateM_ 10000 ping
+    -- If the program didn't crash, pipelining takes constant memory.
+    assert True
 
 testForceErrorReply :: Test
 testForceErrorReply = testCase "force error reply" $ do
@@ -73,7 +82,7 @@ testPipelining = testCase "pipelining" $ do
     tNoPipe <- time $ replicateM_ n (ping >>=? Pong)
     -- pipelining should at least be twice as fast.    
     assert $ tNoPipe / tPipe > 2
-    
+
 time :: Redis () -> Redis NominalDiffTime
 time redis = do
     start <- liftIO $ getCurrentTime
@@ -512,7 +521,10 @@ testPubSub conn = testCase "pubSub" go conn
         -- producer
         liftIO $ forkIO $ do
             runRedis conn $ do
+                let t = 10^(5 :: Int)
+                liftIO $ threadDelay t
                 publish "chan1" "hello" >>=? 1
+                liftIO $ threadDelay t
                 publish "chan2" "world" >>=? 1
             return ()
 
