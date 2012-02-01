@@ -63,9 +63,10 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 --
 --  Create with 'newEnv'. Modified by 'recv' and 'send'.
 data RedisEnv = Env
-    { envHandle    :: Handle       -- ^ Connection socket-handle.
-    , envReplies   :: TVar [Reply] -- ^ Reply thunks.
-    , envThunkCnt  :: TVar Integer -- ^ Number of thunks in 'envThunkChan'.
+    { envHandle   :: Handle       -- ^ Connection socket-handle.
+    , envReplies  :: TVar [Reply] -- ^ Reply thunks.
+    , envThunkCnt :: TVar Integer -- ^ Number of thunks in 'envThunkChan'.
+    , envEvalTId  :: ThreadId     -- ^ 'ThreadID' of the evaluator thread.
     }
 
 -- |Create a new 'RedisEnv'
@@ -74,9 +75,7 @@ newEnv envHandle = do
     replies     <- lazify <$> hGetReplies envHandle
     envReplies  <- newTVarIO replies
     envThunkCnt <- newTVarIO 0
-
-    _ <- forkIO $ forceThunks envThunkCnt replies
-
+    envEvalTId  <- forkIO $ forceThunks envThunkCnt replies
     return Env{..}
   where
     lazify rs = head rs : lazify (tail rs)
@@ -192,6 +191,7 @@ connect ConnInfo{..} = Conn <$>
     destroy conn = withMVar conn $ \Env{..} -> do
         open <- hIsOpen envHandle
         when open (hClose envHandle)
+        killThread envEvalTId
 
 -- |Read all the 'Reply's from the Handle and return them as a lazy list.
 --
