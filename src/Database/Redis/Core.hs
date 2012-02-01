@@ -65,41 +65,44 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 data RedisEnv = Env
     { envHandle    :: Handle       -- ^ Connection socket-handle.
     , envReplies   :: TVar [Reply] -- ^ Reply thunks.
-    , envThunkChan :: TChan Reply  -- ^ Thunks ready for forcing.
     , envThunkCnt  :: TVar Integer -- ^ Number of thunks in 'envThunkChan'.
     }
 
 -- |Create a new 'RedisEnv'
 newEnv :: Handle -> IO RedisEnv
 newEnv envHandle = do
-    envReplies   <- newTVarIO =<< hGetReplies envHandle
-    envThunkCnt  <- newTVarIO 0
-    envThunkChan <- newTChanIO
+    replies     <- lazify <$> hGetReplies envHandle
+    envReplies  <- newTVarIO replies
+    envThunkCnt <- newTVarIO 0
 
-    _ <- forkIO $ forever $ do
-        thunk <- atomically $ do
-            cnt <- readTVar envThunkCnt
-            guard (cnt > 0)
-            writeTVar envThunkCnt (cnt-1)
-            readTChan envThunkChan
-        evaluate thunk
+    _ <- forkIO $ forceThunks envThunkCnt replies
 
     return Env{..}
+  where
+    lazify rs = head rs : lazify (tail rs)
+
+forceThunks :: TVar Integer -> [Reply] -> IO ()
+forceThunks thunkCnt = go
+  where
+    go []     = return ()
+    go (r:rs) = do
+        -- wait for a thunk
+        atomically $ do
+            cnt <- readTVar thunkCnt
+            guard (cnt > 0)
+            writeTVar thunkCnt (cnt-1)
+        r `seq` go rs
 
 recv :: Redis Reply
 recv = Redis $ do
     Env{..} <- ask
     liftIO $ atomically $ do
+        -- limit the amount of reply-thunks per connection.
         cnt <- readTVar envThunkCnt
         guard $ cnt < 1000
-
-        rs <- readTVar envReplies
-        -- head/tail avoids forcing the ':' constructor, enabling automatic
-        -- pipelining.
-        writeTVar envReplies (tail rs)
-        let r = head rs
-        writeTChan envThunkChan r
-        writeTVar envThunkCnt (cnt + 1)
+        writeTVar envThunkCnt (cnt+1)
+        r:rs <- readTVar envReplies
+        writeTVar envReplies rs
         return r
 
 send :: [B.ByteString] -> Redis ()
@@ -201,15 +204,15 @@ connect ConnInfo{..} = Conn <$>
 --  to call 'hFlush' here. The list constructor '(:)' must be called from
 --  /within/ unsafeInterleaveIO, to keep the replies in correct order.
 hGetReplies :: Handle -> IO [Reply]
-hGetReplies h = lazyRead B.empty
+hGetReplies h = go B.empty
   where
-    lazyRead rest = unsafeInterleaveIO $ do        
+    go rest = unsafeInterleaveIO $ do        
         parseResult <- P.parseWith readMore reply rest
         case parseResult of
             P.Fail _ _ _   -> errConnClosed
             P.Partial _    -> error "Hedis: parseWith returned Partial"
             P.Done rest' r -> do
-                rs <- lazyRead rest'
+                rs <- go rest'
                 return (r:rs)
 
     readMore = do
