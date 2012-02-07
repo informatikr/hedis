@@ -167,6 +167,7 @@ zrevrangebyscoreWithscoresLimit key min max offset count =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES","LIMIT", encode offset, encode count]
 
+-- |Options for the 'sort' command.
 data SortOpts = SortOpts
     { sortBy     :: Maybe ByteString
     , sortLimit  :: (Integer,Integer)
@@ -175,6 +176,18 @@ data SortOpts = SortOpts
     , sortAlpha  :: Bool
     } deriving (Show, Eq)
 
+-- |Redis default 'SortOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- SortOpts
+--     { sortBy    = Nothing -- omit the BY option
+--     , sortLimit = (0,-1)  -- return entire collection
+--     , sortGet   = []      -- omit the GET option
+--     , sortOrder = Asc     -- sort in ascending order
+--     , sortAlpha = False   -- sort numerically, not lexicographically
+--     }
+-- @
+--
 defaultSortOpts :: SortOpts
 defaultSortOpts = SortOpts
     { sortBy    = Nothing
