@@ -158,7 +158,7 @@ testRandomkey :: Test
 testRandomkey = testCase "randomkey" $ do
     set "k1" "value" >>=? Ok
     set "k2" "value" >>=? Ok
-    Right k <- randomkey
+    Right (Just k) <- randomkey
     assert $ k `elem` ["k1", "k2"]
 
 testRename :: Test
@@ -414,18 +414,21 @@ testBlpop = testCase "blpop/brpop" $ do
 
 testBrpoplpush :: Test
 testBrpoplpush = testCase "brpoplpush/rpoplpush" $ do
-    rpush "k1" ["v1","v2"] >>=? 2
-    brpoplpush "k1" "k2" 1 >>=? "v2"
-    rpoplpush "k1" "k2"    >>=? "v1"
-    llen "k2"              >>=? 2
-    llen "k1"              >>=? 0
+    rpush "k1" ["v1","v2"]      >>=? 2
+    brpoplpush "k1" "k2" 1      >>=? Just "v2"
+    rpoplpush "k1" "k2"         >>=? Just "v1"
+    rpoplpush "notAKey" "k2"    >>=? Nothing
+    llen "k2"                   >>=? 2
+    llen "k1"                   >>=? 0
+    -- run into timeout
+    brpoplpush "notAKey" "k2" 1 >>=? Nothing
 
 testLpop :: Test
 testLpop = testCase "lpop/rpop" $ do
     lpush "key" ["v3","v2","v1"] >>=? 3
-    lpop "key"                   >>=? "v1"
+    lpop "key"                   >>=? Just "v1"
     llen "key"                   >>=? 2
-    rpop "key"                   >>=? "v3"
+    rpop "key"                   >>=? Just "v3"
 
 testLinsert :: Test
 testLinsert = testCase "linsert" $ do
@@ -434,8 +437,8 @@ testLinsert = testCase "linsert" $ do
     linsertBefore "key" "notAVal" "v3" >>=? (-1)
     linsertAfter "key" "v2" "v3"       >>=? 3    
     linsertAfter "key" "notAVal" "v3"  >>=? (-1)
-    lindex "key" 0                     >>=? "v1"
-    lindex "key" 2                     >>=? "v3"
+    lindex "key" 0                     >>=? Just "v1"
+    lindex "key" 2                     >>=? Just "v3"
 
 testLpushx :: Test
 testLpushx = testCase "lpushx/rpushx" $ do
@@ -466,7 +469,7 @@ testsZSets = [testZAdd, testZRank, testZRemRange, testZRange, testZStore]
 testZAdd :: Test
 testZAdd = testCase "zadd/zrem/zcard/zscore/zincrby" $ do
     zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 3
-    zscore "key" "v3"                        >>=? 40
+    zscore "key" "v3"                        >>=? Just 40
     zincrby "key" 2 "v3"                     >>=? 42
     zrem "key" ["v3","notAKey"]              >>=? 1
     zcard "key"                              >>=? 2
@@ -474,8 +477,9 @@ testZAdd = testCase "zadd/zrem/zcard/zscore/zincrby" $ do
 testZRank :: Test
 testZRank = testCase "zrank/zrevrank/zcount" $ do
     zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")] >>=? 3
-    zrank "key" "v1"                         >>=? 0
-    zrevrank "key" "v1"                      >>=? 2
+    zrank "notAKey" "v1"                     >>=? Nothing
+    zrank "key" "v1"                         >>=? Just 0
+    zrevrank "key" "v1"                      >>=? Just 2
     zcount "key" 10 100                      >>=? 1
 
 testZRemRange :: Test

@@ -21,7 +21,7 @@ objectIdletime key = sendRequest ["OBJECT", "idletime", encode key]
 
 objectEncoding
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 objectEncoding key = sendRequest ["OBJECT", "encoding", encode key]
 
 linsertBefore

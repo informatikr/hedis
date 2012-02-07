@@ -316,7 +316,9 @@ retType Cmd{..} = maybe err translate cmdRetType
         "status"       -> "Status"
         "bool"         -> "Bool"
         "integer"      -> "Integer"
+        "maybe-integer"-> "(Maybe Integer)"
         "key"          -> "ByteString"
+        "maybe-key"    -> "(Maybe ByteString)"
         "string"       -> "ByteString"
         "maybe-string" -> "(Maybe ByteString)"
         "list"         -> "[ByteString]"
@@ -325,6 +327,7 @@ retType Cmd{..} = maybe err translate cmdRetType
         "set"          -> "[ByteString]"
         "maybe-pair"   -> "(Maybe (ByteString,ByteString))"
         "double"       -> "Double"
+        "maybe-double" -> "(Maybe Double)"
         "reply"        -> "Reply"
         _              -> error $ "untranslated return type: " ++ t
     

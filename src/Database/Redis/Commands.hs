@@ -211,14 +211,14 @@ del key = sendRequest (["DEL"] ++ map encode key )
 zrevrank
     :: ByteString -- ^ key
     -> ByteString -- ^ member
-    -> Redis (Either Reply Integer)
+    -> Redis (Either Reply (Maybe Integer))
 zrevrank key member = sendRequest (["ZREVRANK"] ++ [encode key] ++ [encode member] )
 
 brpoplpush
     :: ByteString -- ^ source
     -> ByteString -- ^ destination
     -> Integer -- ^ timeout
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
 
 incrby
@@ -229,7 +229,7 @@ incrby key increment = sendRequest (["INCRBY"] ++ [encode key] ++ [encode increm
 
 rpop
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 rpop key = sendRequest (["RPOP"] ++ [encode key] )
 
 setrange
@@ -358,7 +358,7 @@ mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y
 rpoplpush
     :: ByteString -- ^ source
     -> ByteString -- ^ destination
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
 
 hlen
@@ -396,7 +396,7 @@ dbsize  = sendRequest (["DBSIZE"] )
 
 lpop
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 lpop key = sendRequest (["LPOP"] ++ [encode key] )
 
 hmget
@@ -489,7 +489,7 @@ setnx key value = sendRequest (["SETNX"] ++ [encode key] ++ [encode value] )
 zrank
     :: ByteString -- ^ key
     -> ByteString -- ^ member
-    -> Redis (Either Reply Integer)
+    -> Redis (Either Reply (Maybe Integer))
 zrank key member = sendRequest (["ZRANK"] ++ [encode key] ++ [encode member] )
 
 zremrangebyscore
@@ -516,12 +516,12 @@ rpush
 rpush key value = sendRequest (["RPUSH"] ++ [encode key] ++ map encode value )
 
 randomkey
-    :: Redis (Either Reply ByteString)
+    :: Redis (Either Reply (Maybe ByteString))
 randomkey  = sendRequest (["RANDOMKEY"] )
 
 spop
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 spop key = sendRequest (["SPOP"] ++ [encode key] )
 
 hsetnx
@@ -712,13 +712,13 @@ lpush key value = sendRequest (["LPUSH"] ++ [encode key] ++ map encode value )
 lindex
     :: ByteString -- ^ key
     -> Integer -- ^ index
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 lindex key index = sendRequest (["LINDEX"] ++ [encode key] ++ [encode index] )
 
 zscore
     :: ByteString -- ^ key
     -> ByteString -- ^ member
-    -> Redis (Either Reply Double)
+    -> Redis (Either Reply (Maybe Double))
 zscore key member = sendRequest (["ZSCORE"] ++ [encode key] ++ [encode member] )
 
 strlen
@@ -753,7 +753,7 @@ debugSegfault  = sendRequest (["DEBUG","SEGFAULT"] )
 
 srandmember
     :: ByteString -- ^ key
-    -> Redis (Either Reply ByteString)
+    -> Redis (Either Reply (Maybe ByteString))
 srandmember key = sendRequest (["SRANDMEMBER"] ++ [encode key] )
 
 persist
