@@ -190,8 +190,8 @@ testSort = testCase "sort" $ do
     let opts = defaultSortOpts { sortOrder = Desc, sortAlpha = True
                                , sortLimit = (1,2)
                                , sortBy    = Just "weight_*"
-                               , sortGet   = ["object_*"] }
-    sort "ids" opts >>=? ["bar","foo"]
+                               , sortGet   = ["#", "object_*"] }
+    sort "ids" opts >>=? ["2", "bar", "1", "foo"]
     
     
 testTtl :: Test
