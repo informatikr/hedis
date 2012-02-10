@@ -67,7 +67,7 @@ library
   build-depends:    attoparsec == 0.10.*,
                     base == 4.*,
                     bytestring == 0.9.*,
-                    bytestring-lexing == 0.3.*,
+                    bytestring-lexing == 0.4.*,
                     mtl == 2.*,
                     network == 2.*,
                     resource-pool == 0.2.1.*,
