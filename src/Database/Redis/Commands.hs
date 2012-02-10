@@ -157,7 +157,7 @@ discard, -- |Discard all commands issued after MULTI (<http://redis.io/commands/
 exec, -- |Execute all commands issued after MULTI (<http://redis.io/commands/exec>).
 multi, -- |Mark the start of a transaction block (<http://redis.io/commands/multi>).
 unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
-watch, -- |Watch the given keys to determine execution of the MULTI/EXEC block (<http://redis.io/commands/watch>).
+watch, -- |Watch the given keys to determine execution of the MULTI\/EXEC block (<http://redis.io/commands/watch>).
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library

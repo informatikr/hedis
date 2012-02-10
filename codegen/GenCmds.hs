@@ -113,10 +113,12 @@ instance FromJSON Cmds where
             let cmdName = unpack $ encodeUtf8 name
             cmdGroup   <- cmd .: "group"
             cmdRetType <- cmd .:? "returns"
-            cmdSummary <- cmd .: "summary"
+            cmdSummary <- escape <$> cmd .: "summary"
             cmdArgs    <- cmd .:? "arguments" .!= []
                             <|> error ("failed to parse args: " ++ cmdName)
             return Cmd{..})
+      where
+        escape = concatMap $ \c -> if c == '/' then "\\/" else [c]
 
 instance FromJSON Arg where
     parseJSON (Object arg) = asum
