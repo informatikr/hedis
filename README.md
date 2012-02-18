@@ -8,7 +8,7 @@ We are happy to receive bug reports, fixes, documentation enhancements, and othe
 
 Please report bugs via the [github issue tracker](http://github.com/informatikr/hedis/issues).
 
-Master [git repository](http://github.com/hedis/hedis):
+Master [git repository](http://github.com/informatikr/hedis):
 
     git clone git://github.com/informatikr/hedis.git
 
