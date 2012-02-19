@@ -72,7 +72,7 @@ module Database.Redis (
     -- @
     -- -- |Redis DEBUG OBJECT command
     -- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
-    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", 'encode' key]
+    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", key]
     -- @
     --
     Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
