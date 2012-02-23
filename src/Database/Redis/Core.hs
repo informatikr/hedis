@@ -1,11 +1,14 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RecordWildCards,
-    DeriveDataTypeable #-}
+    DeriveDataTypeable, MultiParamTypeClasses, FunctionalDependencies,
+    FlexibleInstances #-}
 
 module Database.Redis.Core (
     Connection(..), connect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(),runRedis,
     RedisTx(),
+    Queued(),
+    RedisCtx,
     send, recv, sendRequest,
     HostName, PortID(..),
     ConnectionLostException(..),
@@ -43,6 +46,19 @@ newtype Redis a = Redis (ReaderT RedisEnv IO a)
 -- |Command-context inside of MULTI\/EXEC transactions.
 newtype RedisTx a = RedisTx (Redis a)
     deriving (Monad, MonadIO, Functor, Applicative)
+
+-- |TODO right now, this is just a placeholder.
+data Queued a = Queued a
+
+class RedisCtx m result a | m result -> a, m a -> result where
+    returnDecode :: Reply -> m a
+
+instance (RedisResult a) => RedisCtx Redis a (Either Reply a) where
+    returnDecode = return . decode
+
+instance (RedisResult a) => RedisCtx RedisTx a (Queued (Either Reply a)) where
+    returnDecode = fmap Queued . return . decode
+
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
 --

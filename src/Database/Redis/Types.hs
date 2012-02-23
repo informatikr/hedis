@@ -36,7 +36,7 @@ instance RedisArg Double where
 ------------------------------------------------------------------------------
 -- RedisResult instances
 --
-data Status = Ok | Pong | None | String | Hash | List | Set | ZSet | Queued
+data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
 instance RedisResult Reply where
@@ -64,7 +64,6 @@ instance RedisResult Status where
         "list"   -> List
         "set"    -> Set
         "zset"   -> ZSet
-        "QUEUED" -> Queued
         _        -> error $ "Hedis: unhandled status-code: " ++ show s
     decode r = Left r
 
