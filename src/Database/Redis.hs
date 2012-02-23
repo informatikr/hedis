@@ -50,7 +50,11 @@ module Database.Redis (
     --    connection.
     
     -- * The Redis Monad
+    -- |Commands run in one if two contexts: 'Redis' is the context for normal
+    --  command execution. Inside a MULTI\/EXEC-transaction, the context is 
+    --  'RedisTx'.
     Redis(), runRedis,
+    RedisTx(),
     
     -- * Connection
     Connection, connect,

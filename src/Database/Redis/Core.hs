@@ -5,6 +5,7 @@ module Database.Redis.Core (
     Connection(..), connect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(),runRedis,
+    RedisTx(),
     send, recv, sendRequest,
     HostName, PortID(..),
     ConnectionLostException(..),
@@ -35,8 +36,12 @@ import Database.Redis.Types
 -- The Redis Monad
 --
 
--- |All Redis commands run in the 'Redis' monad.
+-- |Context for normal command execution, outside of transactions.
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
+    deriving (Monad, MonadIO, Functor, Applicative)
+
+-- |Command-context inside of MULTI\/EXEC transactions.
+newtype RedisTx a = RedisTx (Redis a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
