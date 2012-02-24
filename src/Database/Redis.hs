@@ -56,7 +56,7 @@ module Database.Redis (
     Redis(), runRedis,
     RedisTx(),
     Queued,
-    RedisCtx,
+    RedisCtx, MonadRedis,
     
     -- * Connection
     Connection, connect,

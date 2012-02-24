@@ -8,7 +8,7 @@ module Database.Redis.Core (
     Redis(),runRedis,
     RedisTx(),
     Queued(),
-    RedisCtx,
+    RedisCtx(), MonadRedis(),
     send, recv, sendRequest,
     HostName, PortID(..),
     ConnectionLostException(..),
@@ -50,14 +50,24 @@ newtype RedisTx a = RedisTx (Redis a)
 -- |TODO right now, this is just a placeholder.
 data Queued a = Queued a
 
-class RedisCtx m result a | m result -> a, m a -> result where
-    returnDecode :: Reply -> m a
+class (MonadRedis m) => RedisCtx m result a | m result -> a, m a -> result where
+    returnDecode :: Reply -> m (Either Reply a)
 
-instance (RedisResult a) => RedisCtx Redis a (Either Reply a) where
+instance (RedisResult a) => RedisCtx Redis a a where
     returnDecode = return . decode
 
-instance (RedisResult a) => RedisCtx RedisTx a (Queued (Either Reply a)) where
-    returnDecode = fmap Queued . return . decode
+instance (RedisResult a) => RedisCtx RedisTx a (Queued a) where
+    returnDecode = return . fmap Queued . decode
+
+
+class (Monad m) => MonadRedis m where
+    liftRedis :: Redis a -> m a
+
+instance MonadRedis Redis where
+    liftRedis = id
+
+instance MonadRedis RedisTx where
+    liftRedis = RedisTx
 
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
@@ -113,8 +123,8 @@ forceThunks thunkCnt = go
             writeTVar thunkCnt (cnt-1)
         r `seq` go rs
 
-recv :: Redis Reply
-recv = Redis $ do
+recv :: (MonadRedis m) => m Reply
+recv = liftRedis $ Redis $ do
     Env{..} <- ask
     liftIO $ atomically $ do
         -- limit the amount of reply-thunks per connection.
@@ -125,14 +135,18 @@ recv = Redis $ do
         writeTVar envReplies rs
         return r
 
-send :: [B.ByteString] -> Redis ()
-send req = Redis $ do
+send :: (MonadRedis m) => [B.ByteString] -> m ()
+send req = liftRedis $ Redis $ do
     h <- asks envHandle
     -- hFlushing the handle is done while reading replies.
     liftIO $ {-# SCC "send.hPut" #-} B.hPut h (renderRequest req)
 
-sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
-sendRequest req = decode <$> (send req >> recv)
+-- sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
+-- sendRequest req = decode <$> (send req >> recv)
+
+sendRequest :: (RedisCtx m result a, RedisResult result)
+    => [B.ByteString] -> m (Either Reply a)
+sendRequest req = send req >> recv >>= returnDecode
 
 
 --------------------------------------------------------------------------------
