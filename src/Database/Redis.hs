@@ -55,7 +55,6 @@ module Database.Redis (
     --  'RedisTx'.
     Redis(), runRedis,
     RedisTx(),
-    Queued,
     RedisCtx, MonadRedis,
     
     -- * Connection
@@ -65,7 +64,11 @@ module Database.Redis (
     
     -- * Commands
 	module Database.Redis.Commands,
-
+    
+    -- * Transactions
+    module Database.Redis.Transactions,
+    Queued(),
+    
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
@@ -88,6 +91,7 @@ module Database.Redis (
 import Database.Redis.Core
 import Database.Redis.PubSub
 import Database.Redis.Reply
+import Database.Redis.Transactions
 import Database.Redis.Types
 
 import Database.Redis.Commands

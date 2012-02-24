@@ -152,13 +152,6 @@ setnx, -- |Set the value of a key, only if the key does not exist (<http://redis
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>).
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>).
 
--- ** Transactions
-discard, -- |Discard all commands issued after MULTI (<http://redis.io/commands/discard>).
-exec, -- |Execute all commands issued after MULTI (<http://redis.io/commands/exec>).
-multi, -- |Mark the start of a transaction block (<http://redis.io/commands/multi>).
-unwatch, -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
-watch, -- |Watch the given keys to determine execution of the MULTI\/EXEC block (<http://redis.io/commands/watch>).
-
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from
@@ -289,11 +282,6 @@ move
     -> m (Either Reply a)
 move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
 
-multi
-    :: (RedisCtx m Status a)
-    => m (Either Reply a)
-multi  = sendRequest (["MULTI"] )
-
 getrange
     :: (RedisCtx m ByteString a)
     => ByteString -- ^ key
@@ -308,12 +296,6 @@ srem
     -> [ByteString] -- ^ member
     -> m (Either Reply a)
 srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
-
-watch
-    :: (RedisCtx m Status a)
-    => [ByteString] -- ^ key
-    -> m (Either Reply a)
-watch key = sendRequest (["WATCH"] ++ map encode key )
 
 getbit
     :: (RedisCtx m Integer a)
@@ -477,11 +459,6 @@ decrby
     -> Integer -- ^ decrement
     -> m (Either Reply a)
 decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
-
-exec
-    :: (RedisCtx m Reply a)
-    => m (Either Reply a)
-exec  = sendRequest (["EXEC"] )
 
 mget
     :: (RedisCtx m [Maybe ByteString] a)
@@ -824,11 +801,6 @@ strlen
     -> m (Either Reply a)
 strlen key = sendRequest (["STRLEN"] ++ [encode key] )
 
-unwatch
-    :: (RedisCtx m Status a)
-    => m (Either Reply a)
-unwatch  = sendRequest (["UNWATCH"] )
-
 hset
     :: (RedisCtx m Bool a)
     => ByteString -- ^ key
@@ -843,11 +815,6 @@ lpushx
     -> ByteString -- ^ value
     -> m (Either Reply a)
 lpushx key value = sendRequest (["LPUSHX"] ++ [encode key] ++ [encode value] )
-
-discard
-    :: (RedisCtx m Status a)
-    => m (Either Reply a)
-discard  = sendRequest (["DISCARD"] )
 
 debugSegfault
     :: (RedisCtx m Status a)

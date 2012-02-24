@@ -78,6 +78,7 @@ library
                     Database.Redis.PubSub,
                     Database.Redis.Reply,
                     Database.Redis.Request,
+                    Database.Redis.Transactions,
                     Database.Redis.Types
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands

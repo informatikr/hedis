@@ -40,7 +40,7 @@ groupCmds (Cmds cmds) =
              , "sorted_set"
              , "hash"
              -- , "pubsub" commands implemented in Database.Redis.PubSub
-             , "transactions"
+             -- , "transactions" implemented in Database.Redis.Transactions
              , "connection"
              , "server"
              ]
@@ -113,12 +113,10 @@ instance FromJSON Cmds where
             let cmdName = unpack $ encodeUtf8 name
             cmdGroup   <- cmd .: "group"
             cmdRetType <- cmd .:? "returns"
-            cmdSummary <- escape <$> cmd .: "summary"
+            cmdSummary <- cmd .: "summary"
             cmdArgs    <- cmd .:? "arguments" .!= []
                             <|> error ("failed to parse args: " ++ cmdName)
             return Cmd{..})
-      where
-        escape = concatMap $ \c -> if c == '/' then "\\/" else [c]
 
 instance FromJSON Arg where
     parseJSON (Object arg) = asum
@@ -220,7 +218,7 @@ exportList cmds =
         "sorted_set"   -> "Sorted Sets"
         "hash"         -> "Hashes"
         -- "pubsub"       ->
-        "transactions" -> "Transactions"
+        -- "transactions" -> "Transactions"
         "connection"   -> "Connection"
         "server"       -> "Server"
         _              -> error $ "untranslated group: " ++ cmdGroup
