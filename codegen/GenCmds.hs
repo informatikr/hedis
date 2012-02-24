@@ -277,7 +277,6 @@ imprts = mconcat $ flip map moduls (\modul ->
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
              , "Database.Redis.Core"
-             , "Database.Redis.Reply"
              ]
 
 blackListed :: Cmd -> Bool
@@ -294,7 +293,7 @@ fromCmd cmd@Cmd{..}
             , fromString "\n    :: (RedisCtx m ", retType cmd, fromString " a)"
             , fromString "\n    => "
             , mconcat $ map argumentType cmdArgs
-            , fromString "m (Either Reply a)"
+            , fromString "m a"
             ]
     fun = mconcat
             [ fromString name, fromString " "

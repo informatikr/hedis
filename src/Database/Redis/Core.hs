@@ -6,8 +6,8 @@ module Database.Redis.Core (
     Connection(..), connect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(),runRedis,
-    RedisTx(..),
-    Queued,
+    RedisTx(..), runRedisTx,
+    Queued(..),
     RedisCtx(), MonadRedis(),
     send, recv, sendRequest,
     HostName, PortID(..),
@@ -18,6 +18,7 @@ module Database.Redis.Core (
 import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
@@ -44,21 +45,44 @@ newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 -- |Command-context inside of MULTI\/EXEC transactions.
-newtype RedisTx a = RedisTx (Redis a)
+newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
--- |TODO right now, this is just a placeholder.
-data Queued a = Queued a
+
+-- |A 'Queued' value represents the result of a command inside a transaction. It
+--  is a placeholder for the actual result, which will only be available after
+--  returning from a 'multiExec' transaction.
+data Queued a = Queued ([Reply] -> Either Reply a)
+
+instance Functor Queued where
+    fmap f (Queued g) = Queued (fmap f . g)
+
+instance Applicative Queued where
+    pure x                = Queued (const $ Right x)
+    Queued f <*> Queued x = Queued $ \rs -> do
+                                        f' <- f rs
+                                        x' <- x rs
+                                        return (f' x')
+
+instance Monad Queued where
+    return         = pure
+    Queued x >>= f = Queued $ \rs -> do
+                                x' <- x (rs :: [Reply])
+                                let Queued f' = f x'
+                                f' rs
+                                
 
 class (MonadRedis m) => RedisCtx m result a | m result -> a, m a -> result where
-    returnDecode :: Reply -> m (Either Reply a)
+    returnDecode :: Reply -> m a
 
-instance (RedisResult a) => RedisCtx Redis a a where
+instance (RedisResult a) => RedisCtx Redis a (Either Reply a) where
     returnDecode = return . decode
 
 instance (RedisResult a) => RedisCtx RedisTx a (Queued a) where
-    returnDecode = return . fmap Queued . decode
-
+    returnDecode _queued = RedisTx $ do
+        f <- get
+        put (f . tail)
+        return $ Queued (decode . f)
 
 class (Monad m) => MonadRedis m where
     liftRedis :: Redis a -> m a
@@ -67,8 +91,10 @@ instance MonadRedis Redis where
     liftRedis = id
 
 instance MonadRedis RedisTx where
-    liftRedis = RedisTx
+    liftRedis = RedisTx . lift
 
+runRedisTx :: RedisTx a -> Redis a
+runRedisTx (RedisTx r) = evalStateT r head
 
 -- |Interact with a Redis datastore specified by the given 'Connection'.
 --
@@ -141,11 +167,8 @@ send req = liftRedis $ Redis $ do
     -- hFlushing the handle is done while reading replies.
     liftIO $ {-# SCC "send.hPut" #-} B.hPut h (renderRequest req)
 
--- sendRequest :: (RedisResult a) => [B.ByteString] -> Redis (Either Reply a)
--- sendRequest req = decode <$> (send req >> recv)
-
 sendRequest :: (RedisCtx m result a, RedisResult result)
-    => [B.ByteString] -> m (Either Reply a)
+    => [B.ByteString] -> m a
 sendRequest req = send req >> recv >>= returnDecode
 
 

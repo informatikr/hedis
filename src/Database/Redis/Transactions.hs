@@ -4,6 +4,7 @@ module Database.Redis.Transactions (
     watch, unwatch, multiExec,
 ) where
 
+import Control.Applicative
 import Data.ByteString
 
 import Database.Redis.Core
@@ -22,14 +23,17 @@ unwatch :: Redis (Either Reply Status)
 unwatch  = sendRequest ["UNWATCH"]
 
 
-multiExec :: RedisTx (Queued a) -> Redis (Either Reply Reply)
-multiExec (RedisTx tx) = do
-    _ <- multi
-    _ <- tx
-    exec
+multiExec :: RedisTx (Queued a) -> Redis (Either Reply a)
+multiExec rtx = do
+    _        <- multi
+    Queued f <- runRedisTx rtx
+    r        <- exec
+    case r of
+        MultiBulk rs -> return $ maybe (Left r) f rs
+        _            -> error $ "hedis: EXEC returned " ++ show r
 
 multi :: Redis (Either Reply Status)
 multi = sendRequest ["MULTI"]
 
-exec :: Redis (Either Reply Reply)
-exec = sendRequest ["EXEC"]
+exec :: Redis Reply
+exec = either id id <$> sendRequest ["EXEC"]
