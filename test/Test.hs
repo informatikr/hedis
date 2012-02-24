@@ -46,7 +46,7 @@ assert = liftIO . Test.assert
 tests :: [Test]
 tests = concat
     [ testsMisc, testsKeys, testsStrings, testsHashes, testsLists, testsZSets
-    , [testPubSub], testsConnection, testsServer, [testQuit]
+    , [testPubSub], [testTransaction], testsConnection, testsServer, [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -544,7 +544,19 @@ testPubSub conn = testCase "pubSub" go conn
 ------------------------------------------------------------------------------
 -- Transaction
 --
+testTransaction :: Test
+testTransaction = testCase "transaction" $ do
+    watch ["k1", "k2"] >>=? Ok
+    unwatch            >>=? Ok
+    set "foo" "foo"
+    set "bar" "bar"
+    foobar <- multiExec $ do
+        foo <- get "foo"
+        bar <- get "bar"
+        return $ (,) <$> foo <*> bar
+    assert $ foobar == Right (Just "foo", Just "bar")
 
+    
 ------------------------------------------------------------------------------
 -- Connection
 --
