@@ -67,7 +67,7 @@ instance Applicative Queued where
 instance Monad Queued where
     return         = pure
     Queued x >>= f = Queued $ \rs -> do
-                                x' <- x (rs :: [Reply])
+                                x' <- x rs
                                 let Queued f' = f x'
                                 f' rs
                                 
