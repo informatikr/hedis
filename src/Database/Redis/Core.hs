@@ -50,8 +50,8 @@ newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
 
 
 -- |A 'Queued' value represents the result of a command inside a transaction. It
---  is a placeholder for the actual result, which will only be available after
---  returning from a 'multiExec' transaction.
+--  is a proxy object for the /actual/ result, which will only be available
+--  after returning from a 'multiExec' transaction.
 data Queued a = Queued ([Reply] -> Either Reply a)
 
 instance Functor Queued where
@@ -167,6 +167,16 @@ send req = liftRedis $ Redis $ do
     -- hFlushing the handle is done while reading replies.
     liftIO $ {-# SCC "send.hPut" #-} B.hPut h (renderRequest req)
 
+-- |'sendRequest' can be used to implement commands from experimental
+--  versions of Redis. An example of how to implement a command is given
+--  below.
+--
+-- @
+-- -- |Redis DEBUG OBJECT command
+-- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
+-- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", key]
+-- @
+--
 sendRequest :: (RedisCtx m result a, RedisResult result)
     => [B.ByteString] -> m a
 sendRequest req = send req >> recv >>= returnDecode

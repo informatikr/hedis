@@ -74,16 +74,6 @@ module Database.Redis (
 
     -- * Low-Level Command API
     sendRequest,
-    -- |'sendRequest' can be used to implement commands from experimental
-    --  versions of Redis. An example of how to implement a command is given
-    --  below.
-    --
-    -- @
-    -- -- |Redis DEBUG OBJECT command
-    -- debugObject :: ByteString -> 'Redis' (Either 'Reply' ByteString)
-    -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", key]
-    -- @
-    --
     Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
     
 ) where
