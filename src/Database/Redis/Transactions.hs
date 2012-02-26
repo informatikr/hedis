@@ -1,15 +1,57 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances, MultiParamTypeClasses,
+    GeneralizedNewtypeDeriving #-}
 
 module Database.Redis.Transactions (
     watch, unwatch, multiExec,
+    Queued(), RedisTx(),
 ) where
 
 import Control.Applicative
-import Data.ByteString
+import Control.Monad.State
+import Data.ByteString (ByteString)
 
 import Database.Redis.Core
 import Database.Redis.Reply
 import Database.Redis.Types
+
+
+-- |Command-context inside of MULTI\/EXEC transactions.
+newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
+    deriving (Monad, MonadIO, Functor, Applicative)
+
+runRedisTx :: RedisTx a -> Redis a
+runRedisTx (RedisTx r) = evalStateT r head
+
+instance MonadRedis RedisTx where
+    liftRedis = RedisTx . lift
+
+instance (RedisResult a) => RedisCtx RedisTx a (Queued a) where
+    returnDecode _queued = RedisTx $ do
+        f <- get
+        put (f . tail)
+        return $ Queued (decode . f)
+
+-- |A 'Queued' value represents the result of a command inside a transaction. It
+--  is a proxy object for the /actual/ result, which will only be available
+--  after returning from a 'multiExec' transaction.
+data Queued a = Queued ([Reply] -> Either Reply a)
+
+instance Functor Queued where
+    fmap f (Queued g) = Queued (fmap f . g)
+
+instance Applicative Queued where
+    pure x                = Queued (const $ Right x)
+    Queued f <*> Queued x = Queued $ \rs -> do
+                                        f' <- f rs
+                                        x' <- x rs
+                                        return (f' x')
+
+instance Monad Queued where
+    return         = pure
+    Queued x >>= f = Queued $ \rs -> do
+                                x' <- x rs
+                                let Queued f' = f x'
+                                f' rs
 
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).

@@ -54,7 +54,7 @@ module Database.Redis (
     --  command execution. Inside a MULTI\/EXEC-transaction, the context is 
     --  'RedisTx'.
     Redis(), runRedis,
-    RedisTx(),
+    -- RedisTx(),
     RedisCtx(), MonadRedis(),
     
     -- * Connection
@@ -67,7 +67,6 @@ module Database.Redis (
     
     -- * Transactions
     module Database.Redis.Transactions,
-    Queued(),
     
     -- * Pub\/Sub
     module Database.Redis.PubSub,
