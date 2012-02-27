@@ -34,6 +34,9 @@ instance (RedisResult a) => RedisCtx RedisTx a (Queued a) where
 -- |A 'Queued' value represents the result of a command inside a transaction. It
 --  is a proxy object for the /actual/ result, which will only be available
 --  after returning from a 'multiExec' transaction.
+--
+--  'Queued' values are composable by utilizing the 'Functor', 'Applicative' or
+--  'Monad' interfaces.
 data Queued a = Queued ([Reply] -> Either Reply a)
 
 instance Functor Queued where
