@@ -554,7 +554,7 @@ testTransaction = testCase "transaction" $ do
         foo <- get "foo"
         bar <- get "bar"
         return $ (,) <$> foo <*> bar
-    assert $ foobar == Right (Just "foo", Just "bar")
+    assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
     
 ------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 
 module Database.Redis.Transactions (
     watch, unwatch, multiExec,
-    Queued(), RedisTx(),
+    Queued(), TxResult(..), RedisTx(),
 ) where
 
 import Control.Applicative
@@ -56,6 +56,17 @@ instance Monad Queued where
                                 let Queued f' = f x'
                                 f' rs
 
+-- | Result of a 'multiExec' transaction.
+data TxResult a
+    = TxSuccess a
+    -- ^ Transaction completed successfully. The wrapped value corresponds to
+    --   the 'Queued' value returned from the 'multiExec' argument action.
+    | TxAborted
+    -- ^ Transaction aborted due to an earlier 'watch' command.
+    | TxError String
+    -- ^ At least one of the commands returned an 'Error' reply.
+    deriving (Show, Eq)
+
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).
 watch
@@ -73,7 +84,7 @@ unwatch  = sendRequest ["UNWATCH"]
 --
 --  Inside the transaction block, command functions return their result wrapped
 --  in a 'Queued'. The 'Queued' result is a proxy object for the actual
---  command's result, which will only be available after @EXEC@ing the
+--  command\'s result, which will only be available after @EXEC@ing the
 --  transaction.
 --
 --  Example usage (note how 'Queued' \'s 'Applicative' instance is used to
@@ -89,14 +100,18 @@ unwatch  = sendRequest ["UNWATCH"]
 --          return $ (,) \<$\> hello \<*\> world
 --      liftIO (print helloworld)
 --  @
-multiExec :: RedisTx (Queued a) -> Redis (Either Reply a)
+multiExec :: RedisTx (Queued a) -> Redis (TxResult a)
 multiExec rtx = do
     _        <- multi
     Queued f <- runRedisTx rtx
     r        <- exec
     case r of
-        MultiBulk rs -> return $ maybe (Left r) f rs
-        _            -> error $ "hedis: EXEC returned " ++ show r
+        MultiBulk rs ->
+            return $ maybe
+                TxAborted
+                (either (TxError . show) TxSuccess . f)
+                rs
+        _ -> error $ "hedis: EXEC returned " ++ show r
 
 multi :: Redis (Either Reply Status)
 multi = sendRequest ["MULTI"]
