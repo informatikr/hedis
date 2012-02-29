@@ -67,7 +67,8 @@ punsubscribe
     -> PubSub
 punsubscribe = pubSubAction "PUNSUBSCRIBE"
 
--- |Listens to published messages on subscribed channels.
+-- |Listens to published messages on subscribed channels. For documentation on
+--  the semantics of Redis Pub\/Sub see <http://redis.io/topics/pubsub>.
 --  
 --  The given callback function is called for each received message. 
 --  Subscription changes are triggered by the returned 'PubSub'. To keep
