@@ -33,6 +33,16 @@ Description:
         TCP connection.
     .
     For detailed documentation, see the "Database.Redis" module.
+    .
+    [Changes since version 0.3.2]
+    .
+    * Some commands got a 'Maybe' added to their return type, to properly handle
+        Redis returning @nil@-replies.
+    .
+    * Updated dependencies on @bytestring-lexing@ and @stm@.
+    .
+    * Minor improvements and fixes to the documentation.
+    .
 license:            BSD3
 license-file:       LICENSE
 author:             Falko Peters
