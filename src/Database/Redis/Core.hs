@@ -37,11 +37,20 @@ import Database.Redis.Types
 -- The Redis Monad
 --
 
--- |Context for normal command execution, outside of transactions.
+-- |Context for normal command execution, outside of transactions. Use
+--  'runRedis' to run actions of this type.
+--
+--  In this context, each result is wrapped in an 'Either' to account for the
+--  possibility of Redis returning an 'Error' reply.
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
                                 
-
+-- |Many Redis commands have different return types, depending on the context
+--  they are executed in.
+--
+--  This class captures the following behaviour: In a context @m@, a command
+--  will return a value of type @a@, given that under \"ideal conditions\" (no
+--  transactions, no errors) the same command returned a value of type @result@.
 class (MonadRedis m) => RedisCtx m result a | m result -> a, m a -> result where
     returnDecode :: Reply -> m a
 

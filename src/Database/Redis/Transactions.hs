@@ -15,7 +15,12 @@ import Database.Redis.Reply
 import Database.Redis.Types
 
 
--- |Command-context inside of MULTI\/EXEC transactions.
+-- |Command-context inside of MULTI\/EXEC transactions. Use 'multiExec' to run
+--  actions of this type.
+--
+--  In the 'RedisTx' context, all commands return a 'Queued' value, which is a
+--  proxy object for the /actual/ result, which will only be available after
+--  finishing the transaction.
 newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
