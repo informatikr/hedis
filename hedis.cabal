@@ -81,7 +81,7 @@ library
                     mtl == 2.*,
                     network == 2.*,
                     resource-pool == 0.2.1.*,
-                    stm == 2.3.*,
+                    stm >= 2.2 && < 2.4,
                     time
 
   other-modules:    Database.Redis.Core,
