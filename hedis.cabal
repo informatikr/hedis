@@ -36,8 +36,10 @@ Description:
     .
     [Changes since version 0.3.2]
     .
-    * Some commands got a 'Maybe' added to their return type, to properly handle
-        Redis returning @nil@-replies.
+    * The following commands got a 'Maybe' added to their return type, to
+      properly handle Redis returning @nil@-replies: @brpoplpush, lindex, lpop,
+      objectEncoding, randomkey, rpop, rpoplpush, spop, srandmember, zrank,
+      zrevrank, zscore@.
     .
     * Updated dependencies on @bytestring-lexing@ and @stm@.
     .
