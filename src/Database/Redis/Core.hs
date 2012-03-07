@@ -69,8 +69,7 @@ instance MonadRedis Redis where
 --  while all connections from the pool are in use.
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
-    withResource pool $ \conn ->
-    withMVar conn $ \conn' -> runRedisInternal conn' redis
+    withResource pool $ \conn -> runRedisInternal conn redis
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting. 
@@ -154,7 +153,7 @@ sendRequest req = send req >> recv >>= returnDecode
 
 -- |A threadsafe pool of network connections to a Redis server. Use the
 --  'connect' function to create one.
-newtype Connection = Conn (Pool (MVar RedisEnv))
+newtype Connection = Conn (Pool RedisEnv)
 
 data ConnectionLostException = ConnectionLost
     deriving (Show, Typeable)
@@ -220,9 +219,9 @@ connect ConnInfo{..} = Conn <$>
         maybe (return ())
             (\pass -> runRedisInternal conn (auth pass) >> return ())
             connectAuth
-        newMVar conn
+        return conn
 
-    destroy conn = withMVar conn $ \Env{..} -> do
+    destroy Env{..} = do
         open <- hIsOpen envHandle
         when open (hClose envHandle)
         killThread envEvalTId
