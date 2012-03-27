@@ -15,13 +15,14 @@ module Database.Redis.Core (
 
 import Prelude hiding (catch)
 import Control.Applicative
+import Control.Arrow
 import Control.Monad.Reader
 import Control.Concurrent (ThreadId, forkIO, killThread)
 import Control.Concurrent.BoundedChan
-import Control.Concurrent.STM
 import Control.Exception
 import qualified Data.Attoparsec as P
 import qualified Data.ByteString as B
+import Data.IORef
 import Data.Pool
 import Data.Time
 import Data.Typeable
@@ -87,7 +88,7 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 --  Create with 'newEnv'. Modified by 'recv' and 'send'.
 data RedisEnv = Env
     { envHandle   :: Handle            -- ^ Connection socket-handle.
-    , envReplies  :: TVar [Reply]      -- ^ Reply thunks.
+    , envReplies  :: IORef [Reply]     -- ^ Reply thunks.
     , envThunks   :: BoundedChan Reply -- ^ Syncs user and eval threads.
     , envEvalTId  :: ThreadId          -- ^ 'ThreadID' of the evaluator thread.
     }
@@ -95,13 +96,12 @@ data RedisEnv = Env
 -- |Create a new 'RedisEnv'
 newEnv :: Handle -> IO RedisEnv
 newEnv envHandle = do
-    replies     <- lazify <$> hGetReplies envHandle
-    envReplies  <- newTVarIO replies
+    replies     <- hGetReplies envHandle
+    envReplies  <- newIORef replies
     envThunks   <- newBoundedChan 1000
     envEvalTId  <- forkIO $ forceThunks envThunks
     return Env{..}
   where
-    lazify rs          = head rs : lazify (tail rs)
     forceThunks thunks = do
         t <- readChan thunks
         t `seq` forceThunks thunks
@@ -109,11 +109,8 @@ newEnv envHandle = do
 recv :: (MonadRedis m) => m Reply
 recv = liftRedis $ Redis $ do
     Env{..} <- ask
-    liftIO $ do
-        r <- atomically $ do
-            r:rs <- readTVar envReplies
-            writeTVar envReplies rs
-            return r
+    liftIO $ do        
+        r <- atomicModifyIORef envReplies (tail &&& head)
         writeChan envThunks r
         return r
 
