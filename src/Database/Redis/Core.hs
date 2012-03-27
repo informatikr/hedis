@@ -16,7 +16,8 @@ module Database.Redis.Core (
 import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
-import Control.Concurrent
+import Control.Concurrent (ThreadId, forkIO, killThread)
+import Control.Concurrent.BoundedChan
 import Control.Concurrent.STM
 import Control.Exception
 import qualified Data.Attoparsec as P
@@ -85,10 +86,10 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 --
 --  Create with 'newEnv'. Modified by 'recv' and 'send'.
 data RedisEnv = Env
-    { envHandle   :: Handle       -- ^ Connection socket-handle.
-    , envReplies  :: TVar [Reply] -- ^ Reply thunks.
-    , envThunkCnt :: TVar Integer -- ^ Number of thunks in 'envThunkChan'.
-    , envEvalTId  :: ThreadId     -- ^ 'ThreadID' of the evaluator thread.
+    { envHandle   :: Handle            -- ^ Connection socket-handle.
+    , envReplies  :: TVar [Reply]      -- ^ Reply thunks.
+    , envThunks   :: BoundedChan Reply -- ^ Syncs user and eval threads.
+    , envEvalTId  :: ThreadId          -- ^ 'ThreadID' of the evaluator thread.
     }
 
 -- |Create a new 'RedisEnv'
@@ -96,34 +97,24 @@ newEnv :: Handle -> IO RedisEnv
 newEnv envHandle = do
     replies     <- lazify <$> hGetReplies envHandle
     envReplies  <- newTVarIO replies
-    envThunkCnt <- newTVarIO 0
-    envEvalTId  <- forkIO $ forceThunks envThunkCnt replies
+    envThunks   <- newBoundedChan 1000
+    envEvalTId  <- forkIO $ forceThunks envThunks
     return Env{..}
   where
-    lazify rs = head rs : lazify (tail rs)
-
-forceThunks :: TVar Integer -> [Reply] -> IO ()
-forceThunks thunkCnt = go
-  where
-    go []     = return ()
-    go (r:rs) = do
-        -- wait for a thunk
-        atomically $ do
-            cnt <- readTVar thunkCnt
-            guard (cnt > 0)
-            writeTVar thunkCnt (cnt-1)
-        r `seq` go rs
+    lazify rs          = head rs : lazify (tail rs)
+    forceThunks thunks = do
+        t <- readChan thunks
+        t `seq` forceThunks thunks
 
 recv :: (MonadRedis m) => m Reply
 recv = liftRedis $ Redis $ do
     Env{..} <- ask
-    liftIO $ atomically $ do
-        -- limit the amount of reply-thunks per connection.
-        cnt <- readTVar envThunkCnt
-        guard $ cnt < 1000
-        writeTVar envThunkCnt (cnt+1)
-        r:rs <- readTVar envReplies
-        writeTVar envReplies rs
+    liftIO $ do
+        r <- atomically $ do
+            r:rs <- readTVar envReplies
+            writeTVar envReplies rs
+            return r
+        writeChan envThunks r
         return r
 
 send :: (MonadRedis m) => [B.ByteString] -> m ()

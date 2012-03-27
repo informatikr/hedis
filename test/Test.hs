@@ -59,7 +59,7 @@ testConstantSpacePipelining :: Test
 testConstantSpacePipelining = testCase "constant-space pipelining" $ do
     -- This testcase should not exceed the maximum heap size, as set in
     -- the run-test.sh script.
-    replicateM_ 10000 ping
+    replicateM_ 100000 ping
     -- If the program didn't crash, pipelining takes constant memory.
     assert True
 
