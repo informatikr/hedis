@@ -18,7 +18,7 @@ import Database.Redis.Types
 -- |Command-context inside of MULTI\/EXEC transactions. Use 'multiExec' to run
 --  actions of this type.
 --
---  In the 'RedisTx' context, all commands return a 'Queued' value, which is a
+--  In the 'RedisTx' context, all commands return a 'Queued' value. It is a
 --  proxy object for the /actual/ result, which will only be available after
 --  finishing the transaction.
 newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
@@ -30,7 +30,7 @@ runRedisTx (RedisTx r) = evalStateT r head
 instance MonadRedis RedisTx where
     liftRedis = RedisTx . lift
 
-instance (RedisResult a) => RedisCtx RedisTx a (Queued a) where
+instance RedisCtx RedisTx Queued where
     returnDecode _queued = RedisTx $ do
         f <- get
         put (f . tail)

@@ -290,10 +290,10 @@ fromCmd cmd@Cmd{..}
   where
     sig = mconcat
             [ fromString name
-            , fromString "\n    :: (RedisCtx m ", retType cmd, fromString " a)"
+            , fromString "\n    :: (RedisCtx m f)"
             , fromString "\n    => "
             , mconcat $ map argumentType cmdArgs
-            , fromString "m a"
+            , fromString "m (f ", retType cmd, fromString ")"
             ]
     fun = mconcat
             [ fromString name, fromString " "

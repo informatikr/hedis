@@ -10,178 +10,178 @@ import Database.Redis.Types
 
 
 objectRefcount
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m a
+    -> m (f Integer)
 objectRefcount key = sendRequest ["OBJECT", "refcount", encode key]
 
 objectIdletime
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m a
+    -> m (f Integer)
 objectIdletime key = sendRequest ["OBJECT", "idletime", encode key]
 
 objectEncoding
-    :: (RedisCtx m ByteString a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m a
+    -> m (f ByteString)
 objectEncoding key = sendRequest ["OBJECT", "encoding", encode key]
 
 linsertBefore
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
-    -> m a
+    -> m (f Integer)
 linsertBefore key pivot value =
     sendRequest ["LINSERT", encode key, "BEFORE", encode pivot, encode value]
 
 linsertAfter
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
-    -> m a
+    -> m (f Integer)
 linsertAfter key pivot value =
         sendRequest ["LINSERT", encode key, "AFTER", encode pivot, encode value]
 
 getType
-    :: (RedisCtx m Status a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m a
+    -> m (f Status)
 getType key = sendRequest ["TYPE", encode key]
 
 slowlogGet
-    :: (RedisCtx m Reply a)
+    :: (RedisCtx m f)
     => Integer -- ^ cnt
-    -> m a
+    -> m (f Reply)
 slowlogGet n = sendRequest ["SLOWLOG", "GET", encode n]
 
-slowlogLen :: (RedisCtx m Integer a) => m a
+slowlogLen :: (RedisCtx m f) => m (f Integer)
 slowlogLen = sendRequest ["SLOWLOG", "LEN"]
 
-slowlogReset :: (RedisCtx m Status a) => m a
+slowlogReset :: (RedisCtx m f) => m (f Status)
 slowlogReset = sendRequest ["SLOWLOG", "RESET"]
 
 zrange
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
-    -> m a
+    -> m (f [ByteString])
 zrange key start stop =
     sendRequest ["ZRANGE", encode key, encode start, encode stop]
 
 zrangeWithscores
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrangeWithscores key start stop =
     sendRequest ["ZRANGE", encode key, encode start, encode stop, "WITHSCORES"]
 
 zrevrange
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
-    -> m a
+    -> m (f [ByteString])
 zrevrange key start stop =
     sendRequest ["ZREVRANGE", encode key, encode start, encode stop]
 
 zrevrangeWithscores
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrevrangeWithscores key start stop =
     sendRequest ["ZREVRANGE", encode key, encode start, encode stop
                 ,"WITHSCORES"]
 
 zrangebyscore
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
-    -> m a
+    -> m (f [ByteString])
 zrangebyscore key min max =
     sendRequest ["ZRANGEBYSCORE", encode key, encode min, encode max]
 
 zrangebyscoreWithscores
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrangebyscoreWithscores key min max =
     sendRequest ["ZRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES"]
 
 zrangebyscoreLimit
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> Integer -- ^ offset
     -> Integer -- ^ count
-    -> m a
+    -> m (f [ByteString])
 zrangebyscoreLimit key min max offset count =
     sendRequest ["ZRANGEBYSCORE", encode key, encode min, encode max
                 ,"LIMIT", encode offset, encode count]
 
 zrangebyscoreWithscoresLimit
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> Integer -- ^ offset
     -> Integer -- ^ count
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrangebyscoreWithscoresLimit key min max offset count =
     sendRequest ["ZRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES","LIMIT", encode offset, encode count]
 
 zrevrangebyscore
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
-    -> m a
+    -> m (f [ByteString])
 zrevrangebyscore key min max =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max]
 
 zrevrangebyscoreWithscores
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrevrangebyscoreWithscores key min max =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES"]
 
 zrevrangebyscoreLimit
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> Integer -- ^ offset
     -> Integer -- ^ count
-    -> m a
+    -> m (f [ByteString])
 zrevrangebyscoreLimit key min max offset count =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
                 ,"LIMIT", encode offset, encode count]
 
 zrevrangebyscoreWithscoresLimit
-    :: (RedisCtx m [(ByteString,Double)] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> Integer -- ^ offset
     -> Integer -- ^ count
-    -> m a
+    -> m (f [(ByteString, Double)])
 zrevrangebyscoreWithscoresLimit key min max offset count =
     sendRequest ["ZREVRANGEBYSCORE", encode key, encode min, encode max
                 ,"WITHSCORES","LIMIT", encode offset, encode count]
@@ -219,26 +219,26 @@ defaultSortOpts = SortOpts
 data SortOrder = Asc | Desc deriving (Show, Eq)
 
 sortStore
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ destination
     -> SortOpts
-    -> m a
+    -> m (f Integer)
 sortStore key dest = sortInternal key (Just dest)
 
 sort
-    :: (RedisCtx m [ByteString] a)
+    :: (RedisCtx m f)
     => ByteString -- ^ key
     -> SortOpts
-    -> m a
+    -> m (f [ByteString])
 sort key = sortInternal key Nothing
 
 sortInternal
-    :: (RedisResult result, RedisCtx m result a)
+    :: (RedisResult a, RedisCtx m f)
     => ByteString -- ^ key
     -> Maybe ByteString -- ^ destination
     -> SortOpts
-    -> m a
+    -> m (f a)
 sortInternal key destination SortOpts{..} = sendRequest $
     concat [["SORT", encode key], by, limit, get, order, alpha, store]
   where
@@ -253,51 +253,51 @@ sortInternal key destination SortOpts{..} = sendRequest $
 data Aggregate = Sum | Min | Max deriving (Show,Eq)
 
 zunionstore
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> Aggregate
-    -> m a
+    -> m (f Integer)
 zunionstore dest keys =
     zstoreInternal "ZUNIONSTORE" dest keys []
 
 zunionstoreWeights
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ destination
     -> [(ByteString,Double)] -- ^ weighted keys
     -> Aggregate
-    -> m a
+    -> m (f Integer)
 zunionstoreWeights dest kws =
     let (keys,weights) = unzip kws
     in zstoreInternal "ZUNIONSTORE" dest keys weights
 
 zinterstore
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> Aggregate
-    -> m a
+    -> m (f Integer)
 zinterstore dest keys =
     zstoreInternal "ZINTERSTORE" dest keys []
 
 zinterstoreWeights
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ destination
     -> [(ByteString,Double)] -- ^ weighted keys
     -> Aggregate
-    -> m a
+    -> m (f Integer)
 zinterstoreWeights dest kws =
     let (keys,weights) = unzip kws
     in zstoreInternal "ZINTERSTORE" dest keys weights
 
 zstoreInternal
-    :: (RedisCtx m Integer a)
+    :: (RedisCtx m f)
     => ByteString -- ^ cmd
     -> ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> [Double] -- ^ weights
     -> Aggregate
-    -> m a
+    -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
     concat [ [cmd, dest, encode . toInteger $ length keys], keys
            , if null weights then [] else "WEIGHTS" : map encode weights

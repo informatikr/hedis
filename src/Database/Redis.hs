@@ -23,14 +23,11 @@ module Database.Redis (
 
     -- ** Command Type Signatures
     -- |Redis commands behave differently when issued in- or outside of a
-    --  transaction. To make command functions work in both contexts, this
-    --  library makes use of advanced features of the Haskell type system,
-    --  namely functional dependencies for multi-parameter type classes.
-    --
-    --  Most command functions have a type signature similar to the following:
+    --  transaction. To make them work in both contexts, most command functions
+    --  have a type signature similar to the following:
     --
     --  @
-    --  'echo' :: ('RedisCtx' m ByteString a) => ByteString -> m a
+    --  'echo' :: ('RedisCtx' m f) => ByteString -> m (f ByteString)
     --  @
     --
     --  Here is how to interpret this type signature:
@@ -39,19 +36,21 @@ module Database.Redis (
     --    always takes a 'ByteString' parameter, whether in- or outside of a
     --    transaction. This is true for all command functions.
     --
-    --  * In any context, 'echo' returns some value \"@a@\" that wraps a 
-    --    'ByteString'. The 'ByteString' type is specific to the 'echo'
-    --    command'. For other commands, it will often be another type,  
-    --    determined by the 'RedisCtx' constraint in the type signature.
+    --  * All Redis commands return their result wrapped in some \"container\".
+    --    The type @f@ of this container depends on the commands execution
+    --    context @m@. The 'ByteString' return type in the example is specific
+    --    to the 'echo' command. For other commands, it will often be another
+    --    type.
     --
-    --  * In the \"normal\" context 'Redis', outside of any transactions, @echo@
-    --    returns a value of type @(Either Reply ByteString)@.
+    --  * In the \"normal\" context 'Redis', outside of any transactions,
+    --    results are wrapped in an @'Either' 'Reply'@.
     --
-    --  * Inside a transaction, in the 'RedisTx' context, @echo@ returns a value
-    --      of type @(Queued ByteString)@.
+    --  * Inside a transaction, in the 'RedisTx' context, results are wrapped in
+    --    a 'Queued'.
     --
-    --  In short, you can view 'echo', and similarly any other command with a
-    --  'RedisCtx' constraint in the type signature, to \"have two types\":
+    --  In short, you can view any command with a 'RedisCtx' constraint in the
+    --  type signature, to \"have two types\". For example 'echo' \"has both
+    --  types\":
     --
     --  @
     --  echo :: ByteString -> Redis (Either Reply ByteString)

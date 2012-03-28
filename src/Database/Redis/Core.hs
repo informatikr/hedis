@@ -44,17 +44,16 @@ import Database.Redis.Types
 --  possibility of Redis returning an 'Error' reply.
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
-                                
--- |Many Redis commands have different return types, depending on the context
---  they are executed in.
---
---  This class captures the following behaviour: In a context @m@, a command
---  will return a value of type @a@, given that under \"ideal conditions\" (no
---  transactions, no errors) the same command returned a value of type @result@.
-class (MonadRedis m) => RedisCtx m result a | m result -> a, m a -> result where
-    returnDecode :: Reply -> m a
 
-instance (RedisResult a) => RedisCtx Redis a (Either Reply a) where
+-- |This class captures the following behaviour: In a context @m@, a command
+--  will return it's result wrapped in a \"container\" of type @f@.
+--
+--  Please refer to the Command Type Signatures section of this page for more
+--  information.
+class (MonadRedis m) => RedisCtx m f | m -> f where
+    returnDecode :: RedisResult a => Reply -> m (f a)
+
+instance RedisCtx Redis (Either Reply) where
     returnDecode = return . decode
 
 class (Monad m) => MonadRedis m where
@@ -144,8 +143,8 @@ send req = liftRedis $ Redis $ do
 -- debugObject key = 'sendRequest' [\"DEBUG\", \"OBJECT\", key]
 -- @
 --
-sendRequest :: (RedisCtx m result a, RedisResult result)
-    => [B.ByteString] -> m a
+sendRequest :: (RedisCtx m f, RedisResult a)
+    => [B.ByteString] -> m (f a)
 sendRequest req = send req >> recv >>= returnDecode
 
 
