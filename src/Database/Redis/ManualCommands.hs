@@ -51,10 +51,31 @@ getType
     -> m (f Status)
 getType key = sendRequest ["TYPE", encode key]
 
+-- |A single entry from the slowlog.
+data Slowlog = Slowlog
+    { slowlogId        :: Integer
+      -- ^ A unique progressive identifier for every slow log entry.
+    , slowlogTimestamp :: Integer
+      -- ^ The unix timestamp at which the logged command was processed.
+    , slowlogMicros    :: Integer
+      -- ^ The amount of time needed for its execution, in microseconds.
+    , slowlogCmd       :: [ByteString]
+      -- ^ The command and it's arguments.
+    } deriving (Show, Eq)
+
+instance RedisResult Slowlog where
+    decode (MultiBulk (Just [logId,timestamp,micros,cmd])) = do
+        slowlogId        <- decode logId
+        slowlogTimestamp <- decode timestamp
+        slowlogMicros    <- decode micros
+        slowlogCmd       <- decode cmd
+        return Slowlog{..}
+    decode r = Left r
+
 slowlogGet
     :: (RedisCtx m f)
     => Integer -- ^ cnt
-    -> m (f Reply)
+    -> m (f [Slowlog])
 slowlogGet n = sendRequest ["SLOWLOG", "GET", encode n]
 
 slowlogLen :: (RedisCtx m f) => m (f Integer)

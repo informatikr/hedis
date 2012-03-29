@@ -614,7 +614,7 @@ testInfo = testCase "info/lastsave/dbsize" $ do
 
 testSlowlog :: Test
 testSlowlog = testCase "slowlog" $ do
-    slowlogGet 5 >>=? MultiBulk (Just [])
+    slowlogGet 5 >>=? []
     slowlogLen   >>=? 0
     slowlogReset >>=? Ok
 

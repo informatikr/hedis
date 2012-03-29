@@ -61,7 +61,9 @@ blacklist = [ ("AUTH", Just (["auth"],[]))
             , ("LINSERT",Just (["linsertBefore", "linsertAfter"],[]))
             , ("MONITOR", Nothing)        -- debugging command
             , ("SLOWLOG"
-                ,Just (["slowlogGet", "slowlogLen", "slowlogReset"],[]))
+                ,Just (["slowlogGet", "slowlogLen", "slowlogReset"]
+                      ,["Slowlog(..)"]
+                      ))
             , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Just (["zinterstore","zinterstoreWeights"]
                                    ,["Aggregate(..)"]
