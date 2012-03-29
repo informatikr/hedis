@@ -81,7 +81,6 @@ flushdb, -- |Remove all keys from the current database (<http://redis.io/command
 info, -- |Get information and statistics about the server (<http://redis.io/commands/info>).
 lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>).
 save, -- |Synchronously save the dataset to disk (<http://redis.io/commands/save>).
-shutdown, -- |Synchronously save the dataset to disk and then shut down the server (<http://redis.io/commands/shutdown>).
 slaveof, -- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>).
 Slowlog(..),
 slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
@@ -142,7 +141,7 @@ getbit, -- |Returns the bit value at offset in the string value stored at key (<
 getrange, -- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>).
 getset, -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>).
 incr, -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>).
-incrby, -- |Increment the integer value of a key by the given number (<http://redis.io/commands/incrby>).
+incrby, -- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>).
 mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>).
 mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>).
 msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
@@ -166,6 +165,30 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)
+--
+--
+-- * TIME (<http://redis.io/commands/time>)
+--
+--
+-- * INCRBYFLOAT (<http://redis.io/commands/incrbyfloat>)
+--
+--
+-- * HINCRBYFLOAT (<http://redis.io/commands/hincrbyfloat>)
+--
+--
+-- * PTTL (<http://redis.io/commands/pttl>)
+--
+--
+-- * PEXPIRE (<http://redis.io/commands/pexpire>)
+--
+--
+-- * PEXPIREAT (<http://redis.io/commands/pexpireat>)
+--
+--
+-- * PSETEX (<http://redis.io/commands/psetex>)
+--
+--
+-- * SHUTDOWN (<http://redis.io/commands/shutdown>)
 --
 ) where
 
@@ -645,11 +668,6 @@ sinterstore
     -> [ByteString] -- ^ key
     -> m (f Integer)
 sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
-
-shutdown
-    :: (RedisCtx m f)
-    => m (f Status)
-shutdown  = sendRequest (["SHUTDOWN"] )
 
 configSet
     :: (RedisCtx m f)

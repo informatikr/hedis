@@ -79,6 +79,14 @@ blacklist = [ ("AUTH", Just (["auth"],[]))
                         ,"zrevrangebyscoreLimit"
                         ,"zrevrangebyscoreWithscoresLimit"],[]))
             , ("ZUNIONSTORE", Just (["zunionstore","zunionstoreWeights"],[]))
+            , ("TIME", Nothing)
+            , ("INCRBYFLOAT", Nothing)
+            , ("HINCRBYFLOAT", Nothing)
+            , ("PTTL", Nothing)
+            , ("PEXPIRE", Nothing)
+            , ("PEXPIREAT", Nothing)
+            , ("PSETEX", Nothing)
+            , ("SHUTDOWN", Nothing)
             ]
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.
@@ -363,7 +371,7 @@ argumentType a = mconcat [ go a
     go (Pair a a')  =
         mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
     go a@Arg{..}    = translateArgType a
-    
+
     translateArgType Arg{..} = fromString $ case argType of
         "integer"    -> "Integer"
         "string"     -> "ByteString"

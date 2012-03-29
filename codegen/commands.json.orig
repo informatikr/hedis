@@ -13,8 +13,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "AUTH": {
     "summary": "Authenticate to the server",
@@ -25,20 +24,17 @@
       }
     ],
     "since": "1.0.0",
-    "group": "connection",
-    "returns": "status"
+    "group": "connection"
   },
   "BGREWRITEAOF": {
     "summary": "Asynchronously rewrite the append-only file",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "BGSAVE": {
     "summary": "Asynchronously save the dataset to disk",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "BLPOP": {
     "summary": "Remove and get the first element in a list, or block until one is available",
@@ -55,8 +51,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "list",
-    "returns": "maybe-pair"
+    "group": "list"
   },
   "BRPOP": {
     "summary": "Remove and get the last element in a list, or block until one is available",
@@ -73,8 +68,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "list",
-    "returns": "maybe-pair"
+    "group": "list"
   },
   "BRPOPLPUSH": {
     "summary": "Pop a value from a list, push it to another list and return it; or block until one is available",
@@ -94,8 +88,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "list",
-    "returns": "maybe-string"
+    "group": "list"
   },
   "CONFIG GET": {
     "summary": "Get the value of a configuration parameter",
@@ -106,8 +99,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "server",
-    "returns": "hash"
+    "group": "server"
   },
   "CONFIG SET": {
     "summary": "Set a configuration parameter to the given value",
@@ -122,21 +114,18 @@
       }
     ],
     "since": "2.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "CONFIG RESETSTAT": {
     "summary": "Reset the stats returned by INFO",
     "complexity": "O(1)",
     "since": "2.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "DBSIZE": {
     "summary": "Return the number of keys in the selected database",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "integer"
+    "group": "server"
   },
   "DEBUG OBJECT": {
     "summary": "Get debugging information about a key",
@@ -147,14 +136,12 @@
       }
     ],
     "since": "1.0.0",
-    "group": "server",
-    "returns": "string"
+    "group": "server"
   },
   "DEBUG SEGFAULT": {
     "summary": "Make the server crash",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "DECR": {
     "summary": "Decrement the integer value of a key by one",
@@ -166,8 +153,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "DECRBY": {
     "summary": "Decrement the integer value of a key by the given number",
@@ -183,8 +169,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "integer"    
+    "group": "string"
   },
   "DEL": {
     "summary": "Delete a key",
@@ -197,14 +182,12 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "integer"
+    "group": "generic"
   },
   "DISCARD": {
     "summary": "Discard all commands issued after MULTI",
     "since": "2.0.0",
-    "group": "transactions",
-    "returns": "status"
+    "group": "transactions"
   },
   "ECHO": {
     "summary": "Echo the given string",
@@ -215,8 +198,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "connection",
-    "returns": "string"
+    "group": "connection"
   },
   "EVAL": {
     "summary": "Execute a Lua script server side",
@@ -247,8 +229,7 @@
   "EXEC": {
     "summary": "Execute all commands issued after MULTI",
     "since": "1.2.0",
-    "group": "transactions",
-    "returns": "reply"
+    "group": "transactions"
   },
   "EXISTS": {
     "summary": "Determine if a key exists",
@@ -260,8 +241,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "EXPIRE": {
     "summary": "Set a key's time to live in seconds",
@@ -277,8 +257,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "EXPIREAT": {
     "summary": "Set the expiration for a key as a UNIX timestamp",
@@ -294,20 +273,17 @@
       }
     ],
     "since": "1.2.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "FLUSHALL": {
     "summary": "Remove all keys from all databases",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "FLUSHDB": {
     "summary": "Remove all keys from the current database",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "GET": {
     "summary": "Get the value of a key",
@@ -319,8 +295,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "maybe-string"
+    "group": "string"
   },
   "GETBIT": {
     "summary": "Returns the bit value at offset in the string value stored at key",
@@ -336,8 +311,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "GETRANGE": {
     "summary": "Get a substring of the string stored at a key",
@@ -357,8 +331,7 @@
       }
     ],
     "since": "2.4.0",
-    "group": "string",
-    "returns": "string"
+    "group": "string"
   },
   "GETSET": {
     "summary": "Set the string value of a key and return its old value",
@@ -374,8 +347,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "maybe-string"
+    "group": "string"
   },
   "HDEL": {
     "summary": "Delete one or more hash fields",
@@ -392,8 +364,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "bool"
+    "group": "hash"
   },
   "HEXISTS": {
     "summary": "Determine if a hash field exists",
@@ -409,8 +380,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "bool"
+    "group": "hash"
   },
   "HGET": {
     "summary": "Get the value of a hash field",
@@ -426,8 +396,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "maybe-string"
+    "group": "hash"
   },
   "HGETALL": {
     "summary": "Get all the fields and values in a hash",
@@ -439,8 +408,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "hash"
+    "group": "hash"
   },
   "HINCRBY": {
     "summary": "Increment the integer value of a hash field by the given number",
@@ -460,8 +428,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "integer"
+    "group": "hash"
   },
   "HINCRBYFLOAT": {
     "summary": "Increment the float value of a hash field by the given amount",
@@ -493,8 +460,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "set"
+    "group": "hash"
   },
   "HLEN": {
     "summary": "Get the number of fields in a hash",
@@ -506,8 +472,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "integer"
+    "group": "hash"
   },
   "HMGET": {
     "summary": "Get the values of all the given hash fields",
@@ -524,8 +489,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "list-maybe"
+    "group": "hash"
   },
   "HMSET": {
     "summary": "Set multiple hash fields to multiple values",
@@ -542,8 +506,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "status"
+    "group": "hash"
   },
   "HSET": {
     "summary": "Set the string value of a hash field",
@@ -563,8 +526,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "bool"
+    "group": "hash"
   },
   "HSETNX": {
     "summary": "Set the value of a hash field, only if the field does not exist",
@@ -584,8 +546,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "bool"
+    "group": "hash"
   },
   "HVALS": {
     "summary": "Get all the values in a hash",
@@ -597,8 +558,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "hash",
-    "returns": "set"
+    "group": "hash"
   },
   "INCR": {
     "summary": "Increment the integer value of a key by one",
@@ -610,8 +570,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "INCRBY": {
     "summary": "Increment the integer value of a key by the given amount",
@@ -627,8 +586,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "INCRBYFLOAT": {
     "summary": "Increment the float value of a key by the given amount",
@@ -649,8 +607,7 @@
   "INFO": {
     "summary": "Get information and statistics about the server",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "string"
+    "group": "server"
   },
   "KEYS": {
     "summary": "Find all keys matching the given pattern",
@@ -662,14 +619,12 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "list"
+    "group": "generic"
   },
   "LASTSAVE": {
     "summary": "Get the UNIX time stamp of the last successful save to disk",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "integer"
+    "group": "server"
   },
   "LINDEX": {
     "summary": "Get an element from a list by its index",
@@ -685,8 +640,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "maybe-string"
+    "group": "list"
   },
   "LINSERT": {
     "summary": "Insert an element before or after another element in a list",
@@ -723,8 +677,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "LPOP": {
     "summary": "Remove and get the first element in a list",
@@ -736,8 +689,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "maybe-string"
+    "group": "list"
   },
   "LPUSH": {
     "summary": "Prepend one or multiple values to a list",
@@ -754,8 +706,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "LPUSHX": {
     "summary": "Prepend a value to a list, only if the list exists",
@@ -771,8 +722,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "LRANGE": {
     "summary": "Get a range of elements from a list",
@@ -792,8 +742,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "list"
+    "group": "list"
   },
   "LREM": {
     "summary": "Remove elements from a list",
@@ -813,8 +762,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "LSET": {
     "summary": "Set the value of an element in a list by its index",
@@ -834,8 +782,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "status"
+    "group": "list"
   },
   "LTRIM": {
     "summary": "Trim a list to the specified range",
@@ -855,8 +802,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "status"
+    "group": "list"
   },
   "MGET": {
     "summary": "Get the values of all the given keys",
@@ -869,8 +815,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "list-maybe"
+    "group": "string"
   },
   "MONITOR": {
     "summary": "Listen for all requests received by the server in real time",
@@ -891,8 +836,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "MSET": {
     "summary": "Set multiple keys to multiple values",
@@ -905,8 +849,7 @@
       }
     ],
     "since": "1.0.1",
-    "group": "string",
-    "returns": "status"
+    "group": "string"
   },
   "MSETNX": {
     "summary": "Set multiple keys to multiple values, only if none of the keys exist",
@@ -919,14 +862,12 @@
       }
     ],
     "since": "1.0.1",
-    "group": "string",
-    "returns": "bool"
+    "group": "string"
   },
   "MULTI": {
     "summary": "Mark the start of a transaction block",
     "since": "1.2.0",
-    "group": "transactions",
-    "returns": "status"
+    "group": "transactions"
   },
   "OBJECT": {
     "summary": "Inspect the internals of Redis objects",
@@ -956,8 +897,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "PEXPIRE": {
     "summary": "Set a key's time to live in milliseconds",
@@ -994,8 +934,7 @@
   "PING": {
     "summary": "Ping the server",
     "since": "1.0.0",
-    "group": "connection",
-    "returns": "status"
+    "group": "connection"
   },
   "PSETEX": {
     "summary": "Set the value and expiration in milliseconds of a key",
@@ -1075,15 +1014,13 @@
   "QUIT": {
     "summary": "Close the connection",
     "since": "1.0.0",
-    "group": "connection",
-    "returns": "status"
+    "group": "connection"
   },
   "RANDOMKEY": {
     "summary": "Return a random key from the keyspace",
     "complexity": "O(1)",
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "maybe-key"
+    "group": "generic"
   },
   "RENAME": {
     "summary": "Rename a key",
@@ -1099,8 +1036,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "status"
+    "group": "generic"
   },
   "RENAMENX": {
     "summary": "Rename a key, only if the new key does not exist",
@@ -1116,8 +1052,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "bool"
+    "group": "generic"
   },
   "RPOP": {
     "summary": "Remove and get the last element in a list",
@@ -1129,8 +1064,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "maybe-string"
+    "group": "list"
   },
   "RPOPLPUSH": {
     "summary": "Remove the last element in a list, append it to another list and return it",
@@ -1146,8 +1080,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "list",
-    "returns": "maybe-string"
+    "group": "list"
   },
   "RPUSH": {
     "summary": "Append one or multiple values to a list",
@@ -1164,8 +1097,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "RPUSHX": {
     "summary": "Append a value to a list, only if the list exists",
@@ -1181,8 +1113,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "list",
-    "returns": "integer"
+    "group": "list"
   },
   "SADD": {
     "summary": "Add one or more members to a set",
@@ -1199,14 +1130,12 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "SAVE": {
     "summary": "Synchronously save the dataset to disk",
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "SCARD": {
     "summary": "Get the number of members in a set",
@@ -1218,8 +1147,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "SCRIPT EXISTS": {
     "summary": "Check existence of scripts in the script cache.",
@@ -1269,8 +1197,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "set"
+    "group": "set"
   },
   "SDIFFSTORE": {
     "summary": "Subtract multiple sets and store the resulting set in a key",
@@ -1287,8 +1214,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "SELECT": {
     "summary": "Change the selected database for the current connection",
@@ -1299,8 +1225,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "connection",
-    "returns": "status"
+    "group": "connection"
   },
   "SET": {
     "summary": "Set the string value of a key",
@@ -1316,8 +1241,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "status"
+    "group": "string"
   },
   "SETBIT": {
     "summary": "Sets or clears the bit at offset in the string value stored at key",
@@ -1337,8 +1261,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "SETEX": {
     "summary": "Set the value and expiration of a key",
@@ -1358,8 +1281,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "string",
-    "returns": "status"
+    "group": "string"
   },
   "SETNX": {
     "summary": "Set the value of a key, only if the key does not exist",
@@ -1375,8 +1297,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "string",
-    "returns": "bool"
+    "group": "string"
   },
   "SETRANGE": {
     "summary": "Overwrite part of a string at key starting at the specified offset",
@@ -1396,8 +1317,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "SHUTDOWN": {
     "summary": "Synchronously save the dataset to disk and then shut down the server",
@@ -1416,8 +1336,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "SINTER": {
     "summary": "Intersect multiple sets",
@@ -1430,8 +1349,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "set"
+    "group": "set"
   },
   "SINTERSTORE": {
     "summary": "Intersect multiple sets and store the resulting set in a key",
@@ -1448,8 +1366,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "SISMEMBER": {
     "summary": "Determine if a given value is a member of a set",
@@ -1465,8 +1382,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "bool"
+    "group": "set"
   },
   "SLAVEOF": {
     "summary": "Make the server a slave of another instance, or promote it as master",
@@ -1481,8 +1397,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "server",
-    "returns": "status"
+    "group": "server"
   },
   "SLOWLOG": {
     "summary": "Manages the Redis slow queries log",
@@ -1510,8 +1425,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "set"
+    "group": "set"
   },
   "SMOVE": {
     "summary": "Move a member from one set to another",
@@ -1531,8 +1445,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "bool"
+    "group": "set"
   },
   "SORT": {
     "summary": "Sort the elements in a list, set or sorted set",
@@ -1593,8 +1506,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "maybe-string"
+    "group": "set"
   },
   "SRANDMEMBER": {
     "summary": "Get a random member from a set",
@@ -1606,8 +1518,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "maybe-string"
+    "group": "set"
   },
   "SREM": {
     "summary": "Remove one or more members from a set",
@@ -1624,8 +1535,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "STRLEN": {
     "summary": "Get the length of the value stored in a key",
@@ -1637,8 +1547,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "string",
-    "returns": "integer"
+    "group": "string"
   },
   "SUBSCRIBE": {
     "summary": "Listen for messages published to the given channels",
@@ -1664,8 +1573,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "set"
+    "group": "set"
   },
   "SUNIONSTORE": {
     "summary": "Add multiple sets and store the resulting set in a key",
@@ -1682,8 +1590,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "set",
-    "returns": "integer"
+    "group": "set"
   },
   "SYNC": {
     "summary": "Internal command used for replication",
@@ -1705,8 +1612,7 @@
       }
     ],
     "since": "1.0.0",
-    "group": "generic",
-    "returns": "integer"
+    "group": "generic"
   },
   "TYPE": {
     "summary": "Determine the type stored at key",
@@ -1738,8 +1644,7 @@
     "summary": "Forget about all watched keys",
     "complexity": "O(1)",
     "since": "2.2.0",
-    "group": "transactions",
-    "returns": "status"
+    "group": "transactions"
   },
   "WATCH": {
     "summary": "Watch the given keys to determine execution of the MULTI/EXEC block",
@@ -1752,8 +1657,7 @@
       }
     ],
     "since": "2.2.0",
-    "group": "transactions",
-    "returns": "status"
+    "group": "transactions"
   },
   "ZADD": {
     "summary": "Add one or more members to a sorted set, or update its score if it already exists",
@@ -1764,14 +1668,26 @@
         "type": "key"
       },
       {
-        "name": ["score", "member"],
-        "type": ["double", "string"],
-        "multiple": true
+        "name": "score",
+        "type": "double"
+      },
+      {
+        "name": "member",
+        "type": "string"
+      },
+      {
+        "name": "score",
+        "type": "double",
+        "optional": true
+      },
+      {
+        "name": "member",
+        "type": "string",
+        "optional": true
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZCARD": {
     "summary": "Get the number of members in a sorted set",
@@ -1783,8 +1699,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZCOUNT": {
     "summary": "Count the members in a sorted set with scores within the given values",
@@ -1804,8 +1719,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZINCRBY": {
     "summary": "Increment the score of a member in a sorted set",
@@ -1825,8 +1739,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "double"
+    "group": "sorted_set"
   },
   "ZINTERSTORE": {
     "summary": "Intersect multiple sorted sets and store the resulting sorted set in a new key",
@@ -1935,8 +1848,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "sorted_set",
-    "returns": "maybe-integer"
+    "group": "sorted_set"
   },
   "ZREM": {
     "summary": "Remove one or more members from a sorted set",
@@ -1953,8 +1865,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZREMRANGEBYRANK": {
     "summary": "Remove all members in a sorted set within the given indexes",
@@ -1974,8 +1885,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZREMRANGEBYSCORE": {
     "summary": "Remove all members in a sorted set within the given scores",
@@ -1995,8 +1905,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "integer"
+    "group": "sorted_set"
   },
   "ZREVRANGE": {
     "summary": "Return a range of members in a sorted set, by index, with scores ordered from high to low",
@@ -2070,8 +1979,7 @@
       }
     ],
     "since": "2.0.0",
-    "group": "sorted_set",
-    "returns": "maybe-integer"
+    "group": "sorted_set"
   },
   "ZSCORE": {
     "summary": "Get the score associated with the given member in a sorted set",
@@ -2087,8 +1995,7 @@
       }
     ],
     "since": "1.2.0",
-    "group": "sorted_set",
-    "returns": "maybe-double"
+    "group": "sorted_set"
   },
   "ZUNIONSTORE": {
     "summary": "Add multiple sorted sets and store the resulting sorted set in a new key",
