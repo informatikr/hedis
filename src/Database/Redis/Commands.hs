@@ -71,6 +71,14 @@ rpoplpush, -- |Remove the last element in a list, append it to another list and 
 rpush, -- |Append one or multiple values to a list (<http://redis.io/commands/rpush>).
 rpushx, -- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>).
 
+-- ** Scripting
+eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). The Redis command @EVAL@ is split up into 'eval', 'evalsha'.
+evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). The Redis command @EVAL@ is split up into 'eval', 'evalsha'.
+scriptExists, -- |Check existence of scripts in the script cache. (<http://redis.io/commands/script-exists>).
+scriptFlush, -- |Remove all the scripts from the script cache. (<http://redis.io/commands/script-flush>).
+scriptKill, -- |Kill the script currently in execution. (<http://redis.io/commands/script-kill>).
+scriptLoad, -- |Load the specified Lua script into the script cache. (<http://redis.io/commands/script-load>).
+
 -- ** Server
 bgrewriteaof, -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>).
 bgsave, -- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>).
@@ -165,9 +173,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --  experimental Redis versions by using the 'sendRequest'
 --  function.
 --
--- * EVAL (<http://redis.io/commands/eval>)
---
---
 -- * MONITOR (<http://redis.io/commands/monitor>)
 --
 --
@@ -221,6 +226,11 @@ configResetstat
     :: (RedisCtx m f)
     => m (f Status)
 configResetstat  = sendRequest (["CONFIG","RESETSTAT"] )
+
+scriptKill
+    :: (RedisCtx m f)
+    => m (f Status)
+scriptKill  = sendRequest (["SCRIPT","KILL"] )
 
 del
     :: (RedisCtx m f)
@@ -311,6 +321,12 @@ move
     -> m (f Bool)
 move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
 
+scriptLoad
+    :: (RedisCtx m f)
+    => ByteString -- ^ script
+    -> m (f ByteString)
+scriptLoad script = sendRequest (["SCRIPT","LOAD"] ++ [encode script] )
+
 getrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -390,6 +406,12 @@ sinter
     => [ByteString] -- ^ key
     -> m (f [ByteString])
 sinter key = sendRequest (["SINTER"] ++ map encode key )
+
+scriptExists
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ script
+    -> m (f [Bool])
+scriptExists script = sendRequest (["SCRIPT","EXISTS"] ++ map encode script )
 
 mset
     :: (RedisCtx m f)
@@ -485,6 +507,11 @@ expire
     -> Integer -- ^ seconds
     -> m (f Bool)
 expire key seconds = sendRequest (["EXPIRE"] ++ [encode key] ++ [encode seconds] )
+
+scriptFlush
+    :: (RedisCtx m f)
+    => m (f Status)
+scriptFlush  = sendRequest (["SCRIPT","FLUSH"] )
 
 lastsave
     :: (RedisCtx m f)

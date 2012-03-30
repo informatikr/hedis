@@ -43,6 +43,7 @@ groupCmds (Cmds cmds) =
              -- , "transactions" implemented in Database.Redis.Transactions
              , "connection"
              , "server"
+             , "scripting"
              ]
 
 -- |Blacklisted commands, optionally paired with the name of their
@@ -54,17 +55,15 @@ blacklist = [ ("AUTH", Just (["auth"],[]))
                                ,"objectIdletime"]
                               ,[]))
             , ("TYPE", Just (["getType"],[]))
-            , ("EVAL", Nothing)           -- not part of Redis 2.4
+            , ("EVAL", Just (["eval", "evalsha"],[]))
             , ("SORT", Just (["sort","sortStore"]
                             ,["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
                             ))
             , ("LINSERT",Just (["linsertBefore", "linsertAfter"],[]))
-            , ("MONITOR", Nothing)        -- debugging command
             , ("SLOWLOG"
                 ,Just (["slowlogGet", "slowlogLen", "slowlogReset"]
                       ,["Slowlog(..)"]
                       ))
-            , ("SYNC", Nothing)           -- internal command
             , ("ZINTERSTORE", Just (["zinterstore","zinterstoreWeights"]
                                    ,["Aggregate(..)"]
                                    ))
@@ -79,7 +78,9 @@ blacklist = [ ("AUTH", Just (["auth"],[]))
                         ,"zrevrangebyscoreLimit"
                         ,"zrevrangebyscoreWithscoresLimit"],[]))
             , ("ZUNIONSTORE", Just (["zunionstore","zunionstoreWeights"],[]))
-            , ("SHUTDOWN", Nothing)
+            , ("MONITOR", Nothing)  -- debugging command
+            , ("SYNC", Nothing)     -- internal command            
+            , ("SHUTDOWN", Nothing) -- kills server, throws exception
             ]
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.
@@ -224,6 +225,7 @@ exportList cmds =
         -- "transactions" -> "Transactions"
         "connection"   -> "Connection"
         "server"       -> "Server"
+        "scripting"    -> "Scripting"
         _              -> error $ "untranslated group: " ++ cmdGroup
 
 exportCmdNames :: Cmd -> Builder
@@ -323,8 +325,9 @@ retType Cmd{..} = maybe err translate cmdRetType
         "maybe-key"    -> "(Maybe ByteString)"
         "string"       -> "ByteString"
         "maybe-string" -> "(Maybe ByteString)"
-        "list"         -> "[ByteString]"
+        "list-string"  -> "[ByteString]"
         "list-maybe"   -> "[Maybe ByteString]"
+        "list-bool"    -> "[Bool]"
         "hash"         -> "[(ByteString,ByteString)]"
         "set"          -> "[ByteString]"
         "maybe-pair"   -> "(Maybe (ByteString,ByteString))"

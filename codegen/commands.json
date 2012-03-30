@@ -665,7 +665,7 @@
     ],
     "since": "1.0.0",
     "group": "generic",
-    "returns": "list"
+    "returns": "list-string"
   },
   "LASTSAVE": {
     "summary": "Get the UNIX time stamp of the last successful save to disk",
@@ -795,7 +795,7 @@
     ],
     "since": "1.0.0",
     "group": "list",
-    "returns": "list"
+    "returns": "list-string"
   },
   "LREM": {
     "summary": "Remove elements from a list",
@@ -1238,19 +1238,22 @@
       }
     ],
     "since": "2.6.0",
-    "group": "scripting"
+    "group": "scripting",
+	"returns": "list-bool"
   },
   "SCRIPT FLUSH": {
     "summary": "Remove all the scripts from the script cache.",
     "complexity": "O(N) with N being the number of scripts in cache",
     "since": "2.6.0",
-    "group": "scripting"
+    "group": "scripting",
+	"returns": "status"
   },
   "SCRIPT KILL": {
     "summary": "Kill the script currently in execution.",
     "complexity": "O(1)",
     "since": "2.6.0",
-    "group": "scripting"
+    "group": "scripting",
+	"returns": "status"
   },
   "SCRIPT LOAD": {
     "summary": "Load the specified Lua script into the script cache.",
@@ -1262,7 +1265,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "scripting"
+    "group": "scripting",
+	"returns": "string"
   },
   "SDIFF": {
     "summary": "Subtract multiple sets",

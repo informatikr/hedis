@@ -317,7 +317,7 @@ zstoreInternal
     -> ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> [Double] -- ^ weights
-    -> Aggregate
+    -> Aggregate    
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
     concat [ [cmd, dest, encode . toInteger $ length keys], keys
@@ -329,3 +329,25 @@ zstoreInternal cmd dest keys weights aggregate = sendRequest $
         Sum -> "SUM"
         Min -> "MIN"
         Max -> "MAX"
+
+eval
+    :: (RedisCtx m f, RedisResult a)
+    => ByteString -- ^ script
+    -> [ByteString] -- ^ keys
+    -> [ByteString] -- ^ args
+    -> m (f a)
+eval script keys args =
+    sendRequest $ ["EVAL", script, encode numkeys] ++ keys ++ args
+  where
+    numkeys = toInteger (length keys)
+
+evalsha
+    :: (RedisCtx m f, RedisResult a)
+    => ByteString -- ^ script
+    -> [ByteString] -- ^ keys
+    -> [ByteString] -- ^ args
+    -> m (f a)
+evalsha script keys args =
+    sendRequest $ ["EVAL", script, encode numkeys] ++ keys ++ args
+  where
+    numkeys = toInteger (length keys)
