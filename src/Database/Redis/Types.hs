@@ -76,9 +76,10 @@ instance RedisResult RedisType where
     decode r = Left r
 
 instance RedisResult Bool where
-    decode (Integer 1) = Right True
-    decode (Integer 0) = Right False
-    decode r           = Left r
+    decode (Integer 1)    = Right True
+    decode (Integer 0)    = Right False
+    decode (Bulk Nothing) = Right False -- Lua boolean false = nil bulk reply
+    decode r              = Left r
 
 instance (RedisResult a) => RedisResult (Maybe a) where
     decode (Bulk Nothing)      = Right Nothing
