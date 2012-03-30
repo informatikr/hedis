@@ -589,9 +589,9 @@ testsServer =
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
     save >>=? Ok
-    -- TODO return types not as documented
-    -- bgsave       >>=? BgSaveStarted
-    -- bgrewriteaof >>=? BgAOFRewriteStarted
+    Right (Status _) <- bgsave
+    Right (Status _) <- bgrewriteaof
+    return ()
 
 testConfig :: Test
 testConfig = testCase "config/auth" $ do
