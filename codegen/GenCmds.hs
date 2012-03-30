@@ -79,13 +79,6 @@ blacklist = [ ("AUTH", Just (["auth"],[]))
                         ,"zrevrangebyscoreLimit"
                         ,"zrevrangebyscoreWithscoresLimit"],[]))
             , ("ZUNIONSTORE", Just (["zunionstore","zunionstoreWeights"],[]))
-            , ("TIME", Nothing)
-            , ("INCRBYFLOAT", Nothing)
-            , ("HINCRBYFLOAT", Nothing)
-            , ("PTTL", Nothing)
-            , ("PEXPIRE", Nothing)
-            , ("PEXPIREAT", Nothing)
-            , ("PSETEX", Nothing)
             , ("SHUTDOWN", Nothing)
             ]
 
@@ -338,6 +331,7 @@ retType Cmd{..} = maybe err translate cmdRetType
         "double"       -> "Double"
         "maybe-double" -> "(Maybe Double)"
         "reply"        -> "Reply"
+        "time"         -> "(Integer,Integer)"
         _              -> error $ "untranslated return type: " ++ t
     
 
@@ -358,7 +352,7 @@ argumentName a = go a
     go (Multiple a) = go a
     go (Pair a a')  = fromString . camelCase $ argName a ++ " " ++ argName a'
     go a@Arg{..}    = name a
-    name Arg{..}    = fromString argName
+    name Arg{..}    = fromString (camelCase argName)
 
 argumentType :: Arg -> Builder
 argumentType a = mconcat [ go a

@@ -481,7 +481,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "hash"
+    "group": "hash",
+	"returns": "double"
   },
   "HKEYS": {
     "summary": "Get all the fields in a hash",
@@ -644,7 +645,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "string"
+    "group": "string",
+	"returns": "double"
   },
   "INFO": {
     "summary": "Get information and statistics about the server",
@@ -973,7 +975,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "generic"
+    "group": "generic",
+	"returns": "bool"
   },
   "PEXPIREAT": {
     "summary": "Set the expiration for a key as a UNIX timestamp specified in milliseconds",
@@ -989,7 +992,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "generic"
+    "group": "generic",
+	"returns": "bool"
   },
   "PING": {
     "summary": "Ping the server",
@@ -1015,7 +1019,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "string"
+    "group": "string",
+	"returns": "status"
   },
   "PSUBSCRIBE": {
     "summary": "Listen for messages published to channels matching the given patterns",
@@ -1040,7 +1045,8 @@
       }
     ],
     "since": "2.6.0",
-    "group": "generic"
+    "group": "generic",
+	"returns": "integer"
   },
   "PUBLISH": {
     "summary": "Post a message to a channel",
@@ -1693,7 +1699,8 @@
   "TIME": {
     "summary": "Return the current server time",
     "since": "2.6.0",
-    "group": "server"
+    "group": "server",
+	"returns": "time"
   },
   "TTL": {
     "summary": "Get the time to live for a key",

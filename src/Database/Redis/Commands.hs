@@ -22,6 +22,9 @@ objectRefcount, -- |Inspect the internals of Redis objects (<http://redis.io/com
 objectEncoding, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
 objectIdletime, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
 persist, -- |Remove the expiration from a key (<http://redis.io/commands/persist>).
+pexpire, -- |Set a key's time to live in milliseconds (<http://redis.io/commands/pexpire>).
+pexpireat, -- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>).
+pttl, -- |Get the time to live for a key in milliseconds (<http://redis.io/commands/pttl>).
 randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>).
 rename, -- |Rename a key (<http://redis.io/commands/rename>).
 renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
@@ -39,6 +42,7 @@ hexists, -- |Determine if a hash field exists (<http://redis.io/commands/hexists
 hget, -- |Get the value of a hash field (<http://redis.io/commands/hget>).
 hgetall, -- |Get all the fields and values in a hash (<http://redis.io/commands/hgetall>).
 hincrby, -- |Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>).
+hincrbyfloat, -- |Increment the float value of a hash field by the given amount (<http://redis.io/commands/hincrbyfloat>).
 hkeys, -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>).
 hlen, -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>).
 hmget, -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>).
@@ -86,6 +90,7 @@ Slowlog(..),
 slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
 slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
 slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
+time, -- |Return the current server time (<http://redis.io/commands/time>).
 
 -- ** Sets
 sadd, -- |Add one or more members to a set (<http://redis.io/commands/sadd>).
@@ -142,9 +147,11 @@ getrange, -- |Get a substring of the string stored at a key (<http://redis.io/co
 getset, -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>).
 incr, -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>).
 incrby, -- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>).
+incrbyfloat, -- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>).
 mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>).
 mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>).
 msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
+psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>).
 set, -- |Set the string value of a key (<http://redis.io/commands/set>).
 setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>).
 setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>).
@@ -165,27 +172,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * SYNC (<http://redis.io/commands/sync>)
---
---
--- * TIME (<http://redis.io/commands/time>)
---
---
--- * INCRBYFLOAT (<http://redis.io/commands/incrbyfloat>)
---
---
--- * HINCRBYFLOAT (<http://redis.io/commands/hincrbyfloat>)
---
---
--- * PTTL (<http://redis.io/commands/pttl>)
---
---
--- * PEXPIRE (<http://redis.io/commands/pexpire>)
---
---
--- * PEXPIREAT (<http://redis.io/commands/pexpireat>)
---
---
--- * PSETEX (<http://redis.io/commands/psetex>)
 --
 --
 -- * SHUTDOWN (<http://redis.io/commands/shutdown>)
@@ -217,6 +203,19 @@ hincrby
     -> Integer -- ^ increment
     -> m (f Integer)
 hincrby key field increment = sendRequest (["HINCRBY"] ++ [encode key] ++ [encode field] ++ [encode increment] )
+
+time
+    :: (RedisCtx m f)
+    => m (f (Integer,Integer))
+time  = sendRequest (["TIME"] )
+
+hincrbyfloat
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> Double -- ^ increment
+    -> m (f Double)
+hincrbyfloat key field increment = sendRequest (["HINCRBYFLOAT"] ++ [encode key] ++ [encode field] ++ [encode increment] )
 
 configResetstat
     :: (RedisCtx m f)
@@ -272,6 +271,13 @@ setbit
     -> ByteString -- ^ value
     -> m (f Integer)
 setbit key offset value = sendRequest (["SETBIT"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+
+incrbyfloat
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Double -- ^ increment
+    -> m (f Double)
+incrbyfloat key increment = sendRequest (["INCRBYFLOAT"] ++ [encode key] ++ [encode increment] )
 
 save
     :: (RedisCtx m f)
@@ -391,6 +397,14 @@ mset
     -> m (f Status)
 mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
 
+psetex
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ milliseconds
+    -> ByteString -- ^ value
+    -> m (f Status)
+psetex key milliseconds value = sendRequest (["PSETEX"] ++ [encode key] ++ [encode milliseconds] ++ [encode value] )
+
 rpoplpush
     :: (RedisCtx m f)
     => ByteString -- ^ source
@@ -431,6 +445,13 @@ hgetall
     => ByteString -- ^ key
     -> m (f [(ByteString,ByteString)])
 hgetall key = sendRequest (["HGETALL"] ++ [encode key] )
+
+pexpire
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ milliseconds
+    -> m (f Bool)
+pexpire key milliseconds = sendRequest (["PEXPIRE"] ++ [encode key] ++ [encode milliseconds] )
 
 dbsize
     :: (RedisCtx m f)
@@ -580,6 +601,12 @@ randomkey
     => m (f (Maybe ByteString))
 randomkey  = sendRequest (["RANDOMKEY"] )
 
+pttl
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+pttl key = sendRequest (["PTTL"] ++ [encode key] )
+
 spop
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -709,6 +736,13 @@ incr
     => ByteString -- ^ key
     -> m (f Integer)
 incr key = sendRequest (["INCR"] ++ [encode key] )
+
+pexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ millisecondsTimestamp
+    -> m (f Bool)
+pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
 
 zcard
     :: (RedisCtx m f)

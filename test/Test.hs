@@ -75,19 +75,18 @@ testForceErrorReply = testCase "force error reply" $ do
 testPipelining :: Test
 testPipelining = testCase "pipelining" $ do
     let n = 10
-    tPipe <- time $ do
+    tPipe <- deltaT $ do
         pongs <- replicateM n ping
         assert $ pongs == replicate n (Right Pong)
     
-    tNoPipe <- time $ replicateM_ n (ping >>=? Pong)
+    tNoPipe <- deltaT $ replicateM_ n (ping >>=? Pong)
     -- pipelining should at least be twice as fast.    
     assert $ tNoPipe / tPipe > 2
-
-time :: Redis () -> Redis NominalDiffTime
-time redis = do
-    start <- liftIO $ getCurrentTime
-    redis
-    liftIO $ fmap (`diffUTCTime` start) getCurrentTime
+  where
+    deltaT redis = do
+        start <- liftIO $ getCurrentTime
+        redis
+        liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
 ------------------------------------------------------------------------------
 -- Keys
