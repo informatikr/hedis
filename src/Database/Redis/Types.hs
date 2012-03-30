@@ -36,7 +36,10 @@ instance RedisArg Double where
 ------------------------------------------------------------------------------
 -- RedisResult instances
 --
-data Status = Ok | Pong | None | String | Hash | List | Set | ZSet
+data Status = Ok | Pong
+    deriving (Show, Eq)
+
+data RedisType = None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
 instance RedisResult Reply where
@@ -58,13 +61,18 @@ instance RedisResult Status where
     decode (SingleLine s) = Right $ case s of
         "OK"     -> Ok
         "PONG"   -> Pong
+        _        -> error $ "Hedis: unhandled status-code: " ++ show s
+    decode r = Left r
+    
+instance RedisResult RedisType where
+    decode (SingleLine s) = Right $ case s of
         "none"   -> None
         "string" -> String
         "hash"   -> Hash
         "list"   -> List
         "set"    -> Set
         "zset"   -> ZSet
-        _        -> error $ "Hedis: unhandled status-code: " ++ show s
+        _        -> error $ "Hedis: unhandled redis type: " ++ show s
     decode r = Left r
 
 instance RedisResult Bool where

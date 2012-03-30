@@ -34,6 +34,7 @@ SortOrder(..),
 sort, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
 sortStore, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
 ttl, -- |Get the time to live for a key (<http://redis.io/commands/ttl>).
+RedisType(..),
 getType, -- |Determine the type stored at key (<http://redis.io/commands/type>).
 
 -- ** Hashes

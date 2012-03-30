@@ -48,7 +48,7 @@ linsertAfter key pivot value =
 getType
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m (f Status)
+    -> m (f RedisType)
 getType key = sendRequest ["TYPE", encode key]
 
 -- |A single entry from the slowlog.

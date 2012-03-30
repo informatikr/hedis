@@ -52,7 +52,7 @@ blacklist :: [(String, Maybe ([String],[String]))]
 blacklist = [ manual "AUTH" ["auth"]
             , manual "OBJECT"
                 ["objectRefcount","objectEncoding","objectIdletime"]
-            , manual "TYPE" ["getType"]
+            , manualWithType "TYPE" ["getType"] ["RedisType(..)"]
             , manual "EVAL" ["eval", "evalsha"]
             , manualWithType "SORT"
                 ["sort","sortStore"]
