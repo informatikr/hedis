@@ -49,39 +49,38 @@ groupCmds (Cmds cmds) =
 -- |Blacklisted commands, optionally paired with the name of their
 --  implementation in the "Database.Redis.ManualCommands" module.
 blacklist :: [(String, Maybe ([String],[String]))]
-blacklist = [ ("AUTH", Just (["auth"],[]))
-            , ("OBJECT", Just (["objectRefcount"
-                               ,"objectEncoding"
-                               ,"objectIdletime"]
-                              ,[]))
-            , ("TYPE", Just (["getType"],[]))
-            , ("EVAL", Just (["eval", "evalsha"],[]))
-            , ("SORT", Just (["sort","sortStore"]
-                            ,["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
-                            ))
-            , ("LINSERT",Just (["linsertBefore", "linsertAfter"],[]))
-            , ("SLOWLOG"
-                ,Just (["slowlogGet", "slowlogLen", "slowlogReset"]
-                      ,["Slowlog(..)"]
-                      ))
-            , ("ZINTERSTORE", Just (["zinterstore","zinterstoreWeights"]
-                                   ,["Aggregate(..)"]
-                                   ))
-            , ("ZRANGE", Just (["zrange", "zrangeWithscores"],[]))
-            , ("ZRANGEBYSCORE"
-                ,Just (["zrangebyscore","zrangebyscoreWithscores"
-                       ,"zrangebyscoreLimit"
-                       ,"zrangebyscoreWithscoresLimit"],[]))
-            , ("ZREVRANGE", Just (["zrevrange", "zrevrangeWithscores"],[]))
-            , ("ZREVRANGEBYSCORE"
-                , Just (["zrevrangebyscore","zrevrangebyscoreWithscores"
-                        ,"zrevrangebyscoreLimit"
-                        ,"zrevrangebyscoreWithscoresLimit"],[]))
-            , ("ZUNIONSTORE", Just (["zunionstore","zunionstoreWeights"],[]))
-            , ("MONITOR", Nothing)  -- debugging command
-            , ("SYNC", Nothing)     -- internal command            
-            , ("SHUTDOWN", Nothing) -- kills server, throws exception
+blacklist = [ manual "AUTH" ["auth"]
+            , manual "OBJECT"
+                ["objectRefcount","objectEncoding","objectIdletime"]
+            , manual "TYPE" ["getType"]
+            , manual "EVAL" ["eval", "evalsha"]
+            , manualWithType "SORT"
+                ["sort","sortStore"]
+                ["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
+            , manual "LINSERT" ["linsertBefore", "linsertAfter"]
+            , manualWithType "SLOWLOG"
+                ["slowlogGet", "slowlogLen", "slowlogReset"]
+                ["Slowlog(..)"]
+            , manualWithType "ZINTERSTORE"
+                ["zinterstore","zinterstoreWeights"]
+                ["Aggregate(..)"]
+            , manual "ZRANGE" ["zrange", "zrangeWithscores"]
+            , manual "ZRANGEBYSCORE"
+                ["zrangebyscore", "zrangebyscoreWithscores"
+                ,"zrangebyscoreLimit", "zrangebyscoreWithscoresLimit"]
+            , manual "ZREVRANGE" ["zrevrange", "zrevrangeWithscores"]
+            , manual "ZREVRANGEBYSCORE" 
+                ["zrevrangebyscore", "zrevrangebyscoreWithscores"
+                ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
+            , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
+            , unimplemented "MONITOR"  -- debugging command
+            , unimplemented "SYNC"     -- internal command            
+            , unimplemented "SHUTDOWN" -- kills server, throws exception
             ]
+  where
+    unimplemented cmd  = (cmd, Nothing)
+    manual cmd aliases = (cmd, Just (aliases, []))
+    manualWithType cmd aliases types = (cmd, Just (aliases, types))
 
 -- Read JSON from STDIN, write Haskell module source to STDOUT.
 main :: IO ()
