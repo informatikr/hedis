@@ -33,9 +33,10 @@ data Message = Message  { msgChannel, msgMessage :: ByteString}
 
 -- |Post a message to a channel (<http://redis.io/commands/publish>).
 publish
-    :: ByteString -- ^ channel
+    :: (Core.RedisCtx m f)
+    => ByteString -- ^ channel
     -> ByteString -- ^ message
-    -> Core.Redis (Either Reply Integer)
+    -> m (f Integer)
 publish channel message =
     Core.sendRequest ["PUBLISH", channel, message]
 
