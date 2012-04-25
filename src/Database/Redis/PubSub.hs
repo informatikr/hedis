@@ -1,27 +1,35 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, NamedFieldPuns, RecordWildCards #-}
+
 module Database.Redis.PubSub (
     publish,
     pubSub,
     Message(..),
     PubSub(),
-    subscribe, unsubscribe,
-    psubscribe, punsubscribe,
+    subscribe, unsubscribe, psubscribe, punsubscribe
 ) where
 
 import Control.Applicative
-import Control.Monad.Writer
+import Control.Monad
+import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
 import Data.Maybe
+import Data.Monoid
 import qualified Database.Redis.Core as Core
 import Database.Redis.Reply (Reply(..))
 import Database.Redis.Types
 
-
-newtype PubSub = PubSub [[ByteString]]
+-- |Encapsulates subscription changes. Use 'subscribe', 'unsubscribe',
+--  'psubscribe', 'punsubscribe' or 'mempty' to construct a value. Combine
+--  values by using the 'Monoid' interface, i.e. 'mappend' and 'mconcat'.
+data PubSub = PubSub { subs, unsubs, psubs, punsubs :: [ByteString] }
 
 instance Monoid PubSub where
-    mempty                         = PubSub []
-    mappend (PubSub p) (PubSub p') = PubSub (p ++ p')
+    mempty        = PubSub [] [] [] []
+    mappend p1 p2 = PubSub { subs    = subs p1 `mappend` subs p2
+                           , unsubs  = unsubs p1 `mappend` unsubs p2
+                           , psubs   = psubs p1 `mappend` psubs p2
+                           , punsubs = punsubs p1 `mappend` punsubs p2
+                           }
 
 data Message = Message  { msgChannel, msgMessage :: ByteString}
              | PMessage { msgPattern, msgChannel, msgMessage :: ByteString}
@@ -45,31 +53,32 @@ publish channel message =
 subscribe
     :: [ByteString] -- ^ channel
     -> PubSub
-subscribe = pubSubAction "SUBSCRIBE"
+subscribe subs = mempty{ subs }
 
--- |Stop listening for messages posted to the given channels 
+-- |Stop listening for messages posted to the given channels
 --  (<http://redis.io/commands/unsubscribe>).
 unsubscribe
     :: [ByteString] -- ^ channel
     -> PubSub
-unsubscribe = pubSubAction "UNSUBSCRIBE"
+unsubscribe unsubs = mempty{ unsubs }
 
 -- |Listen for messages published to channels matching the given patterns 
 --  (<http://redis.io/commands/psubscribe>).
 psubscribe
     :: [ByteString] -- ^ pattern
     -> PubSub
-psubscribe = pubSubAction "PSUBSCRIBE"
+psubscribe psubs = mempty{ psubs }
 
 -- |Stop listening for messages posted to channels matching the given patterns 
 --  (<http://redis.io/commands/punsubscribe>).
 punsubscribe
     :: [ByteString] -- ^ pattern
     -> PubSub
-punsubscribe = pubSubAction "PUNSUBSCRIBE"
+punsubscribe punsubs = mempty{ punsubs }
 
--- |Listens to published messages on subscribed channels. For documentation on
---  the semantics of Redis Pub\/Sub see <http://redis.io/topics/pubsub>.
+-- |Listens to published messages on subscribed channels and channels matching
+--  the subscribed patterns. For documentation on the semantics of Redis
+--  Pub\/Sub see <http://redis.io/topics/pubsub>.
 --  
 --  The given callback function is called for each received message. 
 --  Subscription changes are triggered by the returned 'PubSub'. To keep
@@ -95,28 +104,33 @@ pubSub
     :: PubSub                 -- ^ Initial subscriptions.
     -> (Message -> IO PubSub) -- ^ Callback function.
     -> Core.Redis ()
-pubSub p callback = send p 0
+pubSub initial callback = evalStateT (send initial) 0
   where
-    send (PubSub cmds) pending = do
-        mapM_ Core.send cmds
-        recv (pending + length cmds)
+    send :: PubSub -> StateT Int Core.Redis ()
+    send PubSub{..} = do
+        let changeSubs (cmd, changes) = unless (null changes) $ do
+                lift $ Core.send (cmd : changes)
+                modify (+ length changes)
+        mapM_ changeSubs
+            [("SUBSCRIBE",    subs)
+            ,("UNSUBSCRIBE",  unsubs)
+            ,("PSUBSCRIBE",   psubs)
+            ,("PUNSUBSCRIBE", punsubs)
+            ]
+        recv
 
-    recv pending = do
-        reply <- Core.recv
+    recv :: StateT Int Core.Redis ()
+    recv = do
+        reply <- lift Core.recv
         case decodeMsg reply of
-            Left cnt  -> let pending' = pending - 1
-                         in unless (cnt == 0 && pending' == 0) $
-                            send mempty pending'
-            Right msg -> do act <- liftIO $ callback msg
-                            send act pending
+            Left subCnt -> do
+                pending <- modify (subtract 1) >> get
+                unless (subCnt == 0 && pending == 0) (send mempty)
+            Right msg -> liftIO (callback msg) >>= send
 
 ------------------------------------------------------------------------------
 -- Helpers
 --
-
-pubSubAction :: ByteString -> [ByteString] -> PubSub
-pubSubAction cmd chans = PubSub [cmd : chans]
-
 decodeMsg :: Reply -> Either Integer Message
 decodeMsg r@(MultiBulk (Just (r0:r1:r2:rs))) = either (errMsg r) id $ do
     kind <- decode r0
@@ -127,8 +141,7 @@ decodeMsg r@(MultiBulk (Just (r0:r1:r2:rs))) = either (errMsg r) id $ do
         _          -> Left <$> decode r2
   where
     decodeMessage  = Message  <$> decode r1 <*> decode r2
-    decodePMessage = PMessage <$> decode r1 <*> decode r2
-                                    <*> decode (head rs)
+    decodePMessage = PMessage <$> decode r1 <*> decode r2 <*> decode (head rs)
         
 decodeMsg r = errMsg r
 
