@@ -9,7 +9,7 @@ import Data.ByteString.Char8 (ByteString, pack)
 import Data.ByteString.Lex.Double (readDouble)
 import Data.Maybe
 
-import Database.Redis.Reply
+import Database.Redis.Protocol
 
 
 ------------------------------------------------------------------------------

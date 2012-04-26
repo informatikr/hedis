@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Database.Redis.Reply (Reply(..), reply) where
+
+module Database.Redis.Protocol (Reply(..), reply, renderRequest) where
 
 import Prelude hiding (error, take)
 import Control.Applicative
 import Data.Attoparsec (takeTill)
 import Data.Attoparsec.Char8 hiding (takeTill)
 import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as B
 
 -- |Low-level representation of replies from the Redis server.
 data Reply = SingleLine ByteString
@@ -14,6 +16,26 @@ data Reply = SingleLine ByteString
            | Bulk (Maybe ByteString)
            | MultiBulk (Maybe [Reply])
          deriving (Eq, Show)
+
+------------------------------------------------------------------------------
+-- Request
+--
+renderRequest :: [ByteString] -> ByteString
+renderRequest req = B.concat (argCnt:args)
+  where
+    argCnt = B.concat ["*", showBS (length req), crlf]
+    args   = map renderArg req
+
+renderArg :: ByteString -> ByteString
+renderArg arg = B.concat ["$",  argLen arg, crlf, arg, crlf]
+  where
+    argLen = showBS . B.length
+
+showBS :: (Show a) => a -> ByteString
+showBS = B.pack . show
+
+crlf :: ByteString
+crlf = "\r\n"
 
 ------------------------------------------------------------------------------
 -- Reply parsers

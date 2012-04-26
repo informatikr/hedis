@@ -11,7 +11,7 @@ import Control.Monad.State
 import Data.ByteString (ByteString)
 
 import Database.Redis.Core
-import Database.Redis.Reply
+import Database.Redis.Protocol
 import Database.Redis.Types
 
 

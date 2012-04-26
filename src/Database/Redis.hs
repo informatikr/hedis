@@ -159,7 +159,7 @@ module Database.Redis (
 
 import Database.Redis.Core
 import Database.Redis.PubSub
-import Database.Redis.Reply
+import Database.Redis.Protocol
 import Database.Redis.Transactions
 import Database.Redis.Types
 

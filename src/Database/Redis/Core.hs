@@ -30,8 +30,7 @@ import Network
 import System.IO
 import System.IO.Unsafe
 
-import Database.Redis.Reply
-import Database.Redis.Request
+import Database.Redis.Protocol
 import Database.Redis.Types
 
 

@@ -76,9 +76,8 @@ library
                     time
 
   other-modules:    Database.Redis.Core,
+                    Database.Redis.Protocol,
                     Database.Redis.PubSub,
-                    Database.Redis.Reply,
-                    Database.Redis.Request,
                     Database.Redis.Transactions,
                     Database.Redis.Types
                     Database.Redis.Commands,
