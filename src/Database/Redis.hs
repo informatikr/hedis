@@ -60,6 +60,40 @@ module Database.Redis (
     --  [Exercise] What are the types of 'expire' inside a transaction and
     --    'lindex' outside of a transaction? The solutions are at the very
     --    bottom of this page.
+
+    -- ** Lua Scripting
+    -- |Lua values returned from the 'eval' and 'evalsha' functions will be
+    --  converted to Haskell values by the 'decode' function from the
+    --  'RedisResult' type class.
+    --
+    --  @
+    --  Lua Type      | Haskell Type       | Conversion Example
+    --  --------------|--------------------|-----------------------------
+    --  Number        | Integer            | 1.23   => 1
+    --  String        | ByteString, Double | \"1.23\" => \"1.23\" or 1.23
+    --  Boolean       | Bool               | false  => False
+    --  Table         | List               | {1,2}  => [1,2]
+    --  @
+    --
+    --  Additionally, any of the Haskell types from the table above can be
+    --  wrapped in a 'Maybe':
+    --
+    --  @
+    --  42  => Just 42 :: Maybe Integer
+    --  nil => Nothing :: Maybe Integer
+    --  @
+    --
+    --  Note that Redis imposes some limitations on the possible conversions:
+    --
+    --  * Lua numbers can only be converted to Integers. Only Lua strings can be
+    --    interpreted as Doubles.
+    --
+    --  * Associative Lua tables can not be converted at all. Returned tables
+    --   must be \"arrays\", i.e. indexed only by integers.
+    --
+    --  The Redis Scripting website (<http://redis.io/commands/eval>)
+    --  documents the exact semantics of the scripting commands and value
+    --  conversion.
     
     -- ** Automatic Pipelining
     -- |Commands are automatically pipelined as much as possible. For example,
