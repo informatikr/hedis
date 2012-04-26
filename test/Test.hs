@@ -46,7 +46,8 @@ assert = liftIO . Test.assert
 tests :: [Test]
 tests = concat
     [ testsMisc, testsKeys, testsStrings, testsHashes, testsLists, testsZSets
-    , [testPubSub], [testTransaction], testsConnection, testsServer, [testQuit]
+    , [testPubSub], [testTransaction], [testScripting], testsConnection
+    , testsServer, [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -555,7 +556,28 @@ testTransaction = testCase "transaction" $ do
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
-    
+
+------------------------------------------------------------------------------
+-- Scripting
+--
+testScripting :: Test
+testScripting conn = testCase "scripting" go conn
+  where
+    go = do
+        let script    = "return {false, 42}"
+            scriptRes = (False, 42 :: Integer)
+        Right scriptHash <- scriptLoad script
+        eval script [] []                       >>=? scriptRes
+        evalsha scriptHash [] []                >>=? scriptRes
+        scriptExists [scriptHash, "notAScript"] >>=? [True, False]
+        scriptFlush                             >>=? Ok
+        -- start long running script from another client
+        liftIO $ forkIO $ runRedis conn $ do
+            Left _ <- eval "while true do end" [] []
+                        :: Redis (Either Reply Integer)
+            return ()
+        scriptKill                              >>=? Ok
+
 ------------------------------------------------------------------------------
 -- Connection
 --
@@ -613,9 +635,9 @@ testInfo = testCase "info/lastsave/dbsize" $ do
 
 testSlowlog :: Test
 testSlowlog = testCase "slowlog" $ do
+    slowlogReset >>=? Ok
     slowlogGet 5 >>=? []
     slowlogLen   >>=? 0
-    slowlogReset >>=? Ok
 
 testDebugObject :: Test
 testDebugObject = testCase "debugObject/debugSegfault" $ do

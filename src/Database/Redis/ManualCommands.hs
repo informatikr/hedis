@@ -348,6 +348,6 @@ evalsha
     -> [ByteString] -- ^ args
     -> m (f a)
 evalsha script keys args =
-    sendRequest $ ["EVAL", script, encode numkeys] ++ keys ++ args
+    sendRequest $ ["EVALSHA", script, encode numkeys] ++ keys ++ args
   where
     numkeys = toInteger (length keys)
