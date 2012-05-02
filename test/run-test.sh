@@ -17,7 +17,8 @@ hpc report hedis-test.tix
 echo "------------------"
 echo "hlint suggestions:"
 echo "------------------"
-find src ! -name 'Commands.hs' ! -type d | xargs hlint
+find src ! -name 'Commands.hs' ! -type d \
+	| xargs -J % hlint % --ignore="Use import/export shortcut"
 
 # cleanup
 rm hedis-test.tix
