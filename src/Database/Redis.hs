@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Database.Redis (
     -- * How To Use This Module
     -- |
