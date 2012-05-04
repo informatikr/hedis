@@ -22,6 +22,7 @@ import Database.Redis.Types
 --  'psubscribe', 'punsubscribe' or 'mempty' to construct a value. Combine
 --  values by using the 'Monoid' interface, i.e. 'mappend' and 'mconcat'.
 data PubSub = PubSub { subs, unsubs, psubs, punsubs :: [ByteString] }
+    deriving (Eq)
 
 instance Monoid PubSub where
     mempty        = PubSub [] [] [] []
@@ -104,7 +105,9 @@ pubSub
     :: PubSub                 -- ^ Initial subscriptions.
     -> (Message -> IO PubSub) -- ^ Callback function.
     -> Core.Redis ()
-pubSub initial callback = evalStateT (send initial) 0
+pubSub initial callback
+    | initial == mempty = return ()
+    | otherwise         = evalStateT (send initial) 0
   where
     send :: PubSub -> StateT Int Core.Redis ()
     send PubSub{..} = do
