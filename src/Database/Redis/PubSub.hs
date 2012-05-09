@@ -19,46 +19,31 @@ import qualified Database.Redis.Core as Core
 import Database.Redis.Reply (Reply(..))
 import Database.Redis.Types
 
-
+-- |While in PubSub mode, we keep track of the number of current subscriptions
+--  (as reported by Redis replies) and the number of messages we expect to
+--  receive after a SUBSCRIBE or PSUBSCRIBE command. We can safely leave the
+--  PubSub mode when both these numbers are zero.
 data PubSubState = PubSubState { subCnt, pending :: Int }
 
 modifyPending :: (MonadState PubSubState m) => (Int -> Int) -> m ()
 modifyPending f = modify $ \s -> s{ pending = f (pending s) }
 
-setSubCnt :: (MonadState PubSubState m) => Int -> m ()
-setSubCnt n = modify $ \s -> s{ subCnt = n }
+putSubCnt :: (MonadState PubSubState m) => Int -> m ()
+putSubCnt n = modify $ \s -> s{ subCnt = n }
 
-
+data Subscribe
+data Unsubscribe
 data Channel
 data Pattern
-
-data Subscribe a = SubNone | Sub [ByteString] deriving (Eq)
-data Unsubscribe a = UnsubNone | Unsub [ByteString] deriving (Eq)
-
-instance Monoid (Unsubscribe a) where
-    mempty                        = UnsubNone
-    mappend UnsubNone  x          = x
-    mappend x          UnsubNone  = x
-    -- empty subscription list => unsubscribe all channels and patterns
-    mappend (Unsub []) _          = Unsub []
-    mappend _          (Unsub []) = Unsub []
-    mappend (Unsub xs) (Unsub ys) = Unsub (xs ++ ys)
-
-instance Monoid (Subscribe a) where
-    mempty                    = SubNone
-    mappend SubNone  x        = x
-    mappend x        SubNone  = x
-    mappend (Sub xs) (Sub ys) = Sub (xs ++ ys)
-
 
 -- |Encapsulates subscription changes. Use 'subscribe', 'unsubscribe',
 --  'psubscribe', 'punsubscribe' or 'mempty' to construct a value. Combine
 --  values by using the 'Monoid' interface, i.e. 'mappend' and 'mconcat'.
 data PubSub = PubSub
-    { subs    :: Subscribe Channel
-    , unsubs  :: Unsubscribe Channel
-    , psubs   :: Subscribe Pattern
-    , punsubs :: Unsubscribe Pattern
+    { subs    :: Cmd Subscribe Channel
+    , unsubs  :: Cmd Unsubscribe Channel
+    , psubs   :: Cmd Subscribe Pattern
+    , punsubs :: Cmd Unsubscribe Pattern
     } deriving (Eq)
 
 instance Monoid PubSub where
@@ -69,37 +54,53 @@ instance Monoid PubSub where
                            , punsubs = punsubs p1 `mappend` punsubs p2
                            }
 
+data Cmd a b = DoNothing | Cmd { changes :: [ByteString] } deriving (Eq)
 
-data Cmd = DoNothing
-         | Cmd { cmdRedisCmd      :: ByteString
-               , cmdChanges       :: [ByteString]
-               , cmdUpdatePending :: Int -> Int
-               }
+instance Monoid (Cmd Subscribe a) where
+    mempty                      = DoNothing
+    mappend DoNothing x         = x
+    mappend x         DoNothing = x
+    mappend (Cmd xs)  (Cmd ys)  = Cmd (xs ++ ys)
+    
+instance Monoid (Cmd Unsubscribe a) where
+    mempty                       = DoNothing
+    mappend DoNothing x          = x
+    mappend x         DoNothing  = x
+    -- empty subscription list => unsubscribe all channels and patterns
+    mappend (Cmd [])  _          = Cmd []
+    mappend _         (Cmd [])   = Cmd []
+    mappend (Cmd xs)  (Cmd ys)   = Cmd (xs ++ ys)
 
-sendCmd :: Cmd -> StateT PubSubState Core.Redis ()
-sendCmd DoNothing = return ()
-sendCmd Cmd{..}   = do
-    lift $ Core.send (cmdRedisCmd : cmdChanges)
-    modifyPending cmdUpdatePending
 
 class Command a where
-    cmd :: a -> Cmd
+    redisCmd      :: a -> ByteString
+    updatePending :: a -> Int -> Int
 
-instance Command (Subscribe Channel) where
-    cmd SubNone  = DoNothing
-    cmd (Sub cs) = Cmd "SUBSCRIBE" cs (+ length cs)
+sendCmd :: (Command (Cmd a b)) => Cmd a b -> StateT PubSubState Core.Redis ()
+sendCmd DoNothing = return ()
+sendCmd cmd       = do
+    lift $ Core.send (redisCmd cmd : changes cmd)
+    modifyPending (updatePending cmd)
 
-instance Command (Subscribe Pattern) where
-    cmd SubNone  = DoNothing
-    cmd (Sub ps) = Cmd "PSUBSCRIBE" ps (+ length ps)
+plusChangeCnt :: Cmd a b -> Int -> Int
+plusChangeCnt DoNothing = id
+plusChangeCnt (Cmd cs)  = (+ length cs)
 
-instance Command (Unsubscribe Channel) where
-    cmd UnsubNone  = DoNothing
-    cmd (Unsub cs) = Cmd "UNSUBSCRIBE" cs id
+instance Command (Cmd Subscribe Channel) where
+    redisCmd      = const "SUBSCRIBE"
+    updatePending = plusChangeCnt
 
-instance Command (Unsubscribe Pattern) where
-    cmd UnsubNone  = DoNothing
-    cmd (Unsub ps) = Cmd "PUNSUBSCRIBE" ps id
+instance Command (Cmd Subscribe Pattern) where
+    redisCmd      = const "PSUBSCRIBE"
+    updatePending = plusChangeCnt
+
+instance Command (Cmd Unsubscribe Channel) where
+    redisCmd      = const "UNSUBSCRIBE"
+    updatePending = const id
+
+instance Command (Cmd Unsubscribe Pattern) where
+    redisCmd      = const "PUNSUBSCRIBE"
+    updatePending = const id
 
 
 data Message = Message  { msgChannel, msgMessage :: ByteString}
@@ -128,14 +129,14 @@ subscribe
     :: [ByteString] -- ^ channel
     -> PubSub
 subscribe []       = mempty
-subscribe channels = mempty{ subs = Sub channels }
+subscribe cs = mempty{ subs = Cmd cs }
 
 -- |Stop listening for messages posted to the given channels
 --  (<http://redis.io/commands/unsubscribe>).
 unsubscribe
     :: [ByteString] -- ^ channel
     -> PubSub
-unsubscribe channels = mempty{ unsubs = Unsub channels }
+unsubscribe cs = mempty{ unsubs = Cmd cs }
 
 -- |Listen for messages published to channels matching the given patterns 
 --  (<http://redis.io/commands/psubscribe>).
@@ -143,14 +144,14 @@ psubscribe
     :: [ByteString] -- ^ pattern
     -> PubSub
 psubscribe []       = mempty
-psubscribe patterns = mempty{ psubs = Sub patterns }
+psubscribe ps = mempty{ psubs = Cmd ps }
 
 -- |Stop listening for messages posted to channels matching the given patterns 
 --  (<http://redis.io/commands/punsubscribe>).
 punsubscribe
     :: [ByteString] -- ^ pattern
     -> PubSub
-punsubscribe patterns = mempty{ punsubs = Unsub patterns }
+punsubscribe ps = mempty{ punsubs = Cmd ps }
 
 -- |Listens to published messages on subscribed channels and channels matching
 --  the subscribed patterns. For documentation on the semantics of Redis
@@ -186,7 +187,10 @@ pubSub initial callback
   where
     send :: PubSub -> StateT PubSubState Core.Redis ()
     send PubSub{..} = do
-        mapM_ sendCmd [cmd subs, cmd unsubs, cmd psubs, cmd punsubs]
+        sendCmd subs
+        sendCmd unsubs
+        sendCmd psubs
+        sendCmd punsubs
         recv
 
     recv :: StateT PubSubState Core.Redis ()
@@ -196,7 +200,7 @@ pubSub initial callback
             Msg msg        -> liftIO (callback msg) >>= send
             Subscribed     -> modifyPending (subtract 1) >> recv
             Unsubscribed n -> do
-                setSubCnt n
+                putSubCnt n
                 PubSubState{..} <- get
                 unless (subCnt == 0 && pending == 0) recv
 
