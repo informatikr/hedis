@@ -54,6 +54,9 @@ instance RedisResult Integer where
     decode (Integer n) = Right n
     decode r           = Left r
 
+instance RedisResult Int where
+    decode = fmap fromInteger . decode
+
 instance RedisResult Double where
     decode r = maybe (Left r) (Right . fst) . readDouble =<< decode r
 
