@@ -102,6 +102,9 @@ newEnv envHandle = do
     return Env{..}
   where
     forceThunks thunks = do
+        -- We must wait for a reply to become available. Otherwise we will
+        -- flush the output buffer (in hGetReplies) before a command is written
+        -- by the user thread, creating a deadlock.
         t <- readChan thunks
         t `seq` forceThunks thunks
 
