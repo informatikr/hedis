@@ -89,7 +89,8 @@ library
                     network == 2.*,
                     resource-pool == 0.2.1.*,
                     stm >= 2.2 && < 2.4,
-                    time
+                    time,
+                    vector == 0.9.*
 
   other-modules:    Database.Redis.Core,
                     Database.Redis.Protocol,

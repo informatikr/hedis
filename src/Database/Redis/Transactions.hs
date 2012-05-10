@@ -10,6 +10,7 @@ import Control.Applicative
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
 import Data.Monoid
+import Data.Vector (Vector, fromList, (!))
 
 import Database.Redis.Core
 import Database.Redis.Protocol
@@ -36,7 +37,7 @@ instance RedisCtx RedisTx Queued where
         -- future index in EXEC result list
         i <- get
         put (i+1)
-        return $ Queued (decode . (!!i))
+        return $ Queued (decode . (!i))
 
 -- |A 'Queued' value represents the result of a command inside a transaction. It
 --  is a proxy object for the /actual/ result, which will only be available
@@ -44,7 +45,7 @@ instance RedisCtx RedisTx Queued where
 --
 --  'Queued' values are composable by utilizing the 'Functor', 'Applicative' or
 --  'Monad' interfaces.
-data Queued a = Queued ([Reply] -> Either Reply a)
+data Queued a = Queued (Vector Reply -> Either Reply a)
 
 instance Functor Queued where
     fmap f (Queued g) = Queued (fmap f . g)
@@ -118,10 +119,10 @@ multiExec rtx = do
     Queued f <- runRedisTx rtx
     r        <- exec
     case r of
-        MultiBulk rs ->
+        MultiBulk rs -> do
             return $ maybe
                 TxAborted
-                (either (TxError . show) TxSuccess . f)
+                (either (TxError . show) TxSuccess . f . fromList)
                 rs
         _ -> error $ "hedis: EXEC returned " ++ show r
 
