@@ -73,3 +73,20 @@ main = do
         let expected = replicate 100 (Right Pong)
         True <- return $ pongs == expected
         return ()
+
+    timeAction "multiExec get 1" 1 $ do
+        TxSuccess _ <- multiExec $ get "foo"
+        return ()
+    
+    timeAction "multiExec get 50" 50 $ do
+        TxSuccess 50 <- multiExec $ do
+                            rs <- replicateM 50 (get "foo")
+                            return $ fmap length (sequence rs)
+        return ()
+
+    timeAction "multiExec get 1000" 1000 $ do
+        TxSuccess 1000 <- multiExec $ do
+                            rs <- replicateM 1000 (get "foo")
+                            return $ fmap length (sequence rs)
+        return ()
+    
