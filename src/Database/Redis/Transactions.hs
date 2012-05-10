@@ -7,7 +7,7 @@ module Database.Redis.Transactions (
 ) where
 
 import Control.Applicative
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
 import Data.Monoid
 
