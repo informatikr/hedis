@@ -65,8 +65,8 @@ instance Monad Queued where
                                 f' rs
 
 instance (Monoid a) => Monoid (Queued a) where
-    mempty        = return mempty
-    mappend q1 q2 = mappend <$> q1 <*> q2
+    mempty  = return mempty
+    mappend = liftM2 mappend
 
 
 -- | Result of a 'multiExec' transaction.
