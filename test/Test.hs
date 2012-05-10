@@ -540,6 +540,9 @@ testPubSub conn = testCase "pubSub" go conn
                     (unsubscribe [msgChannel] `mappend` psubscribe ["chan*"])
                 PMessage{..} -> return (punsubscribe [msgPattern])
 
+        pubSub (subscribe [] `mappend` psubscribe []) $ \_ -> do
+            liftIO $ Test.assertFailure "no subs: should return immediately"
+            undefined
 
 ------------------------------------------------------------------------------
 -- Transaction
