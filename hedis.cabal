@@ -34,14 +34,18 @@ Description:
     .
     For detailed documentation, see the "Database.Redis" module.
     .
-    [Changes since version 0.3.2]
+    [Changes since version 0.4.1]
     .
-    * The following commands got a 'Maybe' added to their return type, to
-      properly handle Redis returning @nil@-replies: @brpoplpush, lindex, lpop,
-      objectEncoding, randomkey, rpop, rpoplpush, spop, srandmember, zrank,
-      zrevrank, zscore@.
+    * Added new Redis 2.6 commands, including Lua scripting support.
     .
-    * Updated dependencies on @bytestring-lexing@ and @stm@.
+    * A transaction context is now created by using the 'multiExec' function.
+      The functions 'multi' and 'exec' are no longer available individually.
+    .
+    * Inside of a transaction, commands return their results wrapped in a
+      composable /future/, called 'Queued'.
+    .
+    * The 'getType' command (the Redis TYPE command) now has a custom return
+      type 'RedisType'.
     .
     * Minor improvements and fixes to the documentation.
     .
