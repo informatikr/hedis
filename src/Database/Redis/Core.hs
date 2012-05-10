@@ -174,7 +174,9 @@ data ConnectInfo = ConnInfo
     --   value is 1.
     , connectMaxIdleTime    :: NominalDiffTime
     -- ^ Amount of time for which an unused connection is kept open. The
-    --   smallest acceptable value is 0.5 seconds.
+    --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
+    --   your redis.conf file is non-zero, it should be larger than
+    --   'connectMaxIdleTime'.
     }
 
 -- |Default information for connecting:
