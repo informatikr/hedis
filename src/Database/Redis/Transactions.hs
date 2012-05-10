@@ -22,20 +22,21 @@ import Database.Redis.Types
 --  In the 'RedisTx' context, all commands return a 'Queued' value. It is a
 --  proxy object for the /actual/ result, which will only be available after
 --  finishing the transaction.
-newtype RedisTx a = RedisTx (StateT ([Reply] -> Reply) Redis a)
+newtype RedisTx a = RedisTx (StateT Int Redis a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 runRedisTx :: RedisTx a -> Redis a
-runRedisTx (RedisTx r) = evalStateT r head
+runRedisTx (RedisTx r) = evalStateT r 0
 
 instance MonadRedis RedisTx where
     liftRedis = RedisTx . lift
 
 instance RedisCtx RedisTx Queued where
     returnDecode _queued = RedisTx $ do
-        f <- get
-        put (f . tail)
-        return $ Queued (decode . f)
+        -- future index in EXEC result list
+        i <- get
+        put (i+1)
+        return $ Queued (decode . (!!i))
 
 -- |A 'Queued' value represents the result of a command inside a transaction. It
 --  is a proxy object for the /actual/ result, which will only be available
