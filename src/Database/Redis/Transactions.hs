@@ -115,6 +115,8 @@ unwatch  = sendRequest ["UNWATCH"]
 --  @
 multiExec :: RedisTx (Queued a) -> Redis (TxResult a)
 multiExec rtx = do
+    -- We don't need to catch exceptions and call DISCARD. The pool will close
+    -- the connection anyway.
     _        <- multi
     Queued f <- runRedisTx rtx
     r        <- exec

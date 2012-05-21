@@ -116,10 +116,14 @@ module Database.Redis (
     --    message to gain  information on what kind of error occured.
     --
     --  [Connection to the server lost:] In case of a lost connection, command
-    --    functions throw a 
-    --    'ConnectionLostException'. It can only be caught outside of
-    --    'runRedis', to make sure the connection pool can properly destroy the
-    --    connection.
+    --    functions throw a 'ConnectionLostException'. It can only be caught
+    --    outside of 'runRedis'.
+    --
+    --  [Exceptions:] Any exceptions can only be caught /outside/ of 'runRedis'.
+    --    This way the connection pool can properly close the connection, making
+    --    sure it is not left in an unusable state, e.g. closed or inside a
+    --    transaction.
+    --
     
     -- * The Redis Monad
     Redis(), runRedis,
