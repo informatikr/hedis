@@ -4,10 +4,8 @@
 module Database.Redis.Types where
 
 import Control.Applicative
-import Control.Monad
 import Data.ByteString.Char8 (ByteString, pack)
 import Data.ByteString.Lex.Double (readDouble)
-import Data.Maybe
 
 import Database.Redis.Protocol
 

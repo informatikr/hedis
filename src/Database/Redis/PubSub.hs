@@ -13,7 +13,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
-import Data.Maybe
 import Data.Monoid
 import qualified Database.Redis.Core as Core
 import Database.Redis.Protocol (Reply(..))
