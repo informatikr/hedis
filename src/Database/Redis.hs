@@ -162,6 +162,8 @@ module Database.Redis (
 import Database.Redis.Core
 import Database.Redis.PubSub
 import Database.Redis.Protocol
+import Database.Redis.ProtocolPipelining
+    (HostName, PortID(..), ConnectionLostException(..))
 import Database.Redis.Transactions
 import Database.Redis.Types
 

@@ -94,6 +94,7 @@ library
                     vector == 0.9.*
 
   other-modules:    Database.Redis.Core,
+                    Database.Redis.ProtocolPipelining,
                     Database.Redis.Protocol,
                     Database.Redis.PubSub,
                     Database.Redis.Transactions,
