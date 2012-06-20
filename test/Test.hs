@@ -575,10 +575,12 @@ testScripting conn = testCase "scripting" go conn
         scriptExists [scriptHash, "notAScript"] >>=? [True, False]
         scriptFlush                             >>=? Ok
         -- start long running script from another client
-        liftIO $ forkIO $ runRedis conn $ do
-            Left _ <- eval "while true do end" [] []
-                        :: Redis (Either Reply Integer)
-            return ()
+        liftIO $ do
+            forkIO $ runRedis conn $ do
+                Left _ <- eval "while true do end" [] []
+                    :: Redis (Either Reply Integer)
+                return ()
+            threadDelay $ 10^(5 :: Int)
         scriptKill                              >>=? Ok
 
 ------------------------------------------------------------------------------
