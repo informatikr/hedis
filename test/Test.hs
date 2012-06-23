@@ -391,6 +391,8 @@ testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
     save >>=? Ok
     Right (Status _) <- bgsave
+    -- Redis needs time to finish the bgsave
+    liftIO $ threadDelay (10^(5 :: Int))
     Right (Status _) <- bgrewriteaof
     return ()
 
