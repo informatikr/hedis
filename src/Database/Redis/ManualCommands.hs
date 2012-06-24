@@ -351,3 +351,18 @@ evalsha script keys args =
     sendRequest $ ["EVALSHA", script, encode numkeys] ++ keys ++ args
   where
     numkeys = toInteger (length keys)
+
+bitcount
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+bitcount key = sendRequest ["BITCOUNT", key]
+
+bitcountRange
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ end
+    -> m (f Integer)
+bitcountRange key start end =
+    sendRequest ["BITCOUNT", key, encode start, encode end]

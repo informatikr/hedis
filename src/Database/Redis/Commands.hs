@@ -150,6 +150,8 @@ zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted 
 
 -- ** Strings
 append, -- |Append a value to a key (<http://redis.io/commands/append>).
+bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
+bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
 decr, -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>).
 decrby, -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>).
 get, -- |Get the value of a key (<http://redis.io/commands/get>).
@@ -189,9 +191,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * BITOP (<http://redis.io/commands/bitop>)
---
---
--- * BITCOUNT (<http://redis.io/commands/bitcount>)
 --
 ) where
 

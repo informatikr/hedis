@@ -195,8 +195,11 @@ testStrings = testCase "strings" $ do
     incr "key"                        >>=? 41
     incrby "key" 1                    >>=? 42
     incrbyfloat "key" 1               >>=? 43
+    del ["key"]                       >>=? 1
     setbit "key" 42 "1"               >>=? 0
     getbit "key" 42                   >>=? 1
+    bitcount "key"                    >>=? 1
+    bitcountRange "key" 0 (-1)        >>=? 1
 
 ------------------------------------------------------------------------------
 -- Hashes
