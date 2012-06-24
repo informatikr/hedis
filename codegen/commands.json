@@ -40,6 +40,49 @@
     "group": "server",
     "returns": "status"
   },
+  "BITCOUNT": {
+    "summary": "Count set bits in a string",
+    "complexity": "O(N)",
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key"
+      },
+      {
+        "name": "start",
+        "type": "integer",
+        "optional": true
+      },
+      {
+        "name": "end",
+        "type": "integer",
+        "optional": true
+      }
+    ],
+    "since": "2.6.0",
+    "group": "string"
+  },
+  "BITOP": {
+    "summary": "Perform bitwise operations between strings",
+    "complexity": "O(N)",
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "string"
+      },
+      {
+        "name": "destkey",
+        "type": "key"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "multiple": true
+      }
+    ],
+    "since": "2.6.0",
+    "group": "string"
+  },
   "BLPOP": {
     "summary": "Remove and get the first element in a list, or block until one is available",
     "complexity": "O(1)",
@@ -206,6 +249,18 @@
     "group": "transactions",
     "returns": "status"
   },
+  "DUMP": {
+    "summary": "Return a serialized version of the value stored at the specified key.",
+    "complexity": "O(1) to access the key and additional O(N*M) to serialized it, where N is the number of Redis objects composing the value and M their average size. For small string values the time complexity is thus O(1)+O(1*M) where M is small, so simply O(1).",
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key"
+      }
+    ],
+    "since": "2.6.0",
+    "group": "generic"
+  },
   "ECHO": {
     "summary": "Echo the given string",
     "arguments": [
@@ -220,10 +275,36 @@
   },
   "EVAL": {
     "summary": "Execute a Lua script server side",
-    "complexity": "Looking up the script both with EVAL or EVALSHA is an O(1) business. The additional complexity is up to the script you execute.",
+    "complexity": "Depends on the script that is executed.",
     "arguments": [
       {
         "name": "script",
+        "type": "string"
+      },
+      {
+        "name": "numkeys",
+        "type": "integer"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "multiple": true
+      },
+      {
+        "name": "arg",
+        "type": "string",
+        "multiple": true
+      }
+    ],
+    "since": "2.6.0",
+    "group": "scripting"
+  },
+  "EVALSHA": {
+    "summary": "Execute a Lua script server side",
+    "complexity": "Depends on the script that is executed.",
+    "arguments": [
+      {
+        "name": "sha1",
         "type": "string"
       },
       {
@@ -874,6 +955,35 @@
     "group": "string",
     "returns": "list-maybe"
   },
+  "MIGRATE": {
+    "summary": "Atomically transfer a key from a Redis instance to another one.",
+    "complexity": "This command actually executes a DUMP+DEL in the source instance, and a RESTORE in the target instance. See the pages of these commands for time complexity. Also an O(N) data transfer between the two instances is performed.",
+    "arguments": [
+      {
+        "name": "host",
+        "type": "string"
+      },
+      {
+        "name": "port",
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "type": "key"
+      },
+      {
+        "name": "destination-db",
+        "type": "integer"
+      },
+      {
+        "name": "timeout",
+        "type": "integer"
+      }
+    ],
+    "since": "2.6.0",
+    "group": "generic",
+    "returns": "status"
+  },
   "MONITOR": {
     "summary": "Listen for all requests received by the server in real time",
     "since": "1.0.0",
@@ -894,7 +1004,7 @@
     ],
     "since": "1.0.0",
     "group": "generic",
-    "returns": "bool"
+	"returns": "bool"
   },
   "MSET": {
     "summary": "Set multiple keys to multiple values",
@@ -987,7 +1097,7 @@
         "type": "key"
       },
       {
-        "name": "milliseconds timestamp",
+        "name": "milliseconds-timestamp",
         "type": "posix time"
       }
     ],
@@ -1124,6 +1234,26 @@
     "since": "1.0.0",
     "group": "generic",
     "returns": "bool"
+  },
+  "RESTORE": {
+    "summary": "Create a key using the provided serialized value, previously obtained using DUMP.",
+    "complexity": "O(1) to create the new key and additional O(N*M) to recostruct the serialized value, where N is the number of Redis objects composing the value and M their average size. For small string values the time complexity is thus O(1)+O(1*M) where M is small, so simply O(1). However for sorted set values the complexity is O(N*M*log(N)) because inserting values into sorted sets is O(log(N)).",
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key"
+      },
+      {
+        "name": "ttl",
+        "type": "integer"
+      },
+      {
+        "name": "serialized-value",
+        "type": "string"
+      }
+    ],
+    "since": "2.6.0",
+    "group": "generic"
   },
   "RPOP": {
     "summary": "Remove and get the last element in a list",

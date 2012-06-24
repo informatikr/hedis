@@ -53,7 +53,8 @@ blacklist = [ manual "AUTH" ["auth"]
             , manual "OBJECT"
                 ["objectRefcount","objectEncoding","objectIdletime"]
             , manualWithType "TYPE" ["getType"] ["RedisType(..)"]
-            , manual "EVAL" ["eval", "evalsha"]
+            , manual "EVAL" ["eval"]
+            , manual "EVALSHA" ["evalsha"]
             , manualWithType "SORT"
                 ["sort","sortStore"]
                 ["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
@@ -77,6 +78,10 @@ blacklist = [ manual "AUTH" ["auth"]
             , unimplemented "SYNC"           -- internal command            
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
             , unimplemented "DEBUG SEGFAULT" -- crashes the server
+            , unimplemented "BITOP"
+            , unimplemented "DUMP"
+            , unimplemented "BITCOUNT"
+            , unimplemented "RESTORE"
             ]
   where
     unimplemented cmd  = (cmd, Nothing)
@@ -385,9 +390,11 @@ argumentType a = mconcat [ go a
 
 -- |Convert all-uppercase string to camelCase
 camelCase :: String -> String
-camelCase s = case words $ map toLower s of
+camelCase s = case map clean . words . map toLower $ s of
     []   -> ""
     w:ws -> concat $ w : map upcaseFirst ws
   where
     upcaseFirst []     = ""
     upcaseFirst (c:cs) = toUpper c : cs
+
+    clean              = filter isAlphaNum

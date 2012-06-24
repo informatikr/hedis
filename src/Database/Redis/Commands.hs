@@ -17,6 +17,7 @@ exists, -- |Determine if a key exists (<http://redis.io/commands/exists>).
 expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>).
 expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
 keys, -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>).
+migrate, -- |Atomically transfer a key from a Redis instance to another one. (<http://redis.io/commands/migrate>).
 move, -- |Move a key to another database (<http://redis.io/commands/move>).
 objectRefcount, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
 objectEncoding, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
@@ -73,8 +74,8 @@ rpush, -- |Append one or multiple values to a list (<http://redis.io/commands/rp
 rpushx, -- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>).
 
 -- ** Scripting
-eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). The Redis command @EVAL@ is split up into 'eval', 'evalsha'.
-evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). The Redis command @EVAL@ is split up into 'eval', 'evalsha'.
+eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>).
+evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/evalsha>).
 scriptExists, -- |Check existence of scripts in the script cache. (<http://redis.io/commands/script-exists>).
 scriptFlush, -- |Remove all the scripts from the script cache. (<http://redis.io/commands/script-flush>).
 scriptKill, -- |Kill the script currently in execution. (<http://redis.io/commands/script-kill>).
@@ -183,6 +184,18 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
+--
+--
+-- * BITOP (<http://redis.io/commands/bitop>)
+--
+--
+-- * DUMP (<http://redis.io/commands/dump>)
+--
+--
+-- * BITCOUNT (<http://redis.io/commands/bitcount>)
+--
+--
+-- * RESTORE (<http://redis.io/commands/restore>)
 --
 ) where
 
@@ -339,9 +352,9 @@ renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newke
 pexpireat
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ millisecondsTimestamp
+    -> Integer -- ^ millisecondstimestamp
     -> m (f Bool)
-pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
+pexpireat key millisecondstimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondstimestamp] )
 
 save
     :: (RedisCtx m f)
@@ -367,6 +380,16 @@ sdiffstore
     -> [ByteString] -- ^ key
     -> m (f Integer)
 sdiffstore destination key = sendRequest (["SDIFFSTORE"] ++ [encode destination] ++ map encode key )
+
+migrate
+    :: (RedisCtx m f)
+    => ByteString -- ^ host
+    -> ByteString -- ^ port
+    -> ByteString -- ^ key
+    -> Integer -- ^ destinationdb
+    -> Integer -- ^ timeout
+    -> m (f Status)
+migrate host port key destinationdb timeout = sendRequest (["MIGRATE"] ++ [encode host] ++ [encode port] ++ [encode key] ++ [encode destinationdb] ++ [encode timeout] )
 
 move
     :: (RedisCtx m f)
