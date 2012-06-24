@@ -75,10 +75,7 @@ flag test
 
 library
   hs-source-dirs:   src
-  if flag(test)
-      ghc-options:  -Wall -fhpc
-  else
-      ghc-options:  -Wall
+  ghc-options:      -Wall
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    attoparsec == 0.10.*,
@@ -112,19 +109,19 @@ benchmark hedis-benchmark
     ghc-options: -O2 -Wall -rtsopts
     ghc-prof-options: -auto-all
 
-executable hedis-test
+test-suite hedis-test
+    type: exitcode-stdio-1.0
     main-is: test/Test.hs
-    if flag(test)
-        build-depends:
-            base == 4.*,
-            bytestring == 0.9.*,
-            hedis,
-            HUnit == 1.2.*,
-            mtl == 2.*,
-            time
-    else
-        buildable: False
+    build-depends:
+        base == 4.*,
+        bytestring == 0.9.*,
+        hedis,
+        HUnit == 1.2.*,
+        mtl == 2.*,
+        test-framework,
+        test-framework-hunit,
+        time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
-    ghc-options: -O0 -fhpc -Wall -rtsopts -fno-warn-unused-do-bind
+    ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
     ghc-prof-options: -auto-all
     

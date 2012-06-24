@@ -9,8 +9,9 @@ import Control.Monad.Trans
 import Data.Monoid (mappend)
 import Data.Time
 import Data.Time.Clock.POSIX
-import qualified Test.HUnit as Test
-import Test.HUnit (runTestTT, (~:))
+import qualified Test.Framework as Test (Test, defaultMain)
+import qualified Test.Framework.Providers.HUnit as Test (testCase)
+import qualified Test.HUnit as HUnit
 
 import Database.Redis
 
@@ -20,31 +21,30 @@ import Database.Redis
 --
 main :: IO ()
 main = do
-    c <- connect defaultConnectInfo
-    runTestTT $ Test.TestList $ map ($c) tests
-    return ()
+    conn <- connect defaultConnectInfo
+    Test.defaultMain (tests conn)
 
 type Test = Connection -> Test.Test
 
 testCase :: String -> Redis () -> Test
-testCase name r conn = name ~:
-    Test.TestCase $ runRedis conn $ flushdb >>=? Ok >> r
+testCase name r conn = 
+    Test.testCase name $ runRedis conn $ flushdb >>=? Ok >> r
     
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
 redis >>=? expected = do
     a <- redis
     liftIO $ case a of
-        Left reply   -> Test.assertFailure $ "Redis error: " ++ show reply
-        Right actual -> expected Test.@=? actual
+        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right actual -> expected HUnit.@=? actual
 
 assert :: Bool -> Redis ()
-assert = liftIO . Test.assert
+assert = liftIO . HUnit.assert
 
 ------------------------------------------------------------------------------
 -- Tests
 --
-tests :: [Test]
-tests = concat
+tests :: Connection -> [Test.Test]
+tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, [testStrings], [testHashes], testsLists, testsZSets
     , [testPubSub], [testTransaction], [testScripting], testsConnection
     , testsServer, [testQuit]
@@ -315,7 +315,7 @@ testPubSub conn = testCase "pubSub" go conn
                 PMessage{..} -> return (punsubscribe [msgPattern])
 
         pubSub (subscribe [] `mappend` psubscribe []) $ \_ -> do
-            liftIO $ Test.assertFailure "no subs: should return immediately"
+            liftIO $ HUnit.assertFailure "no subs: should return immediately"
             undefined
 
 ------------------------------------------------------------------------------
@@ -351,6 +351,7 @@ testScripting conn = testCase "scripting" go conn
         -- start long running script from another client
         liftIO $ do
             forkIO $ runRedis conn $ do
+                -- we must pattern match to block the thread
                 Left _ <- eval "while true do end" [] []
                     :: Redis (Either Reply Integer)
                 return ()
