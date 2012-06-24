@@ -118,6 +118,8 @@ testKeys = testCase "keys" $ do
     Right pt <- pttl "key"
     assert $ pt `elem` [990..1000]
     persist "key"         >>=? True
+    Right s <- dump "key"
+    restore "key'" 0 s    >>=? Ok
     rename "key" "key'"   >>=? Ok
     renamenx "key'" "key" >>=? True
     del ["key"]           >>=? 1
@@ -425,7 +427,6 @@ testServer = testCase "server" $ do
     Right (_,_) <- time
     slaveof "no" "one" >>=? Ok
     return ()
-    
 
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do

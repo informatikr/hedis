@@ -13,6 +13,7 @@ select, -- |Change the selected database for the current connection (<http://red
 
 -- ** Keys
 del, -- |Delete a key (<http://redis.io/commands/del>).
+dump, -- |Return a serialized version of the value stored at the specified key. (<http://redis.io/commands/dump>).
 exists, -- |Determine if a key exists (<http://redis.io/commands/exists>).
 expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>).
 expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
@@ -29,6 +30,7 @@ pttl, -- |Get the time to live for a key in milliseconds (<http://redis.io/comma
 randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>).
 rename, -- |Rename a key (<http://redis.io/commands/rename>).
 renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
+restore, -- |Create a key using the provided serialized value, previously obtained using DUMP. (<http://redis.io/commands/restore>).
 SortOpts(..),
 defaultSortOpts,
 SortOrder(..),
@@ -189,13 +191,7 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 -- * BITOP (<http://redis.io/commands/bitop>)
 --
 --
--- * DUMP (<http://redis.io/commands/dump>)
---
---
 -- * BITCOUNT (<http://redis.io/commands/bitcount>)
---
---
--- * RESTORE (<http://redis.io/commands/restore>)
 --
 ) where
 
@@ -643,6 +639,12 @@ hkeys
     -> m (f [ByteString])
 hkeys key = sendRequest (["HKEYS"] ++ [encode key] )
 
+dump
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f ByteString)
+dump key = sendRequest (["DUMP"] ++ [encode key] )
+
 rpush
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -855,6 +857,14 @@ sinterstore
     -> [ByteString] -- ^ key
     -> m (f Integer)
 sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
+
+restore
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ ttl
+    -> ByteString -- ^ serializedvalue
+    -> m (f Status)
+restore key ttl serializedvalue = sendRequest (["RESTORE"] ++ [encode key] ++ [encode ttl] ++ [encode serializedvalue] )
 
 configSet
     :: (RedisCtx m f)

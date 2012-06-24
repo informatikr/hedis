@@ -79,9 +79,7 @@ blacklist = [ manual "AUTH" ["auth"]
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
             , unimplemented "DEBUG SEGFAULT" -- crashes the server
             , unimplemented "BITOP"
-            , unimplemented "DUMP"
             , unimplemented "BITCOUNT"
-            , unimplemented "RESTORE"
             ]
   where
     unimplemented cmd  = (cmd, Nothing)
