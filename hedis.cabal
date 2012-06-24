@@ -101,17 +101,15 @@ library
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands
 
-executable hedis-benchmark
+benchmark hedis-benchmark
+    type: exitcode-stdio-1.0
     main-is: benchmark/Benchmark.hs
-    if flag(benchmark)
-        build-depends:
-            base == 4.*,
-            mtl == 2.*,
-            hedis,
-            time >= 1.2
-    else
-        buildable: False
-    ghc-options: -Wall -rtsopts
+    build-depends:
+        base == 4.*,
+        mtl == 2.*,
+        hedis,
+        time >= 1.2
+    ghc-options: -O2 -Wall -rtsopts
     ghc-prof-options: -auto-all
 
 executable hedis-test
