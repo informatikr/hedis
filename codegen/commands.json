@@ -1245,7 +1245,7 @@
         "type": "key"
       },
       {
-        "name": "ttl",
+        "name": "time-to-live",
         "type": "integer"
       },
       {

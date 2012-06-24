@@ -348,9 +348,9 @@ renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newke
 pexpireat
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ millisecondstimestamp
+    -> Integer -- ^ millisecondsTimestamp
     -> m (f Bool)
-pexpireat key millisecondstimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondstimestamp] )
+pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
 
 save
     :: (RedisCtx m f)
@@ -382,10 +382,10 @@ migrate
     => ByteString -- ^ host
     -> ByteString -- ^ port
     -> ByteString -- ^ key
-    -> Integer -- ^ destinationdb
+    -> Integer -- ^ destinationDb
     -> Integer -- ^ timeout
     -> m (f Status)
-migrate host port key destinationdb timeout = sendRequest (["MIGRATE"] ++ [encode host] ++ [encode port] ++ [encode key] ++ [encode destinationdb] ++ [encode timeout] )
+migrate host port key destinationDb timeout = sendRequest (["MIGRATE"] ++ [encode host] ++ [encode port] ++ [encode key] ++ [encode destinationDb] ++ [encode timeout] )
 
 move
     :: (RedisCtx m f)
@@ -861,10 +861,10 @@ sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destinatio
 restore
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ ttl
-    -> ByteString -- ^ serializedvalue
+    -> Integer -- ^ timeToLive
+    -> ByteString -- ^ serializedValue
     -> m (f Status)
-restore key ttl serializedvalue = sendRequest (["RESTORE"] ++ [encode key] ++ [encode ttl] ++ [encode serializedvalue] )
+restore key timeToLive serializedValue = sendRequest (["RESTORE"] ++ [encode key] ++ [encode timeToLive] ++ [encode serializedValue] )
 
 configSet
     :: (RedisCtx m f)

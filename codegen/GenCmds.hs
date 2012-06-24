@@ -388,11 +388,14 @@ argumentType a = mconcat [ go a
 
 -- |Convert all-uppercase string to camelCase
 camelCase :: String -> String
-camelCase s = case map clean . words . map toLower $ s of
+camelCase s = case split (map toLower s) of
     []   -> ""
     w:ws -> concat $ w : map upcaseFirst ws
   where
     upcaseFirst []     = ""
     upcaseFirst (c:cs) = toUpper c : cs
-
-    clean              = filter isAlphaNum
+    
+    -- modified version of Data.List.words
+    split s = case dropWhile (not . isAlphaNum) s of
+                "" -> []
+                s' -> w:split s'' where (w,s'') = break (not . isAlphaNum) s'
