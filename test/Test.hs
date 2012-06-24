@@ -114,13 +114,9 @@ testKeys = testCase "keys" $ do
     
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
-    set "key" "value"         >>=? Ok
-    seconds <- floor . utcTimeToPOSIXSeconds <$> liftIO getCurrentTime
-    let expiry = seconds + 1
-    expireat "key" expiry     >>=? True
-    expireat "notAKey" expiry >>=? False
-    ttl "key"                 >>=? 1
-
+    set "key" "value"    >>=? Ok
+    t <- ceiling . utcTimeToPOSIXSeconds <$> liftIO getCurrentTime
+    expireat "key" (t+1) >>=? True
 
 testSort :: Test
 testSort = testCase "sort" $ do
