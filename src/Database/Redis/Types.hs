@@ -6,6 +6,7 @@ module Database.Redis.Types where
 import Control.Applicative
 import Data.ByteString.Char8 (ByteString, pack)
 import Data.ByteString.Lex.Double (readDouble)
+import Data.ByteString.Lex.Integral (readSigned, readDecimal)
 
 import Database.Redis.Protocol
 
@@ -50,7 +51,8 @@ instance RedisResult ByteString where
 
 instance RedisResult Integer where
     decode (Integer n) = Right n
-    decode r           = Left r
+    decode r           =
+        maybe (Left r) (Right . fst) . readSigned readDecimal =<< decode r
 
 instance RedisResult Int where
     decode = fmap fromInteger . decode
