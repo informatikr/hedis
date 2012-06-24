@@ -52,9 +52,9 @@ assert = liftIO . HUnit.assert
 --
 tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, [testStrings], [testHashes], testsLists, testsZSets
-    , [testPubSub], [testTransaction], [testScripting], testsConnection
-    , testsServer, [testQuit]
+    [ testsMisc, testsKeys, [testStrings], [testHashes], testsLists, testsSets
+    , testsZSets, [testPubSub], [testTransaction], [testScripting]
+    , testsConnection, testsServer, [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -243,6 +243,29 @@ testBpop = testCase "blocking push/pop" $ do
 ------------------------------------------------------------------------------
 -- Sets
 --
+testsSets :: [Test]
+testsSets = [testSets, testSetAlgebra]
+
+testSets :: Test
+testSets = testCase "sets" $ do
+    sadd "set" ["member"]       >>=? 1
+    sismember "set" "member"    >>=? True
+    scard "set"                 >>=? 1
+    smembers "set"              >>=? ["member"]
+    srandmember "set"           >>=? Just "member"
+    spop "set"                  >>=? Just "member"
+    srem "set" ["member"]       >>=? 0
+    smove "set" "set'" "member" >>=? False
+
+testSetAlgebra :: Test
+testSetAlgebra = testCase "set algebra" $ do
+    sadd "s1" ["member"]          >>=? 1
+    sdiff ["s1", "s2"]            >>=? ["member"]
+    sunion ["s1", "s2"]           >>=? ["member"]
+    sinter ["s1", "s2"]           >>=? []
+    sdiffstore "s3" ["s1", "s2"]  >>=? 1
+    sunionstore "s3" ["s1", "s2"] >>=? 1
+    sinterstore "s3" ["s1", "s2"] >>=? 0
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
