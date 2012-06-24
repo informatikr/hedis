@@ -112,7 +112,11 @@ testKeys = testCase "keys" $ do
     move "key" 13         >>=? True
     select 13             >>=? Ok
     expire "key" 1        >>=? True
-    ttl "key"             >>=? 1
+    pexpire "key" 1000    >>=? True
+    Right t <- ttl "key"
+    assert $ t `elem` [0..1]
+    Right pt <- pttl "key"
+    assert $ pt `elem` [990..1000]
     persist "key"         >>=? True
     rename "key" "key'"   >>=? Ok
     renamenx "key'" "key" >>=? True
@@ -121,9 +125,11 @@ testKeys = testCase "keys" $ do
     
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
-    set "key" "value"    >>=? Ok
+    set "key" "value"             >>=? Ok
     t <- ceiling . utcTimeToPOSIXSeconds <$> liftIO getCurrentTime
-    expireat "key" (t+1) >>=? True
+    let expiry = t+1
+    expireat "key" expiry         >>=? True
+    pexpireat "key" (expiry*1000) >>=? True
 
 testSort :: Test
 testSort = testCase "sort" $ do
@@ -181,10 +187,12 @@ testStrings = testCase "strings" $ do
     msetnx [("k1","v1"), ("k2","v2")] >>=? False
     mget ["key"]                      >>=? [Just "helloworld"]
     setex "key" 1 "42"                >>=? Ok
+    psetex "key" 1000 "42"            >>=? Ok
     decr "key"                        >>=? 41
     decrby "key" 1                    >>=? 40
     incr "key"                        >>=? 41
     incrby "key" 1                    >>=? 42
+    incrbyfloat "key" 1               >>=? 43
     setbit "key" 42 "1"               >>=? 0
     getbit "key" 42                   >>=? 1
 
@@ -205,6 +213,7 @@ testHashes = testCase "hashes" $ do
     hdel "key" ["field"]         >>=? True
     hmset "key" [("field","40")] >>=? Ok
     hincrby "key" "field" 2      >>=? 42
+    hincrbyfloat "key" "field" 2 >>=? 44
 
 ------------------------------------------------------------------------------
 -- Lists
@@ -408,8 +417,15 @@ testSelect = testCase "select" $ do
 --
 testsServer :: [Test]
 testsServer =
-    [testBgrewriteaof, testFlushall, testInfo, testConfig, testSlowlog
-    ,testDebugObject]
+    [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
+    ,testSlowlog, testDebugObject]
+
+testServer :: Test
+testServer = testCase "server" $ do
+    Right (_,_) <- time
+    slaveof "no" "one" >>=? Ok
+    return ()
+    
 
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
@@ -422,6 +438,7 @@ testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
 
 testConfig :: Test
 testConfig = testCase "config/auth" $ do
+    configGet "requirepass"        >>=? [("requirepass", "")]
     configSet "requirepass" "pass" >>=? Ok
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
@@ -448,5 +465,4 @@ testDebugObject :: Test
 testDebugObject = testCase "debugObject/debugSegfault" $ do
     set "key" "value" >>=? Ok
     Right _ <- debugObject "key"
-    -- Right Ok <- debugSegfault
     return ()

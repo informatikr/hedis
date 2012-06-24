@@ -88,7 +88,6 @@ configResetstat, -- |Reset the stats returned by INFO (<http://redis.io/commands
 configSet, -- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>).
 dbsize, -- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>).
 debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>).
-debugSegfault, -- |Make the server crash (<http://redis.io/commands/debug-segfault>).
 flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>).
 flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
 info, -- |Get information and statistics about the server (<http://redis.io/commands/info>).
@@ -182,6 +181,9 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 -- * SHUTDOWN (<http://redis.io/commands/shutdown>)
 --
+--
+-- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
+--
 ) where
 
 import Prelude hiding (min,max)
@@ -194,6 +196,11 @@ flushall
     :: (RedisCtx m f)
     => m (f Status)
 flushall  = sendRequest (["FLUSHALL"] )
+
+time
+    :: (RedisCtx m f)
+    => m (f (Integer,Integer))
+time  = sendRequest (["TIME"] )
 
 hdel
     :: (RedisCtx m f)
@@ -210,11 +217,6 @@ hincrby
     -> m (f Integer)
 hincrby key field increment = sendRequest (["HINCRBY"] ++ [encode key] ++ [encode field] ++ [encode increment] )
 
-time
-    :: (RedisCtx m f)
-    => m (f (Integer,Integer))
-time  = sendRequest (["TIME"] )
-
 hincrbyfloat
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -223,72 +225,123 @@ hincrbyfloat
     -> m (f Double)
 hincrbyfloat key field increment = sendRequest (["HINCRBYFLOAT"] ++ [encode key] ++ [encode field] ++ [encode increment] )
 
-configResetstat
-    :: (RedisCtx m f)
-    => m (f Status)
-configResetstat  = sendRequest (["CONFIG","RESETSTAT"] )
-
-scriptKill
-    :: (RedisCtx m f)
-    => m (f Status)
-scriptKill  = sendRequest (["SCRIPT","KILL"] )
-
-del
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> m (f Integer)
-del key = sendRequest (["DEL"] ++ map encode key )
-
-zrevrank
+getset
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> ByteString -- ^ member
-    -> m (f (Maybe Integer))
-zrevrank key member = sendRequest (["ZREVRANK"] ++ [encode key] ++ [encode member] )
-
-brpoplpush
-    :: (RedisCtx m f)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
-    -> Integer -- ^ timeout
+    -> ByteString -- ^ value
     -> m (f (Maybe ByteString))
-brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
+getset key value = sendRequest (["GETSET"] ++ [encode key] ++ [encode value] )
 
-incrby
+rpushx
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f Integer)
+rpushx key value = sendRequest (["RPUSHX"] ++ [encode key] ++ [encode value] )
+
+setnx
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f Bool)
+setnx key value = sendRequest (["SETNX"] ++ [encode key] ++ [encode value] )
+
+keys
+    :: (RedisCtx m f)
+    => ByteString -- ^ pattern
+    -> m (f [ByteString])
+keys pattern = sendRequest (["KEYS"] ++ [encode pattern] )
+
+bgsave
+    :: (RedisCtx m f)
+    => m (f Status)
+bgsave  = sendRequest (["BGSAVE"] )
+
+slaveof
+    :: (RedisCtx m f)
+    => ByteString -- ^ host
+    -> ByteString -- ^ port
+    -> m (f Status)
+slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
+
+debugObject
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f ByteString)
+debugObject key = sendRequest (["DEBUG","OBJECT"] ++ [encode key] )
+
+bgrewriteaof
+    :: (RedisCtx m f)
+    => m (f Status)
+bgrewriteaof  = sendRequest (["BGREWRITEAOF"] )
+
+zincrby
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ increment
-    -> m (f Integer)
-incrby key increment = sendRequest (["INCRBY"] ++ [encode key] ++ [encode increment] )
+    -> ByteString -- ^ member
+    -> m (f Double)
+zincrby key increment member = sendRequest (["ZINCRBY"] ++ [encode key] ++ [encode increment] ++ [encode member] )
 
-rpop
+sinter
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f [ByteString])
+sinter key = sendRequest (["SINTER"] ++ map encode key )
+
+hmset
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [(ByteString,ByteString)] -- ^ fieldValue
+    -> m (f Status)
+hmset key fieldValue = sendRequest (["HMSET"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])fieldValue )
+
+scard
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+scard key = sendRequest (["SCARD"] ++ [encode key] )
+
+get
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
-rpop key = sendRequest (["RPOP"] ++ [encode key] )
+get key = sendRequest (["GET"] ++ [encode key] )
 
-setrange
+lrem
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ offset
+    -> Integer -- ^ count
     -> ByteString -- ^ value
     -> m (f Integer)
-setrange key offset value = sendRequest (["SETRANGE"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+lrem key count value = sendRequest (["LREM"] ++ [encode key] ++ [encode count] ++ [encode value] )
 
-setbit
+expireat
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ offset
-    -> ByteString -- ^ value
+    -> Integer -- ^ timestamp
+    -> m (f Bool)
+expireat key timestamp = sendRequest (["EXPIREAT"] ++ [encode key] ++ [encode timestamp] )
+
+incr
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
     -> m (f Integer)
-setbit key offset value = sendRequest (["SETBIT"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+incr key = sendRequest (["INCR"] ++ [encode key] )
 
-incrbyfloat
+renamenx
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Double -- ^ increment
-    -> m (f Double)
-incrbyfloat key increment = sendRequest (["INCRBYFLOAT"] ++ [encode key] ++ [encode increment] )
+    -> ByteString -- ^ newkey
+    -> m (f Bool)
+renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newkey] )
+
+pexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ millisecondsTimestamp
+    -> m (f Bool)
+pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
 
 save
     :: (RedisCtx m f)
@@ -322,152 +375,61 @@ move
     -> m (f Bool)
 move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
 
-scriptLoad
-    :: (RedisCtx m f)
-    => ByteString -- ^ script
-    -> m (f ByteString)
-scriptLoad script = sendRequest (["SCRIPT","LOAD"] ++ [encode script] )
-
-getrange
+hvals
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ start
-    -> Integer -- ^ end
-    -> m (f ByteString)
-getrange key start end = sendRequest (["GETRANGE"] ++ [encode key] ++ [encode start] ++ [encode end] )
+    -> m (f [ByteString])
+hvals key = sendRequest (["HVALS"] ++ [encode key] )
 
-srem
+exists
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Bool)
+exists key = sendRequest (["EXISTS"] ++ [encode key] )
+
+smembers
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f [ByteString])
+smembers key = sendRequest (["SMEMBERS"] ++ [encode key] )
+
+decr
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+decr key = sendRequest (["DECR"] ++ [encode key] )
+
+rename
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ newkey
+    -> m (f Status)
+rename key newkey = sendRequest (["RENAME"] ++ [encode key] ++ [encode newkey] )
+
+sunion
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f [ByteString])
+sunion key = sendRequest (["SUNION"] ++ map encode key )
+
+ping
+    :: (RedisCtx m f)
+    => m (f Status)
+ping  = sendRequest (["PING"] )
+
+zrem
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> [ByteString] -- ^ member
     -> m (f Integer)
-srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
+zrem key member = sendRequest (["ZREM"] ++ [encode key] ++ map encode member )
 
-getbit
+hmget
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> Integer -- ^ offset
-    -> m (f Integer)
-getbit key offset = sendRequest (["GETBIT"] ++ [encode key] ++ [encode offset] )
-
-zcount
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Double -- ^ min
-    -> Double -- ^ max
-    -> m (f Integer)
-zcount key min max = sendRequest (["ZCOUNT"] ++ [encode key] ++ [encode min] ++ [encode max] )
-
-quit
-    :: (RedisCtx m f)
-    => m (f Status)
-quit  = sendRequest (["QUIT"] )
-
-msetnx
-    :: (RedisCtx m f)
-    => [(ByteString,ByteString)] -- ^ keyValue
-    -> m (f Bool)
-msetnx keyValue = sendRequest (["MSETNX"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
-
-sismember
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
-    -> m (f Bool)
-sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
-
-bgrewriteaof
-    :: (RedisCtx m f)
-    => m (f Status)
-bgrewriteaof  = sendRequest (["BGREWRITEAOF"] )
-
-hmset
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [(ByteString,ByteString)] -- ^ fieldValue
-    -> m (f Status)
-hmset key fieldValue = sendRequest (["HMSET"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])fieldValue )
-
-scard
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-scard key = sendRequest (["SCARD"] ++ [encode key] )
-
-zincrby
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ increment
-    -> ByteString -- ^ member
-    -> m (f Double)
-zincrby key increment member = sendRequest (["ZINCRBY"] ++ [encode key] ++ [encode increment] ++ [encode member] )
-
-sinter
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> m (f [ByteString])
-sinter key = sendRequest (["SINTER"] ++ map encode key )
-
-scriptExists
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ script
-    -> m (f [Bool])
-scriptExists script = sendRequest (["SCRIPT","EXISTS"] ++ map encode script )
-
-mset
-    :: (RedisCtx m f)
-    => [(ByteString,ByteString)] -- ^ keyValue
-    -> m (f Status)
-mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
-
-psetex
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ milliseconds
-    -> ByteString -- ^ value
-    -> m (f Status)
-psetex key milliseconds value = sendRequest (["PSETEX"] ++ [encode key] ++ [encode milliseconds] ++ [encode value] )
-
-rpoplpush
-    :: (RedisCtx m f)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
-    -> m (f (Maybe ByteString))
-rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
-
-hlen
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-hlen key = sendRequest (["HLEN"] ++ [encode key] )
-
-setex
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ seconds
-    -> ByteString -- ^ value
-    -> m (f Status)
-setex key seconds value = sendRequest (["SETEX"] ++ [encode key] ++ [encode seconds] ++ [encode value] )
-
-sunionstore
-    :: (RedisCtx m f)
-    => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
-    -> m (f Integer)
-sunionstore destination key = sendRequest (["SUNIONSTORE"] ++ [encode destination] ++ map encode key )
-
-brpop
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> Integer -- ^ timeout
-    -> m (f (Maybe (ByteString,ByteString)))
-brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
-
-hgetall
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f [(ByteString,ByteString)])
-hgetall key = sendRequest (["HGETALL"] ++ [encode key] )
+    -> [ByteString] -- ^ field
+    -> m (f [Maybe ByteString])
+hmget key field = sendRequest (["HMGET"] ++ [encode key] ++ map encode field )
 
 pexpire
     :: (RedisCtx m f)
@@ -481,19 +443,6 @@ dbsize
     => m (f Integer)
 dbsize  = sendRequest (["DBSIZE"] )
 
-lpop
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f (Maybe ByteString))
-lpop key = sendRequest (["LPOP"] ++ [encode key] )
-
-hmget
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ field
-    -> m (f [Maybe ByteString])
-hmget key field = sendRequest (["HMGET"] ++ [encode key] ++ map encode field )
-
 lrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -502,6 +451,12 @@ lrange
     -> m (f [ByteString])
 lrange key start stop = sendRequest (["LRANGE"] ++ [encode key] ++ [encode start] ++ [encode stop] )
 
+lpop
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+lpop key = sendRequest (["LPOP"] ++ [encode key] )
+
 expire
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -509,315 +464,10 @@ expire
     -> m (f Bool)
 expire key seconds = sendRequest (["EXPIRE"] ++ [encode key] ++ [encode seconds] )
 
-scriptFlush
+flushdb
     :: (RedisCtx m f)
     => m (f Status)
-scriptFlush  = sendRequest (["SCRIPT","FLUSH"] )
-
-lastsave
-    :: (RedisCtx m f)
-    => m (f Integer)
-lastsave  = sendRequest (["LASTSAVE"] )
-
-llen
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-llen key = sendRequest (["LLEN"] ++ [encode key] )
-
-decrby
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ decrement
-    -> m (f Integer)
-decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
-
-mget
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> m (f [Maybe ByteString])
-mget key = sendRequest (["MGET"] ++ map encode key )
-
-zadd
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [(Double,ByteString)] -- ^ scoreMember
-    -> m (f Integer)
-zadd key scoreMember = sendRequest (["ZADD"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])scoreMember )
-
-keys
-    :: (RedisCtx m f)
-    => ByteString -- ^ pattern
-    -> m (f [ByteString])
-keys pattern = sendRequest (["KEYS"] ++ [encode pattern] )
-
-bgsave
-    :: (RedisCtx m f)
-    => m (f Status)
-bgsave  = sendRequest (["BGSAVE"] )
-
-slaveof
-    :: (RedisCtx m f)
-    => ByteString -- ^ host
-    -> ByteString -- ^ port
-    -> m (f Status)
-slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
-
-debugObject
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f ByteString)
-debugObject key = sendRequest (["DEBUG","OBJECT"] ++ [encode key] )
-
-getset
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
-    -> m (f (Maybe ByteString))
-getset key value = sendRequest (["GETSET"] ++ [encode key] ++ [encode value] )
-
-rpushx
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
-    -> m (f Integer)
-rpushx key value = sendRequest (["RPUSHX"] ++ [encode key] ++ [encode value] )
-
-setnx
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
-    -> m (f Bool)
-setnx key value = sendRequest (["SETNX"] ++ [encode key] ++ [encode value] )
-
-zrank
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
-    -> m (f (Maybe Integer))
-zrank key member = sendRequest (["ZRANK"] ++ [encode key] ++ [encode member] )
-
-zremrangebyscore
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Double -- ^ min
-    -> Double -- ^ max
-    -> m (f Integer)
-zremrangebyscore key min max = sendRequest (["ZREMRANGEBYSCORE"] ++ [encode key] ++ [encode min] ++ [encode max] )
-
-ttl
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-ttl key = sendRequest (["TTL"] ++ [encode key] )
-
-hkeys
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f [ByteString])
-hkeys key = sendRequest (["HKEYS"] ++ [encode key] )
-
-rpush
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ value
-    -> m (f Integer)
-rpush key value = sendRequest (["RPUSH"] ++ [encode key] ++ map encode value )
-
-randomkey
-    :: (RedisCtx m f)
-    => m (f (Maybe ByteString))
-randomkey  = sendRequest (["RANDOMKEY"] )
-
-pttl
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-pttl key = sendRequest (["PTTL"] ++ [encode key] )
-
-spop
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f (Maybe ByteString))
-spop key = sendRequest (["SPOP"] ++ [encode key] )
-
-hsetnx
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> ByteString -- ^ value
-    -> m (f Bool)
-hsetnx key field value = sendRequest (["HSETNX"] ++ [encode key] ++ [encode field] ++ [encode value] )
-
-configGet
-    :: (RedisCtx m f)
-    => ByteString -- ^ parameter
-    -> m (f [(ByteString,ByteString)])
-configGet parameter = sendRequest (["CONFIG","GET"] ++ [encode parameter] )
-
-hvals
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f [ByteString])
-hvals key = sendRequest (["HVALS"] ++ [encode key] )
-
-exists
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Bool)
-exists key = sendRequest (["EXISTS"] ++ [encode key] )
-
-sunion
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> m (f [ByteString])
-sunion key = sendRequest (["SUNION"] ++ map encode key )
-
-zrem
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
-    -> m (f Integer)
-zrem key member = sendRequest (["ZREM"] ++ [encode key] ++ map encode member )
-
-smembers
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f [ByteString])
-smembers key = sendRequest (["SMEMBERS"] ++ [encode key] )
-
-ping
-    :: (RedisCtx m f)
-    => m (f Status)
-ping  = sendRequest (["PING"] )
-
-rename
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ newkey
-    -> m (f Status)
-rename key newkey = sendRequest (["RENAME"] ++ [encode key] ++ [encode newkey] )
-
-decr
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-decr key = sendRequest (["DECR"] ++ [encode key] )
-
-select
-    :: (RedisCtx m f)
-    => Integer -- ^ index
-    -> m (f Status)
-select index = sendRequest (["SELECT"] ++ [encode index] )
-
-hexists
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> m (f Bool)
-hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
-
-sinterstore
-    :: (RedisCtx m f)
-    => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
-    -> m (f Integer)
-sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
-
-configSet
-    :: (RedisCtx m f)
-    => ByteString -- ^ parameter
-    -> ByteString -- ^ value
-    -> m (f Status)
-configSet parameter value = sendRequest (["CONFIG","SET"] ++ [encode parameter] ++ [encode value] )
-
-renamenx
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ newkey
-    -> m (f Bool)
-renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newkey] )
-
-expireat
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ timestamp
-    -> m (f Bool)
-expireat key timestamp = sendRequest (["EXPIREAT"] ++ [encode key] ++ [encode timestamp] )
-
-get
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f (Maybe ByteString))
-get key = sendRequest (["GET"] ++ [encode key] )
-
-lrem
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ count
-    -> ByteString -- ^ value
-    -> m (f Integer)
-lrem key count value = sendRequest (["LREM"] ++ [encode key] ++ [encode count] ++ [encode value] )
-
-incr
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-incr key = sendRequest (["INCR"] ++ [encode key] )
-
-pexpireat
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ millisecondsTimestamp
-    -> m (f Bool)
-pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
-
-zcard
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f Integer)
-zcard key = sendRequest (["ZCARD"] ++ [encode key] )
-
-ltrim
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ start
-    -> Integer -- ^ stop
-    -> m (f Status)
-ltrim key start stop = sendRequest (["LTRIM"] ++ [encode key] ++ [encode start] ++ [encode stop] )
-
-append
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
-    -> m (f Integer)
-append key value = sendRequest (["APPEND"] ++ [encode key] ++ [encode value] )
-
-lset
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ index
-    -> ByteString -- ^ value
-    -> m (f Status)
-lset key index value = sendRequest (["LSET"] ++ [encode key] ++ [encode index] ++ [encode value] )
-
-info
-    :: (RedisCtx m f)
-    => m (f ByteString)
-info  = sendRequest (["INFO"] )
-
-hget
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> m (f (Maybe ByteString))
-hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
-
-sdiff
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> m (f [ByteString])
-sdiff key = sendRequest (["SDIFF"] ++ map encode key )
+flushdb  = sendRequest (["FLUSHDB"] )
 
 smove
     :: (RedisCtx m f)
@@ -826,18 +476,6 @@ smove
     -> ByteString -- ^ member
     -> m (f Bool)
 smove source destination member = sendRequest (["SMOVE"] ++ [encode source] ++ [encode destination] ++ [encode member] )
-
-flushdb
-    :: (RedisCtx m f)
-    => m (f Status)
-flushdb  = sendRequest (["FLUSHDB"] )
-
-set
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
-    -> m (f Status)
-set key value = sendRequest (["SET"] ++ [encode key] ++ [encode value] )
 
 zremrangebyrank
     :: (RedisCtx m f)
@@ -861,6 +499,19 @@ lpush
     -> m (f Integer)
 lpush key value = sendRequest (["LPUSH"] ++ [encode key] ++ map encode value )
 
+strlen
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+strlen key = sendRequest (["STRLEN"] ++ [encode key] )
+
+set
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f Status)
+set key value = sendRequest (["SET"] ++ [encode key] ++ [encode value] )
+
 lindex
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -875,11 +526,362 @@ zscore
     -> m (f (Maybe Double))
 zscore key member = sendRequest (["ZSCORE"] ++ [encode key] ++ [encode member] )
 
-strlen
+configResetstat
+    :: (RedisCtx m f)
+    => m (f Status)
+configResetstat  = sendRequest (["CONFIG","RESETSTAT"] )
+
+del
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f Integer)
+del key = sendRequest (["DEL"] ++ map encode key )
+
+zrevrank
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> m (f (Maybe Integer))
+zrevrank key member = sendRequest (["ZREVRANK"] ++ [encode key] ++ [encode member] )
+
+scriptKill
+    :: (RedisCtx m f)
+    => m (f Status)
+scriptKill  = sendRequest (["SCRIPT","KILL"] )
+
+incrby
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ increment
+    -> m (f Integer)
+incrby key increment = sendRequest (["INCRBY"] ++ [encode key] ++ [encode increment] )
+
+setbit
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> ByteString -- ^ value
+    -> m (f Integer)
+setbit key offset value = sendRequest (["SETBIT"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+
+incrbyfloat
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Double -- ^ increment
+    -> m (f Double)
+incrbyfloat key increment = sendRequest (["INCRBYFLOAT"] ++ [encode key] ++ [encode increment] )
+
+brpoplpush
+    :: (RedisCtx m f)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> Integer -- ^ timeout
+    -> m (f (Maybe ByteString))
+brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
+
+rpop
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+rpop key = sendRequest (["RPOP"] ++ [encode key] )
+
+setrange
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> ByteString -- ^ value
+    -> m (f Integer)
+setrange key offset value = sendRequest (["SETRANGE"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+
+ttl
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-strlen key = sendRequest (["STRLEN"] ++ [encode key] )
+ttl key = sendRequest (["TTL"] ++ [encode key] )
+
+zremrangebyscore
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Double -- ^ min
+    -> Double -- ^ max
+    -> m (f Integer)
+zremrangebyscore key min max = sendRequest (["ZREMRANGEBYSCORE"] ++ [encode key] ++ [encode min] ++ [encode max] )
+
+zrank
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> m (f (Maybe Integer))
+zrank key member = sendRequest (["ZRANK"] ++ [encode key] ++ [encode member] )
+
+hkeys
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f [ByteString])
+hkeys key = sendRequest (["HKEYS"] ++ [encode key] )
+
+rpush
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> m (f Integer)
+rpush key value = sendRequest (["RPUSH"] ++ [encode key] ++ map encode value )
+
+pttl
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+pttl key = sendRequest (["PTTL"] ++ [encode key] )
+
+spop
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+spop key = sendRequest (["SPOP"] ++ [encode key] )
+
+randomkey
+    :: (RedisCtx m f)
+    => m (f (Maybe ByteString))
+randomkey  = sendRequest (["RANDOMKEY"] )
+
+hsetnx
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> ByteString -- ^ value
+    -> m (f Bool)
+hsetnx key field value = sendRequest (["HSETNX"] ++ [encode key] ++ [encode field] ++ [encode value] )
+
+configGet
+    :: (RedisCtx m f)
+    => ByteString -- ^ parameter
+    -> m (f [(ByteString,ByteString)])
+configGet parameter = sendRequest (["CONFIG","GET"] ++ [encode parameter] )
+
+mset
+    :: (RedisCtx m f)
+    => [(ByteString,ByteString)] -- ^ keyValue
+    -> m (f Status)
+mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
+
+setex
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ seconds
+    -> ByteString -- ^ value
+    -> m (f Status)
+setex key seconds value = sendRequest (["SETEX"] ++ [encode key] ++ [encode seconds] ++ [encode value] )
+
+sunionstore
+    :: (RedisCtx m f)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> m (f Integer)
+sunionstore destination key = sendRequest (["SUNIONSTORE"] ++ [encode destination] ++ map encode key )
+
+scriptExists
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ script
+    -> m (f [Bool])
+scriptExists script = sendRequest (["SCRIPT","EXISTS"] ++ map encode script )
+
+brpop
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> m (f (Maybe (ByteString,ByteString)))
+brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
+
+psetex
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ milliseconds
+    -> ByteString -- ^ value
+    -> m (f Status)
+psetex key milliseconds value = sendRequest (["PSETEX"] ++ [encode key] ++ [encode milliseconds] ++ [encode value] )
+
+rpoplpush
+    :: (RedisCtx m f)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> m (f (Maybe ByteString))
+rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
+
+hlen
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+hlen key = sendRequest (["HLEN"] ++ [encode key] )
+
+hgetall
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f [(ByteString,ByteString)])
+hgetall key = sendRequest (["HGETALL"] ++ [encode key] )
+
+zcard
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+zcard key = sendRequest (["ZCARD"] ++ [encode key] )
+
+ltrim
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ stop
+    -> m (f Status)
+ltrim key start stop = sendRequest (["LTRIM"] ++ [encode key] ++ [encode start] ++ [encode stop] )
+
+lset
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ index
+    -> ByteString -- ^ value
+    -> m (f Status)
+lset key index value = sendRequest (["LSET"] ++ [encode key] ++ [encode index] ++ [encode value] )
+
+append
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f Integer)
+append key value = sendRequest (["APPEND"] ++ [encode key] ++ [encode value] )
+
+info
+    :: (RedisCtx m f)
+    => m (f ByteString)
+info  = sendRequest (["INFO"] )
+
+hget
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> m (f (Maybe ByteString))
+hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
+
+sdiff
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f [ByteString])
+sdiff key = sendRequest (["SDIFF"] ++ map encode key )
+
+getrange
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ end
+    -> m (f ByteString)
+getrange key start end = sendRequest (["GETRANGE"] ++ [encode key] ++ [encode start] ++ [encode end] )
+
+zcount
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Double -- ^ min
+    -> Double -- ^ max
+    -> m (f Integer)
+zcount key min max = sendRequest (["ZCOUNT"] ++ [encode key] ++ [encode min] ++ [encode max] )
+
+srem
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ member
+    -> m (f Integer)
+srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
+
+quit
+    :: (RedisCtx m f)
+    => m (f Status)
+quit  = sendRequest (["QUIT"] )
+
+scriptLoad
+    :: (RedisCtx m f)
+    => ByteString -- ^ script
+    -> m (f ByteString)
+scriptLoad script = sendRequest (["SCRIPT","LOAD"] ++ [encode script] )
+
+getbit
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ offset
+    -> m (f Integer)
+getbit key offset = sendRequest (["GETBIT"] ++ [encode key] ++ [encode offset] )
+
+msetnx
+    :: (RedisCtx m f)
+    => [(ByteString,ByteString)] -- ^ keyValue
+    -> m (f Bool)
+msetnx keyValue = sendRequest (["MSETNX"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
+
+sismember
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> m (f Bool)
+sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
+
+select
+    :: (RedisCtx m f)
+    => Integer -- ^ index
+    -> m (f Status)
+select index = sendRequest (["SELECT"] ++ [encode index] )
+
+sinterstore
+    :: (RedisCtx m f)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ key
+    -> m (f Integer)
+sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
+
+configSet
+    :: (RedisCtx m f)
+    => ByteString -- ^ parameter
+    -> ByteString -- ^ value
+    -> m (f Status)
+configSet parameter value = sendRequest (["CONFIG","SET"] ++ [encode parameter] ++ [encode value] )
+
+hexists
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ field
+    -> m (f Bool)
+hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
+
+scriptFlush
+    :: (RedisCtx m f)
+    => m (f Status)
+scriptFlush  = sendRequest (["SCRIPT","FLUSH"] )
+
+llen
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Integer)
+llen key = sendRequest (["LLEN"] ++ [encode key] )
+
+lastsave
+    :: (RedisCtx m f)
+    => m (f Integer)
+lastsave  = sendRequest (["LASTSAVE"] )
+
+mget
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f [Maybe ByteString])
+mget key = sendRequest (["MGET"] ++ map encode key )
+
+zadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [(Double,ByteString)] -- ^ scoreMember
+    -> m (f Integer)
+zadd key scoreMember = sendRequest (["ZADD"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])scoreMember )
+
+decrby
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ decrement
+    -> m (f Integer)
+decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
 
 hset
     :: (RedisCtx m f)
@@ -889,23 +891,18 @@ hset
     -> m (f Bool)
 hset key field value = sendRequest (["HSET"] ++ [encode key] ++ [encode field] ++ [encode value] )
 
+srandmember
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+srandmember key = sendRequest (["SRANDMEMBER"] ++ [encode key] )
+
 lpushx
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ value
     -> m (f Integer)
 lpushx key value = sendRequest (["LPUSHX"] ++ [encode key] ++ [encode value] )
-
-debugSegfault
-    :: (RedisCtx m f)
-    => m (f Status)
-debugSegfault  = sendRequest (["DEBUG","SEGFAULT"] )
-
-srandmember
-    :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> m (f (Maybe ByteString))
-srandmember key = sendRequest (["SRANDMEMBER"] ++ [encode key] )
 
 persist
     :: (RedisCtx m f)

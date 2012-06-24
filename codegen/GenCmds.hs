@@ -73,9 +73,10 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["zrevrangebyscore", "zrevrangebyscoreWithscores"
                 ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
-            , unimplemented "MONITOR"  -- debugging command
-            , unimplemented "SYNC"     -- internal command            
-            , unimplemented "SHUTDOWN" -- kills server, throws exception
+            , unimplemented "MONITOR"        -- debugging command
+            , unimplemented "SYNC"           -- internal command            
+            , unimplemented "SHUTDOWN"       -- kills server, throws exception
+            , unimplemented "DEBUG SEGFAULT" -- crashes the server
             ]
   where
     unimplemented cmd  = (cmd, Nothing)
