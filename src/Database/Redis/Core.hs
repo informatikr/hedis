@@ -159,7 +159,7 @@ connect ConnInfo{..} = Conn <$>
     create = do
         conn <- PP.connect connectHost connectPort reply
         maybe (return ())
-            (\pass -> runRedisInternal conn (auth pass) >> return ())
+            (void . runRedisInternal conn . auth)
             connectAuth
         return conn
 

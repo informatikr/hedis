@@ -78,8 +78,8 @@ hGetReplies h parser = go S.empty
     go rest = unsafeInterleaveIO $ do        
         parseResult <- parseWith readMore parser rest
         case parseResult of
-            Fail _ _ _   -> errConnClosed
-            Partial _    -> error "Hedis: parseWith returned Partial"
+            Fail{}       -> errConnClosed
+            Partial{}    -> error "Hedis: parseWith returned Partial"
             Done rest' r -> do
                 rs <- go rest'
                 return (r:rs)
