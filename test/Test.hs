@@ -27,8 +27,15 @@ main = do
 type Test = Connection -> Test.Test
 
 testCase :: String -> Redis () -> Test
-testCase name r conn = 
-    Test.testCase name $ runRedis conn $ flushdb >>=? Ok >> r
+testCase name r conn = Test.testCase name $ do
+    withTimeLimit 0.5 $ runRedis conn $ flushdb >>=? Ok >> r
+  where
+    withTimeLimit limit act = do
+        start <- getCurrentTime
+        act
+        deltaT <-fmap (`diffUTCTime` start) getCurrentTime
+        when (deltaT > limit) $
+            putStrLn $ name ++ ": " ++ show deltaT
     
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
 redis >>=? expected = do
@@ -229,13 +236,9 @@ testBpop = testCase "blocking push/pop" $ do
     lpush "key" ["v3","v2","v1"] >>=? 3
     blpop ["key"] 1              >>=? Just ("key","v1")
     brpop ["key"] 1              >>=? Just ("key","v3")
-    -- run into timeout
-    blpop ["notAKey"] 1          >>=? Nothing
     rpush "k1" ["v1","v2"]       >>=? 2
     brpoplpush "k1" "k2" 1       >>=? Just "v2"
     rpoplpush "k1" "k2"          >>=? Just "v1"
-    -- run into timeout
-    brpoplpush "notAKey" "k2" 1  >>=? Nothing    
     
 ------------------------------------------------------------------------------
 -- Sets
@@ -345,6 +348,7 @@ testScripting conn = testCase "scripting" go conn
         scriptExists [scriptHash, "notAScript"] >>=? [True, False]
         scriptFlush                             >>=? Ok
         -- start long running script from another client
+        configSet "lua-time-limit" "100"        >>=? Ok
         liftIO $ do
             forkIO $ runRedis conn $ do
                 -- we must pattern match to block the thread
