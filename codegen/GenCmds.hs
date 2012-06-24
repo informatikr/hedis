@@ -59,6 +59,7 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["sort","sortStore"]
                 ["SortOpts(..)","defaultSortOpts","SortOrder(..)"]
             , manual "BITCOUNT" ["bitcount", "bitcountRange"]
+            , manual "BITOP" ["bitopAnd", "bitopOr", "bitopXor", "bitopNot"]
             , manual "LINSERT" ["linsertBefore", "linsertAfter"]
             , manualWithType "SLOWLOG"
                 ["slowlogGet", "slowlogLen", "slowlogReset"]
@@ -79,7 +80,6 @@ blacklist = [ manual "AUTH" ["auth"]
             , unimplemented "SYNC"           -- internal command            
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
             , unimplemented "DEBUG SEGFAULT" -- crashes the server
-            , unimplemented "BITOP"
             ]
   where
     unimplemented cmd  = (cmd, Nothing)

@@ -366,3 +366,38 @@ bitcountRange
     -> m (f Integer)
 bitcountRange key start end =
     sendRequest ["BITCOUNT", key, encode start, encode end]
+
+bitopAnd
+    :: (RedisCtx m f)
+    => ByteString -- ^ destkey
+    -> [ByteString] -- ^ srckeys
+    -> m (f Integer)
+bitopAnd dst srcs = bitop "AND" (dst:srcs)
+
+bitopOr
+    :: (RedisCtx m f)
+    => ByteString -- ^ destkey
+    -> [ByteString] -- ^ srckeys
+    -> m (f Integer)
+bitopOr dst srcs = bitop "OR" (dst:srcs)
+
+bitopXor
+    :: (RedisCtx m f)
+    => ByteString -- ^ destkey
+    -> [ByteString] -- ^ srckeys
+    -> m (f Integer)
+bitopXor dst srcs = bitop "XOR" (dst:srcs)
+
+bitopNot
+    :: (RedisCtx m f)
+    => ByteString -- ^ destkey
+    -> ByteString -- ^ srckey
+    -> m (f Integer)
+bitopNot dst src = bitop "NOT" [dst, src]
+
+bitop
+    :: (RedisCtx m f)
+    => ByteString -- ^ operation
+    -> [ByteString] -- ^ keys
+    -> m (f Integer)
+bitop op ks = sendRequest $ "BITOP" : op : ks

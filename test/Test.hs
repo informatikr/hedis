@@ -52,7 +52,7 @@ assert = liftIO . HUnit.assert
 --
 tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, [testStrings], [testHashes], testsLists, testsSets
+    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testQuit]
     ]
@@ -177,6 +177,9 @@ testObject = testCase "object" $ do
 ------------------------------------------------------------------------------
 -- Strings
 --
+testsStrings :: [Test]
+testsStrings = [testStrings, testBitops]
+
 testStrings :: Test
 testStrings = testCase "strings" $ do
     setnx "key" "value"               >>=? True
@@ -200,6 +203,15 @@ testStrings = testCase "strings" $ do
     getbit "key" 42                   >>=? 1
     bitcount "key"                    >>=? 1
     bitcountRange "key" 0 (-1)        >>=? 1
+    
+testBitops :: Test
+testBitops = testCase "bitops" $ do
+    set "k1" "a"               >>=? Ok
+    set "k2" "b"               >>=? Ok
+    bitopAnd "k3" ["k1", "k2"] >>=? 1
+    bitopOr "k3" ["k1", "k2"]  >>=? 1
+    bitopXor "k3" ["k1", "k2"] >>=? 1
+    bitopNot "k3" "k1"         >>=? 1
 
 ------------------------------------------------------------------------------
 -- Hashes

@@ -152,6 +152,10 @@ zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted 
 append, -- |Append a value to a key (<http://redis.io/commands/append>).
 bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
 bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
+bitopAnd, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
+bitopOr, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
+bitopXor, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
+bitopNot, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
 decr, -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>).
 decrby, -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>).
 get, -- |Get the value of a key (<http://redis.io/commands/get>).
@@ -188,9 +192,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * DEBUG SEGFAULT (<http://redis.io/commands/debug-segfault>)
---
---
--- * BITOP (<http://redis.io/commands/bitop>)
 --
 ) where
 
