@@ -61,7 +61,10 @@ tests conn = map ($conn) $ concat
 -- Miscellaneous
 --
 testsMisc :: [Test]
-testsMisc = [testConstantSpacePipelining, testForceErrorReply, testPipelining]
+testsMisc =
+    [ testConstantSpacePipelining, testForceErrorReply, testPipelining
+    , testEvalReplies
+    ]
 
 testConstantSpacePipelining :: Test
 testConstantSpacePipelining = testCase "constant-space pipelining" $ do
@@ -95,6 +98,18 @@ testPipelining = testCase "pipelining" $ do
         start <- liftIO $ getCurrentTime
         redis
         liftIO $ fmap (`diffUTCTime` start) getCurrentTime
+
+testEvalReplies :: Test
+testEvalReplies conn = testCase "eval unused replies" go conn
+  where
+    go = do
+        _ignored <- set "key" "value"
+        (liftIO $ do
+            threadDelay $ 10^(5::Int)
+            mvar <- newEmptyMVar
+            forkIO $ runRedis conn (get "key") >>= putMVar mvar
+            takeMVar mvar)
+          >>=? Just "value"
 
 ------------------------------------------------------------------------------
 -- Keys
