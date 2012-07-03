@@ -1,5 +1,18 @@
 {-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
 
+-- |A module for automatic, optimal protocol pipelining.
+--
+--  Protocol pipelining is a technique in which multiple requests are written
+--  out to a single socket without waiting for the corresponding responses.
+--  The pipelining of requests results in a dramatic improvement in protocol
+--  performance.
+--
+--  [Optimal Pipelining] uses the least number of network packets possible
+--
+--  [Automatic Pipelining] means that requests are implicitly pipelined as much
+--      as possible, i.e. as long as a request's response is not used before any
+--      subsequent requests.
+--
 module Database.Redis.ProtocolPipelining (
     Connection,
     connect, disconnect, request, send, recv,
@@ -8,7 +21,8 @@ module Database.Redis.ProtocolPipelining (
 ) where
 
 import           Prelude hiding (catch)
-import           Control.Concurrent
+import           Control.Concurrent (ThreadId, forkIO, killThread)
+import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Control.Monad
 import           Data.Attoparsec
@@ -21,8 +35,10 @@ import           System.IO.Unsafe
 
 
 data Connection a = Conn
-    { connHandle     :: Handle
-    , connThunks     :: Thunks a
+    { connHandle   :: Handle        -- ^ Connection socket-handle.
+    , connReplies  :: IORef [a]     -- ^ Reply thunks.
+    , connThunks   :: BoundedChan a -- ^ Syncs user and eval threads.
+    , connEvalTId  :: ThreadId      -- ^ 'ThreadID' of the eval thread.
     }
 
 data ConnectionLostException = ConnectionLost
@@ -38,13 +54,24 @@ connect
 connect host port parser = do
     connHandle  <- connectTo host port
     hSetBinaryMode connHandle True
-    connThunks  <- newThunks =<< hGetReplies connHandle parser
+    rs          <- hGetReplies connHandle parser
+    connReplies <- newIORef rs
+    connThunks  <- newBoundedChan 1000
+    connEvalTId <- forkIO $ forceThunks connThunks
     return Conn{..}
+  where
+    forceThunks thunks = do
+        -- We must wait for a reply to become available. Otherwise we will
+        -- flush the output buffer (in hGetReplies) before a command is written
+        -- by the user thread, creating a deadlock.
+        t <- readChan thunks
+        t `seq` forceThunks thunks
 
 disconnect :: Connection a -> IO ()
 disconnect Conn{..} = do
     open <- hIsOpen connHandle
     when open (hClose connHandle)
+    killThread connEvalTId
 
 -- |Write the request to the socket output buffer.
 --
@@ -57,7 +84,12 @@ send Conn{..} = S.hPut connHandle
 --  'head' and 'tail' are used to get a thunk of the reply. Pattern matching (:)
 --   would block until a reply could be read.
 recv :: Connection a -> IO a
-recv Conn{..} = nextThunk connThunks
+recv Conn{..} = do
+    rs <- readIORef connReplies
+    writeIORef connReplies (tail rs)
+    let r = head rs
+    writeChan connThunks r
+    return r
 
 request :: Connection a -> S.ByteString -> IO a
 request conn req = send conn req >> recv conn
@@ -93,44 +125,3 @@ hGetReplies h parser = go S.empty
 
     catchIOError :: IO a -> (IOError -> IO a) -> IO a
     catchIOError = catch
-
-
-data Thunks a = Thunks
-    { thunksThunks     :: IORef [a]
-    , thunksCnt        :: IORef Int
-    , thunksStartEval  :: MVar a
-    , thunksEvaluating :: MVar ()
-    , thunksEvalTId    :: ThreadId
-    }
-
-newThunks :: [a] -> IO (Thunks a)
-newThunks xs = do
-    thunksThunks     <- newIORef xs
-    thunksCnt        <- newIORef 0
-    thunksStartEval  <- newEmptyMVar
-    thunksEvaluating <- newEmptyMVar
-    thunksEvalTId    <- forkIO $ forever $ do
-        -- We must wait for a reply to become available. Otherwise we will
-        -- flush the output buffer (in hGetReplies) before a command is written
-        -- by the user thread, creating a deadlock.
-        t <- takeMVar thunksStartEval
-        putMVar thunksEvaluating ()
-        t `seq` return ()
-    
-    return Thunks{..}
-
-nextThunk :: Thunks a -> IO a
-nextThunk Thunks{..} = do    
-    ts <- readIORef thunksThunks
-    writeIORef thunksThunks (tail ts)
-    let t = head ts
-    
-    cnt <- readIORef thunksCnt
-    if cnt == 256
-        then do
-            putMVar thunksStartEval t
-            takeMVar thunksEvaluating
-            writeIORef thunksCnt 0
-        else writeIORef thunksCnt (cnt+1)
-    return t
-    
