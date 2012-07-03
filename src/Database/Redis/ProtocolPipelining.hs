@@ -13,6 +13,11 @@
 --      as possible, i.e. as long as a request's response is not used before any
 --      subsequent requests.
 --
+--  We use a BoundedChan to make sure the evaluator thread can only start to
+--  evaluate a reply after the request is written to the output buffer.
+--  Otherwise we will flush the output buffer (in hGetReplies) before a command
+--  is written by the user thread, creating a deadlock.
+--
 module Database.Redis.ProtocolPipelining (
     Connection,
     connect, disconnect, request, send, recv,
@@ -57,15 +62,8 @@ connect host port parser = do
     rs          <- hGetReplies connHandle parser
     connReplies <- newIORef rs
     connThunks  <- newBoundedChan 1000
-    connEvalTId <- forkIO $ forceThunks connThunks
+    connEvalTId <- forkIO $ forever $ readChan connThunks >>= evaluate
     return Conn{..}
-  where
-    forceThunks thunks = do
-        -- We must wait for a reply to become available. Otherwise we will
-        -- flush the output buffer (in hGetReplies) before a command is written
-        -- by the user thread, creating a deadlock.
-        t <- readChan thunks
-        t `seq` forceThunks thunks
 
 disconnect :: Connection a -> IO ()
 disconnect Conn{..} = do
