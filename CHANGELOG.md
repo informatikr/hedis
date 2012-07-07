@@ -1,12 +1,31 @@
 # Changelog for Hedis
 
+## 0.5 -> 0.5.1
+
+* New commands: DUMP, RESTORE, BITOP, BITCOUNT.
+* Removed the dependency on stm.
+* Improved performance of Queued in long transactions.
+* Minor documentation updates.
+
+
+## 0.4.1 -> 0.5
+
+* Added new Redis 2.6 commands, including Lua scripting support.
+* A transaction context is now created by using the 'multiExec' function.
+  The functions 'multi', 'exec' and 'discard' are no longer available
+  individually.
+* Inside of a transaction, commands return their results wrapped in a
+  composable /future/, called 'Queued'.
+* The 'getType' command (the Redis TYPE command) now has a custom return
+  type 'RedisType'.
+* Minor improvements and fixes to the documentation.
+
+
 ## 0.3.2 -> 0.4.1
 
 * The following commands got a 'Maybe' added to their return type, to
   properly handle Redis returning `nil`-replies: `brpoplpush`, `lindex`, `lpop`,
   `objectEncoding`, `randomkey`, `rpop`, `rpoplpush`, `spop`, `srandmember`,
   `zrank`, `zrevrank`, `zscore`.
-
 * Updated dependencies on `bytestring-lexing` and `stm`.
-
 * Minor improvements and fixes to the documentation.
