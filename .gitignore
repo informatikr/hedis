@@ -6,3 +6,4 @@ dump.rdb
 appendonly.aof
 *.prof
 /.hpc
+Main.hs
