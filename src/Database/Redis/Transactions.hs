@@ -9,7 +9,6 @@ module Database.Redis.Transactions (
 import Control.Applicative
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
-import Data.Monoid
 import Data.Vector (Vector, fromList, (!))
 
 import Database.Redis.Core
@@ -63,11 +62,6 @@ instance Monad Queued where
                                 x' <- x rs
                                 let Queued f' = f x'
                                 f' rs
-
-instance (Monoid a) => Monoid (Queued a) where
-    mempty  = return mempty
-    mappend = liftM2 mappend
-
 
 -- | Result of a 'multiExec' transaction.
 data TxResult a
