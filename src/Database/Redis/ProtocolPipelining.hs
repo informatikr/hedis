@@ -18,6 +18,12 @@
 --  Otherwise we will flush the output buffer (in hGetReplies) before a command
 --  is written by the user thread, creating a deadlock.
 --
+--
+--  # Notes
+--
+--  [Eval thread synchronization]
+--      * BoundedChan performs better than Control.Concurrent.STM.TBQueue
+--
 module Database.Redis.ProtocolPipelining (
     Connection,
     connect, disconnect, request, send, recv,
@@ -42,7 +48,7 @@ import           System.IO.Unsafe
 data Connection a = Conn
     { connHandle   :: Handle        -- ^ Connection socket-handle.
     , connReplies  :: IORef [a]     -- ^ Reply thunks.
-    , connThunks   :: BoundedChan a -- ^ Syncs user and eval threads.
+    , connThunks   :: BoundedChan a -- ^ See note [Eval thread synchronization].
     , connEvalTId  :: ThreadId      -- ^ 'ThreadID' of the eval thread.
     }
 
