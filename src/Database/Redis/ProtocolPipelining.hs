@@ -85,8 +85,9 @@ send Conn{..} = S.hPut connHandle
 
 -- |Take a reply from the list of future replies.
 --
---  'head' and 'tail' are used to get a thunk of the reply. Pattern matching (:)
---   would block until a reply could be read.
+--  The list of thunks must be deconstructed lazily, i.e. strictly matching (:)
+--  would block until a reply can be read. Using 'head' and 'tail' achieves ~2%
+--  more req/s in pipelined code than a lazy pattern match @~(r:rs)@.
 recv :: Connection a -> IO a
 recv Conn{..} = do
     rs <- readIORef connReplies
