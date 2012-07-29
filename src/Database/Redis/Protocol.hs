@@ -61,7 +61,7 @@ bulk = Bulk <$> do
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do
-        len <- char '*' *> signed decimal <* endOfLine
-        if len < 0
-            then return Nothing
-            else Just <$> count len reply
+    len <- char '*' *> signed decimal <* endOfLine
+    if len < 0
+        then return Nothing
+        else Just <$> count len reply
