@@ -75,14 +75,6 @@ source-repository head
   type:     git
   location: https://github.com/informatikr/hedis
 
-flag benchmark
-    description: Build the benchmark executable.
-    default: False
-
-flag test
-    description: Build the test suite.
-    default: False
-
 library
   hs-source-dirs:   src
   ghc-options:      -Wall
