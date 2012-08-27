@@ -11,6 +11,8 @@ module Database.Redis (
     -- Send commands to the server:
     -- 
     -- @
+    -- {-\# LANGUAGE OverloadedStrings \#-}
+    -- ...
     -- 'runRedis' conn $ do
     --      'set' \"hello\" \"hello\"
     --      set \"world\" \"world\"
