@@ -475,7 +475,7 @@
     ],
     "since": "2.0.0",
     "group": "hash",
-    "returns": "bool"
+    "returns": "integer"
   },
   "HEXISTS": {
     "summary": "Determine if a hash field exists",

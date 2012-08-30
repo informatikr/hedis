@@ -215,7 +215,7 @@ hdel
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> [ByteString] -- ^ field
-    -> m (f Bool)
+    -> m (f Integer)
 hdel key field = sendRequest (["HDEL"] ++ [encode key] ++ map encode field )
 
 hincrby
