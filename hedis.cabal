@@ -34,6 +34,12 @@ Description:
     .
     For detailed documentation, see the "Database.Redis" module.
     .
+    [Changes since version 0.5.1]
+    .
+    * Changed return type of HDEL from Bool to Integer.
+    .
+    * Some documentation updates.
+    .
     [Changes since version 0.5]
     .
     * New commands: DUMP, RESTORE, BITOP, BITCOUNT.

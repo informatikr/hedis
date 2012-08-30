@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.5 -> 0.6
+
+* Changed return type of HDEL from Bool to Integer.
+* Some documentation updates.
+
 ## 0.5 -> 0.5.1
 
 * New commands: DUMP, RESTORE, BITOP, BITCOUNT.
