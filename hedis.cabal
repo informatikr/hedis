@@ -93,7 +93,7 @@ library
                     bytestring-lexing == 0.4.*,
                     mtl == 2.*,
                     network == 2.*,
-                    resource-pool == 0.2.1.*,
+                    resource-pool == 0.2.*,
                     time,
                     vector == 0.9.*
 
