@@ -220,7 +220,7 @@ decodeMsg r@(MultiBulk (Just (r0:r1:r2:rs))) = either (errMsg r) id $ do
   where
     decodeMessage  = Message  <$> decode r1 <*> decode r2
     decodePMessage = PMessage <$> decode r1 <*> decode r2 <*> decode (head rs)
-    decodeCnt      = decode r2
+    decodeCnt      = fromInteger <$> decode r2
         
 decodeMsg r = errMsg r
 

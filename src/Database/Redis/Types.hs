@@ -54,9 +54,6 @@ instance RedisResult Integer where
     decode r           =
         maybe (Left r) (Right . fst) . readSigned readDecimal =<< decode r
 
-instance RedisResult Int where
-    decode = fmap fromInteger . decode
-
 instance RedisResult Double where
     decode r = maybe (Left r) (Right . fst) . readDouble =<< decode r
 
@@ -66,7 +63,7 @@ instance RedisResult Status where
         "PONG"   -> Pong
         _        -> Status s
     decode r = Left r
-    
+
 instance RedisResult RedisType where
     decode (SingleLine s) = Right $ case s of
         "none"   -> None
@@ -108,4 +105,4 @@ instance (RedisResult k, RedisResult v) => RedisResult [(k,v)] where
             k   <- decode r1
             v   <- decode r2
             kvs <- pairs rs
-            return $ (k,v) : kvs    
+            return $ (k,v) : kvs
