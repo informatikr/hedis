@@ -5,7 +5,7 @@ This is a Redis client library for the Haskell programming language. Please cons
 # Testimonials
 
 Ben Gamari
-[writes]((https://groups.google.com/forum/?fromgroups#!topic/redis-db/uJSp7ZcQTew):
+[writes](https://groups.google.com/forum/?fromgroups#!topic/redis-db/uJSp7ZcQTew):
 
     Having evaluated the options in this space, [Hedis] is in my opinion the
     best of the bunch with an active maintainer, a simple interface, excellent
