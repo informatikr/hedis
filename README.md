@@ -16,6 +16,10 @@ Email from a user, regarding the 0.5 release (10.05.2012):
 > The new multiExec function is really great. [...] We are using it in our
 > commercial product at Janrain and are very happy!
 
+Andrew Frederick Cowie [mentioned hedis](http://research.operationaldynamics.com/~andrew/talks/TheWebProblem,SolvingItInHaskell/TheWebProblem.html#Redirector introduction) in a talk:
+
+> _Nice_ Haskell bindings.
+
 
 # Join in!
 
