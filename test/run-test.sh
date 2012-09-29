@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # The -M argument limits heap size for 'testConstantSpacePipelining'.
-cabal-dev test --test-option=+RTS --test-option=-M3m
+cabal-dev test --test-options="+RTS -M3m"
 
 echo "------------------"
 echo "hlint suggestions:"
