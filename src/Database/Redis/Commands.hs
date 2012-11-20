@@ -197,7 +197,7 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 
 import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
-import Data.Set(Set)
+import Data.Set(Set,toList)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core
@@ -508,9 +508,9 @@ zremrangebyrank key start stop = sendRequest (["ZREMRANGEBYRANK"] ++ [encode key
 sadd
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+    -> Set ByteString -- ^ member
     -> m (f Integer)
-sadd key member = sendRequest (["SADD"] ++ [encode key] ++ map encode member )
+sadd key member = sendRequest (["SADD"] ++ [encode key] ++ map encode (toList member) )
 
 lpush
     :: (RedisCtx m f)
@@ -811,9 +811,9 @@ zcount key min max = sendRequest (["ZCOUNT"] ++ [encode key] ++ [encode min] ++ 
 srem
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+    -> (Set ByteString) -- ^ member
     -> m (f Integer)
-srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
+srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode (toList member) )
 
 quit
     :: (RedisCtx m f)
