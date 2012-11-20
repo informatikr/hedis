@@ -7,6 +7,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Data.Monoid (mappend)
+import qualified Data.Set as Set
 import Data.Time
 import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test, defaultMain)
@@ -178,7 +179,7 @@ testGetType = testCase "getType" $ do
     ts = [ (set "key" "value"                         >>=? Ok,   String)
          , (hset "key" "field" "value"                >>=? True, Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
-         , (sadd "key" ["member"]                     >>=? 1,    Set)
+         , (sadd "key" (Set.singleton "member")       >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
          ]
 
@@ -289,21 +290,21 @@ testsSets = [testSets, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
+    sadd "set" (Set.singleton "member")       >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
-    smembers "set"              >>=? ["member"]
+    smembers "set"              >>=? Set.singleton "member"
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
+    srem "set" (Set.singleton "member")       >>=? 0
     smove "set" "set'" "member" >>=? False
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
+    sadd "s1" (Set.singleton "member")          >>=? 1
+    sdiff ["s1", "s2"]            >>=? Set.singleton "member"
+    sunion ["s1", "s2"]           >>=? Set.singleton "member"
+    sinter ["s1", "s2"]           >>=? Set.empty
     sdiffstore "s3" ["s1", "s2"]  >>=? 1
     sunionstore "s3" ["s1", "s2"] >>=? 1
     sinterstore "s3" ["s1", "s2"] >>=? 0
