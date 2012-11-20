@@ -197,6 +197,7 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 
 import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
+import Data.Set(Set)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core
@@ -295,7 +296,7 @@ zincrby key increment member = sendRequest (["ZINCRBY"] ++ [encode key] ++ [enco
 sinter
     :: (RedisCtx m f)
     => [ByteString] -- ^ key
-    -> m (f [ByteString])
+    -> m (f (Set ByteString))
 sinter key = sendRequest (["SINTER"] ++ map encode key )
 
 hmset
@@ -409,7 +410,7 @@ exists key = sendRequest (["EXISTS"] ++ [encode key] )
 smembers
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> m (f [ByteString])
+    -> m (f (Set ByteString))
 smembers key = sendRequest (["SMEMBERS"] ++ [encode key] )
 
 decr
@@ -428,7 +429,7 @@ rename key newkey = sendRequest (["RENAME"] ++ [encode key] ++ [encode newkey] )
 sunion
     :: (RedisCtx m f)
     => [ByteString] -- ^ key
-    -> m (f [ByteString])
+    -> m (f (Set ByteString))
 sunion key = sendRequest (["SUNION"] ++ map encode key )
 
 ping
@@ -788,7 +789,7 @@ hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
 sdiff
     :: (RedisCtx m f)
     => [ByteString] -- ^ key
-    -> m (f [ByteString])
+    -> m (f (Set ByteString))
 sdiff key = sendRequest (["SDIFF"] ++ map encode key )
 
 getrange

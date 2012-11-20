@@ -7,6 +7,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Data.Monoid (mappend)
+import qualified Data.Set as Set
 import Data.Time
 import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test, defaultMain)
@@ -292,7 +293,7 @@ testSets = testCase "sets" $ do
     sadd "set" ["member"]       >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
-    smembers "set"              >>=? ["member"]
+    smembers "set"              >>=? Set.singleton "member"
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
     srem "set" ["member"]       >>=? 0
@@ -301,9 +302,9 @@ testSets = testCase "sets" $ do
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
     sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
+    sdiff ["s1", "s2"]            >>=? Set.singleton "member"
+    sunion ["s1", "s2"]           >>=? Set.singleton "member"
+    sinter ["s1", "s2"]           >>=? Set.empty
     sdiffstore "s3" ["s1", "s2"]  >>=? 1
     sunionstore "s3" ["s1", "s2"] >>=? 1
     sinterstore "s3" ["s1", "s2"] >>=? 0

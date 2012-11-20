@@ -7,6 +7,7 @@ import Control.Applicative
 import Data.ByteString.Char8 (ByteString, pack)
 import Data.ByteString.Lex.Double (readDouble)
 import Data.ByteString.Lex.Integral (readSigned, readDecimal)
+import Data.Set
 
 import Database.Redis.Protocol
 
@@ -88,6 +89,10 @@ instance (RedisResult a) => RedisResult (Maybe a) where
 
 instance (RedisResult a) => RedisResult [a] where
     decode (MultiBulk (Just rs)) = mapM decode rs
+    decode r                     = Left r
+
+instance (Ord a,RedisResult a) => RedisResult (Set a) where
+    decode (MultiBulk (Just rs)) = fromList <$> mapM decode rs
     decode r                     = Left r
  
 instance (RedisResult a, RedisResult b) => RedisResult (a,b) where
