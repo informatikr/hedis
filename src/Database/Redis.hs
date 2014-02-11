@@ -137,7 +137,7 @@ module Database.Redis (
     HostName,PortID(..),
     
     -- * Commands
-	module Database.Redis.Commands,
+    module Database.Redis.Commands,
     
     -- * Transactions
     module Database.Redis.Transactions,

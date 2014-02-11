@@ -51,7 +51,7 @@ source-repository head
 
 library
   hs-source-dirs:   src
-  ghc-options:      -Wall
+  ghc-options:      -Wall -fwarn-tabs
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    attoparsec >= 0.10,
