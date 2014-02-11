@@ -7,7 +7,7 @@ module Database.Redis.Core (
     Redis(),runRedis,
     RedisCtx(..), MonadRedis(..),
     send, recv, sendRequest,
-    auth
+    auth, select
 ) where
 
 import Prelude hiding (catch)
@@ -121,6 +121,8 @@ data ConnectInfo = ConnInfo
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
     --   command.
+    , connectDatabase       :: Integer
+    -- ^ Each connection will 'select' the database with the given index.
     , connectMaxConnections :: Int
     -- ^ Maximum number of connections to keep open. The smallest acceptable
     --   value is 1.
@@ -137,6 +139,7 @@ data ConnectInfo = ConnInfo
 --  connectHost           = \"localhost\"
 --  connectPort           = PortNumber 6379 -- Redis default port
 --  connectAuth           = Nothing         -- No password
+--  connectDatabase       = 0               -- SELECT database 0
 --  connectMaxConnections = 50              -- Up to 50 connections
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
 -- @
@@ -146,6 +149,7 @@ defaultConnectInfo = ConnInfo
     { connectHost           = "localhost"
     , connectPort           = PortNumber 6379
     , connectAuth           = Nothing
+    , connectDatabase       = 0
     , connectMaxConnections = 50
     , connectMaxIdleTime    = 30
     }
@@ -158,9 +162,13 @@ connect ConnInfo{..} = Conn <$>
   where
     create = do
         conn <- PP.connect connectHost connectPort reply
-        maybe (return ())
-            (void . runRedisInternal conn . auth)
-            connectAuth
+        runRedisInternal conn $ do
+            -- AUTH
+            case connectAuth of
+                Nothing   -> return ()
+                Just pass -> void $ auth pass
+            -- SELECT
+            when (connectDatabase /= 0) (void $ select connectDatabase)
         return conn
 
     destroy = PP.disconnect
@@ -170,3 +178,10 @@ auth
     :: B.ByteString -- ^ password
     -> Redis (Either Reply Status)
 auth password = sendRequest ["AUTH", password]
+
+-- The SELECT command. Used in 'connect'.
+select
+    :: RedisCtx m f
+    => Integer -- ^ index
+    -> m (f Status)
+select ix = sendRequest ["SELECT", encode ix]

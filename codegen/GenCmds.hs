@@ -50,6 +50,7 @@ groupCmds (Cmds cmds) =
 --  implementation in the "Database.Redis.ManualCommands" module.
 blacklist :: [(String, Maybe ([String],[String]))]
 blacklist = [ manual "AUTH" ["auth"]
+            , manual "SELECT" ["select"]
             , manual "OBJECT"
                 ["objectRefcount","objectEncoding","objectIdletime"]
             , manualWithType "TYPE" ["getType"] ["RedisType(..)"]
