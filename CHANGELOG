@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.6.4
+
+* New connection option to automatically SELECT a database.
+
 ## 0.5 -> 0.6
 
 * Changed return type of HDEL from Bool to Integer.
