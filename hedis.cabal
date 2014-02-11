@@ -44,6 +44,7 @@ build-type:         Simple
 cabal-version:      >=1.8
 homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
+extra-source-files: CHANGELOG
 
 source-repository head
   type:     git
