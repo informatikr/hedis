@@ -7,6 +7,8 @@ import Control.Applicative
 import Data.Attoparsec (takeTill)
 import Data.Attoparsec.Char8 hiding (takeTill)
 import Data.ByteString.Char8 (ByteString)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as LNE
 import qualified Data.ByteString.Char8 as B
 
 -- |Low-level representation of replies from the Redis server.
@@ -20,11 +22,11 @@ data Reply = SingleLine ByteString
 ------------------------------------------------------------------------------
 -- Request
 --
-renderRequest :: [ByteString] -> ByteString
-renderRequest req = B.concat (argCnt:args)
+renderRequest :: NonEmpty ByteString -> ByteString
+renderRequest req = B.concat $ argCnt : args
   where
-    argCnt = B.concat ["*", showBS (length req), crlf]
-    args   = map renderArg req
+    argCnt = B.concat ["*", showBS (LNE.length req), crlf]
+    args   = map renderArg (LNE.toList req)
 
 renderArg :: ByteString -> ByteString
 renderArg arg = B.concat ["$",  argLen arg, crlf, arg, crlf]

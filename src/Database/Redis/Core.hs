@@ -14,6 +14,7 @@ import Prelude hiding (catch)
 import Control.Applicative
 import Control.Monad.Reader
 import qualified Data.ByteString as B
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Pool
 import Data.Time
 import Network
@@ -70,7 +71,7 @@ runRedisInternal env (Redis redis) = runReaderT redis env
 recv :: (MonadRedis m) => m Reply
 recv = liftRedis $ Redis $ ask >>= liftIO . PP.recv
 
-send :: (MonadRedis m) => [B.ByteString] -> m ()
+send :: (MonadRedis m) => NonEmpty B.ByteString -> m ()
 send req = liftRedis $ Redis $ do
     conn <- ask
     liftIO $ PP.send conn (renderRequest req)
@@ -86,7 +87,7 @@ send req = liftRedis $ Redis $ do
 -- @
 --
 sendRequest :: (RedisCtx m f, RedisResult a)
-    => [B.ByteString] -> m (f a)
+    => NonEmpty B.ByteString -> m (f a)
 sendRequest req = do
     r <- liftRedis $ Redis $ do
         conn <- ask
@@ -177,11 +178,11 @@ connect ConnInfo{..} = Conn <$>
 auth
     :: B.ByteString -- ^ password
     -> Redis (Either Reply Status)
-auth password = sendRequest ["AUTH", password]
+auth password = sendRequest ("AUTH" :| [password])
 
 -- The SELECT command. Used in 'connect'.
 select
     :: RedisCtx m f
     => Integer -- ^ index
     -> m (f Status)
-select ix = sendRequest ["SELECT", encode ix]
+select ix = sendRequest ("SELECT" :| [encode ix])

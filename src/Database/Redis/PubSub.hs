@@ -13,6 +13,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Monoid
 import qualified Database.Redis.Core as Core
 import Database.Redis.Protocol (Reply(..))
@@ -78,7 +79,7 @@ class Command a where
 sendCmd :: (Command (Cmd a b)) => Cmd a b -> StateT PubSubState Core.Redis ()
 sendCmd DoNothing = return ()
 sendCmd cmd       = do
-    lift $ Core.send (redisCmd cmd : changes cmd)
+    lift $ Core.send (redisCmd cmd :| changes cmd)
     modifyPending (updatePending cmd)
 
 plusChangeCnt :: Cmd a b -> Int -> Int
@@ -120,7 +121,7 @@ publish
     -> ByteString -- ^ message
     -> m (f Integer)
 publish channel message =
-    Core.sendRequest ["PUBLISH", channel, message]
+    Core.sendRequest ("PUBLISH" :| [channel, message])
 
 -- |Listen for messages published to the given channels
 --  (<http://redis.io/commands/subscribe>).

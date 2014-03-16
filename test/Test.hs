@@ -4,11 +4,13 @@ module Main (main) where
 import Prelude hiding (catch)
 import Control.Applicative
 import Control.Concurrent
+import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad
 import Control.Monad.Trans
 import Data.Monoid (mappend)
 import Data.Time
 import Data.Time.Clock.POSIX
+import qualified Data.List.NonEmpty as LNE
 import qualified Test.Framework as Test (Test, defaultMain)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
@@ -137,7 +139,7 @@ testKeys = testCase "keys" $ do
     restore "key'" 0 s    >>=? Ok
     rename "key" "key'"   >>=? Ok
     renamenx "key'" "key" >>=? True
-    del ["key"]           >>=? 1
+    del ("key" :| [])     >>=? 1
     select 0              >>=? Ok
     
 testExpireAt :: Test
@@ -150,16 +152,17 @@ testExpireAt = testCase "expireat" $ do
 
 testSort :: Test
 testSort = testCase "sort" $ do
-    lpush "ids"     ["1","2","3"]                >>=? 3
+    lpush "ids" (LNE.fromList ["1","2","3"])     >>=? 3
     sort "ids" defaultSortOpts                   >>=? ["1","2","3"]
     sortStore "ids" "anotherKey" defaultSortOpts >>=? 3
-    mset [("weight_1","1")
-         ,("weight_2","2")
-         ,("weight_3","3")
-         ,("object_1","foo")
-         ,("object_2","bar")
-         ,("object_3","baz")
-         ]
+    mset $ LNE.fromList
+             [("weight_1","1")
+             ,("weight_2","2")
+             ,("weight_3","3")
+             ,("object_1","foo")
+             ,("object_2","bar")
+             ,("object_3","baz")
+             ]
     let opts = defaultSortOpts { sortOrder = Desc, sortAlpha = True
                                , sortLimit = (1,2)
                                , sortBy    = Just "weight_*"
@@ -173,13 +176,13 @@ testGetType = testCase "getType" $ do
     forM_ ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? typ
-        del ["key"]   >>=? 1
+        del (LNE.fromList ["key"])   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
          , (hset "key" "field" "value"                >>=? True, Hash)
-         , (lpush "key" ["value"]                     >>=? 1,    List)
-         , (sadd "key" ["member"]                     >>=? 1,    Set)
-         , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
+         , (lpush "key" (LNE.fromList ["value"])      >>=? 1,    List)
+         , (sadd "key" (LNE.fromList ["member"])      >>=? 1,    Set)
+         , (zadd "key" (LNE.fromList [(42,"member"),(12.3,"value")]) >>=? 2,    ZSet)
          ]
 
 testObject :: Test
@@ -203,9 +206,9 @@ testStrings = testCase "strings" $ do
     strlen "key"                      >>=? 10
     setrange "key" 0 "hello"          >>=? 10
     getrange "key" 0 4                >>=? "hello"
-    mset [("k1","v1"), ("k2","v2")]   >>=? Ok
-    msetnx [("k1","v1"), ("k2","v2")] >>=? False
-    mget ["key"]                      >>=? [Just "helloworld"]
+    mset (LNE.fromList [("k1","v1"), ("k2","v2")]) >>=? Ok
+    msetnx (LNE.fromList [("k1","v1"), ("k2","v2")]) >>=? False
+    mget (LNE.fromList ["key"])        >>=? [Just "helloworld"]
     setex "key" 1 "42"                >>=? Ok
     psetex "key" 1000 "42"            >>=? Ok
     decr "key"                        >>=? 41
@@ -213,7 +216,7 @@ testStrings = testCase "strings" $ do
     incr "key"                        >>=? 41
     incrby "key" 1                    >>=? 42
     incrbyfloat "key" 1               >>=? 43
-    del ["key"]                       >>=? 1
+    del (LNE.fromList ["key"])         >>=? 1
     setbit "key" 42 "1"               >>=? 0
     getbit "key" 42                   >>=? 1
     bitcount "key"                    >>=? 1
@@ -223,9 +226,9 @@ testBitops :: Test
 testBitops = testCase "bitops" $ do
     set "k1" "a"               >>=? Ok
     set "k2" "b"               >>=? Ok
-    bitopAnd "k3" ["k1", "k2"] >>=? 1
-    bitopOr "k3" ["k1", "k2"]  >>=? 1
-    bitopXor "k3" ["k1", "k2"] >>=? 1
+    bitopAnd "k3" (LNE.fromList ["k1", "k2"]) >>=? 1
+    bitopOr "k3" (LNE.fromList ["k1", "k2"])  >>=? 1
+    bitopXor "k3" (LNE.fromList ["k1", "k2"]) >>=? 1
     bitopNot "k3" "k1"         >>=? 1
 
 ------------------------------------------------------------------------------
@@ -238,12 +241,12 @@ testHashes = testCase "hashes" $ do
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
     hget "key" "field"           >>=? Just "value"
-    hmget "key" ["field", "-"]   >>=? [Just "value", Nothing]
+    hmget "key" (LNE.fromList ["field", "-"]) >>=? [Just "value", Nothing]
     hgetall "key"                >>=? [("field","value")]
     hkeys "key"                  >>=? ["field"]
     hvals "key"                  >>=? ["value"]
-    hdel "key" ["field"]         >>=? 1
-    hmset "key" [("field","40")] >>=? Ok
+    hdel "key" (LNE.fromList ["field"]) >>=? 1
+    hmset "key" (LNE.fromList [("field","40")]) >>=? Ok
     hincrby "key" "field" 2      >>=? 42
     hincrbyfloat "key" "field" 2 >>=? 44
 
@@ -258,11 +261,11 @@ testLists :: Test
 testLists = testCase "lists" $ do
     lpushx "notAKey" "-"          >>=? 0
     rpushx "notAKey" "-"          >>=? 0
-    lpush "key" ["value"]         >>=? 1
+    lpush "key" (LNE.fromList ["value"]) >>=? 1
     lpop "key"                    >>=? Just "value"
-    rpush "key" ["value"]         >>=? 1
+    rpush "key" (LNE.fromList ["value"]) >>=? 1
     rpop "key"                    >>=? Just "value"
-    rpush "key" ["v2"]            >>=? 1
+    rpush "key" (LNE.fromList ["v2"]) >>=? 1
     linsertBefore "key" "v2" "v1" >>=? 2
     linsertAfter "key" "v2" "v3"  >>=? 3    
     lindex "key" 0                >>=? Just "v1"
@@ -274,10 +277,10 @@ testLists = testCase "lists" $ do
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
-    lpush "key" ["v3","v2","v1"] >>=? 3
-    blpop ["key"] 1              >>=? Just ("key","v1")
-    brpop ["key"] 1              >>=? Just ("key","v3")
-    rpush "k1" ["v1","v2"]       >>=? 2
+    lpush "key" (LNE.fromList ["v3","v2","v1"]) >>=? 3
+    blpop (LNE.fromList ["key"]) 1 >>=? Just ("key","v1")
+    brpop (LNE.fromList ["key"]) 1 >>=? Just ("key","v3")
+    rpush "k1" (LNE.fromList ["v1","v2"]) >>=? 2
     brpoplpush "k1" "k2" 1       >>=? Just "v2"
     rpoplpush "k1" "k2"          >>=? Just "v1"
     
@@ -289,24 +292,24 @@ testsSets = [testSets, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
+    sadd "set" (LNE.fromList ["member"]) >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
     smembers "set"              >>=? ["member"]
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
+    srem "set" (LNE.fromList ["member"]) >>=? 0
     smove "set" "set'" "member" >>=? False
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
-    sdiffstore "s3" ["s1", "s2"]  >>=? 1
-    sunionstore "s3" ["s1", "s2"] >>=? 1
-    sinterstore "s3" ["s1", "s2"] >>=? 0
+    sadd "s1" (LNE.fromList ["member"]) >>=? 1
+    sdiff (LNE.fromList ["s1", "s2"]) >>=? ["member"]
+    sunion (LNE.fromList ["s1", "s2"]) >>=? ["member"]
+    sinter (LNE.fromList ["s1", "s2"]) >>=? []
+    sdiffstore "s3" (LNE.fromList ["s1", "s2"]) >>=? 1
+    sunionstore "s3" (LNE.fromList ["s1", "s2"]) >>=? 1
+    sinterstore "s3" (LNE.fromList ["s1", "s2"]) >>=? 0
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
@@ -316,7 +319,7 @@ testsZSets = [testZSets, testZStore]
 
 testZSets :: Test
 testZSets = testCase "sorted sets" $ do
-    zadd "key" [(1,"v1"),(2,"v2"),(40,"v3")]          >>=? 3
+    zadd "key" (LNE.fromList [(1,"v1"),(2,"v2"),(40,"v3")]) >>=? 3
     zcard "key"                                       >>=? 3
     zscore "key" "v3"                                 >>=? Just 40
     zincrby "key" 2 "v3"                              >>=? 42
@@ -338,18 +341,18 @@ testZSets = testCase "sorted sets" $ do
     zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
     zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
     
-    zrem "key" ["v2"]                                 >>=? 1
+    zrem "key" (LNE.fromList ["v2"])                   >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
-    zadd "k1" [(1, "v1"), (2, "v2")]
-    zadd "k2" [(2, "v2"), (3, "v3")]
-    zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
-    zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
-    zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
-    zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
+    zadd "k1" (LNE.fromList [(1, "v1"), (2, "v2")])
+    zadd "k2" (LNE.fromList [(2, "v2"), (3, "v3")])
+    zinterstore "newkey" (LNE.fromList ["k1","k2"]) Sum  >>=? 1
+    zinterstoreWeights "newkey" (LNE.fromList [("k1",1),("k2",2)]) Max >>=? 1
+    zunionstore "newkey" (LNE.fromList ["k1","k2"]) Sum  >>=? 3
+    zunionstoreWeights "newkey" (LNE.fromList [("k1",1),("k2",2)]) Min >>=? 3
 
 
 ------------------------------------------------------------------------------
@@ -386,7 +389,7 @@ testPubSub conn = testCase "pubSub" go conn
 --
 testTransaction :: Test
 testTransaction = testCase "transaction" $ do
-    watch ["k1", "k2"] >>=? Ok
+    watch (LNE.fromList ["k1", "k2"]) >>=? Ok
     unwatch            >>=? Ok
     set "foo" "foo"
     set "bar" "bar"
@@ -407,9 +410,9 @@ testScripting conn = testCase "scripting" go conn
         let script    = "return {false, 42}"
             scriptRes = (False, 42 :: Integer)
         Right scriptHash <- scriptLoad script
-        eval script [] []                       >>=? scriptRes
+        eval script [] []                       >>=? scriptRes
         evalsha scriptHash [] []                >>=? scriptRes
-        scriptExists [scriptHash, "notAScript"] >>=? [True, False]
+        scriptExists (LNE.fromList [scriptHash, "notAScript"]) >>=? [True, False]
         scriptFlush                             >>=? Ok
         -- start long running script from another client
         configSet "lua-time-limit" "100"        >>=? Ok
