@@ -83,7 +83,8 @@ benchmark hedis-benchmark
         base == 4.*,
         mtl == 2.*,
         hedis,
-        time >= 1.2
+        time >= 1.2,
+        semigroups >= 0.12.2 && < 0.13
     ghc-options: -O2 -Wall -rtsopts
     ghc-prof-options: -auto-all
 
@@ -98,7 +99,8 @@ test-suite hedis-test
         mtl == 2.*,
         test-framework,
         test-framework-hunit,
-        time
+        time,
+        semigroups >= 0.12.2 && < 0.13
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
     ghc-prof-options: -auto-all

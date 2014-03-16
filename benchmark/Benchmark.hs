@@ -8,6 +8,7 @@ import Control.Monad.Trans
 import Data.Time
 import Database.Redis
 import Text.Printf
+import qualified Data.List.NonEmpty as LNE
 
 nRequests, nClients :: Int
 nRequests = 100000
@@ -22,8 +23,8 @@ main = do
     conn <- connect defaultConnectInfo
     runRedis conn $ do
         _ <- flushall
-        Right _ <- mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
-                        , ("k4","v4"), ("k5","v5") ]
+        Right _ <- mset (LNE.fromList [ ("k1","v1"), ("k2","v2"), ("k3","v3")
+                                      , ("k4","v4"), ("k5","v5") ])
     
         return ()
     
@@ -63,7 +64,7 @@ main = do
         return ()
     
     timeAction "mget" 1 $ do
-        Right vs <- mget ["k1","k2","k3","k4","k5"]
+        Right vs <- mget (LNE.fromList ["k1","k2","k3","k4","k5"])
         let expected = map Just ["v1","v2","v3","v4","v5"]
         True <- return $ vs == expected
         return ()

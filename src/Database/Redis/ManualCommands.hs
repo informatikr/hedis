@@ -5,6 +5,7 @@ module Database.Redis.ManualCommands where
 import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Semigroup ((<>))
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -283,7 +284,7 @@ data Aggregate = Sum | Min | Max deriving (Show,Eq)
 zunionstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> NonEmpty ByteString -- ^ keys
     -> Aggregate
     -> m (f Integer)
 zunionstore dest keys =
@@ -292,17 +293,17 @@ zunionstore dest keys =
 zunionstoreWeights
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [(ByteString,Double)] -- ^ weighted keys
+    -> NonEmpty (ByteString,Double) -- ^ weighted keys
     -> Aggregate
     -> m (f Integer)
 zunionstoreWeights dest kws =
-    let (keys,weights) = unzip kws
-    in zstoreInternal "ZUNIONSTORE" dest keys weights
+    let (keys,weights) = LNE.unzip kws
+    in zstoreInternal "ZUNIONSTORE" dest keys (LNE.toList weights)
 
 zinterstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> NonEmpty ByteString -- ^ keys
     -> Aggregate
     -> m (f Integer)
 zinterstore dest keys =
@@ -311,23 +312,23 @@ zinterstore dest keys =
 zinterstoreWeights
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [(ByteString,Double)] -- ^ weighted keys
+    -> NonEmpty (ByteString,Double) -- ^ weighted keys
     -> Aggregate
     -> m (f Integer)
 zinterstoreWeights dest kws =
-    let (keys,weights) = unzip kws
-    in zstoreInternal "ZINTERSTORE" dest keys weights
+    let (keys,weights) = LNE.unzip kws
+    in zstoreInternal "ZINTERSTORE" dest keys (LNE.toList weights)
 
 zstoreInternal
     :: (RedisCtx m f)
     => ByteString -- ^ cmd
     -> ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> NonEmpty ByteString -- ^ keys
     -> [Double] -- ^ weights
     -> Aggregate    
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $ LNE.fromList $
-    concat [ [cmd, dest, encode . toInteger $ length keys], keys
+    concat [ [cmd, dest, encode . toInteger $ LNE.length keys], LNE.toList keys
            , if null weights then [] else "WEIGHTS" : map encode weights
            , ["AGGREGATE", aggregate']
            ]
@@ -344,7 +345,7 @@ eval
     -> [ByteString] -- ^ args
     -> m (f a)
 eval script keys args =
-    sendRequest $ "EVAL" :| (script : encode numkeys : (keys ++ args))
+    sendRequest $ ("EVAL" :| (script : encode numkeys : (keys ++ args)))
   where
     numkeys = toInteger (length keys)
 
@@ -355,7 +356,7 @@ evalsha
     -> [ByteString] -- ^ args
     -> m (f a)
 evalsha script keys args =
-    sendRequest $ "EVALSHA" :| (script : encode numkeys : (keys ++ args))
+    sendRequest $ ("EVALSHA" :| (script : encode numkeys : (keys ++ args)))
   where
     numkeys = toInteger (length keys)
 
@@ -377,34 +378,34 @@ bitcountRange key start end =
 bitopAnd
     :: (RedisCtx m f)
     => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    -> NonEmpty ByteString -- ^ srckeys
     -> m (f Integer)
-bitopAnd dst srcs = bitop "AND" (dst:srcs)
+bitopAnd dst srcs = bitop "AND" ((dst :| []) <> srcs)
 
 bitopOr
     :: (RedisCtx m f)
     => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    -> NonEmpty ByteString -- ^ srckeys
     -> m (f Integer)
-bitopOr dst srcs = bitop "OR" (dst:srcs)
+bitopOr dst srcs = bitop "OR" ((dst :| []) <> srcs)
 
 bitopXor
     :: (RedisCtx m f)
     => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    -> NonEmpty ByteString -- ^ srckeys
     -> m (f Integer)
-bitopXor dst srcs = bitop "XOR" (dst:srcs)
+bitopXor dst srcs = bitop "XOR" ((dst :| []) <> srcs)
 
 bitopNot
     :: (RedisCtx m f)
     => ByteString -- ^ destkey
     -> ByteString -- ^ srckey
     -> m (f Integer)
-bitopNot dst src = bitop "NOT" [dst, src]
+bitopNot dst src = bitop "NOT" (dst :| [src])
 
 bitop
     :: (RedisCtx m f)
     => ByteString -- ^ operation
-    -> [ByteString] -- ^ keys
+    -> NonEmpty ByteString -- ^ keys
     -> m (f Integer)
-bitop op ks = sendRequest ("BITOP" :| (op : ks))
+bitop op ks = sendRequest $ ("BITOP" :| [op]) <> ks
