@@ -10,6 +10,8 @@ import Control.Applicative
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
 import Data.Vector (Vector, fromList, (!))
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.Semigroup ((<>))
 
 import Database.Redis.Core
 import Database.Redis.Protocol
@@ -77,13 +79,13 @@ data TxResult a
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).
 watch
-    :: [ByteString] -- ^ key
+    :: NonEmpty ByteString -- ^ key
     -> Redis (Either Reply Status)
-watch key = sendRequest ("WATCH" : key)
+watch key = sendRequest (("WATCH" :| []) <> key)
 
 -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
 unwatch :: Redis (Either Reply Status)
-unwatch  = sendRequest ["UNWATCH"]
+unwatch  = sendRequest ("UNWATCH" :| [])
 
 
 -- |Run commands inside a transaction. For documentation on the semantics of
@@ -123,7 +125,7 @@ multiExec rtx = do
         _ -> error $ "hedis: EXEC returned " ++ show r
 
 multi :: Redis (Either Reply Status)
-multi = sendRequest ["MULTI"]
+multi = sendRequest ("MULTI" :| [])
 
 exec :: Redis Reply
-exec = either id id <$> sendRequest ["EXEC"]
+exec = either id id <$> sendRequest ("EXEC" :| [])

@@ -7,3 +7,6 @@ appendonly.aof
 *.prof
 /.hpc
 Main.hs
+/.cabal-sandbox/
+TAGS
+cabal.sandbox.config
