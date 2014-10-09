@@ -65,6 +65,7 @@ connect
 connect host port parser = do
     connHandle  <- connectTo host port
     hSetBinaryMode connHandle True
+    hSetBuffering connHandle (BlockBuffering $ Just 4096)
     rs          <- hGetReplies connHandle parser
     connReplies <- newIORef rs
     connThunks  <- newBoundedChan 1000
