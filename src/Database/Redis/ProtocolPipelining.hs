@@ -31,12 +31,12 @@ module Database.Redis.ProtocolPipelining (
     HostName, PortID(..)
 ) where
 
-import           Prelude hiding (catch)
+import           Prelude
 import           Control.Concurrent (ThreadId, forkIO, killThread)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Control.Monad
-import           Data.Attoparsec
+import           Data.Attoparsec.ByteString
 import qualified Data.ByteString as S
 import           Data.IORef
 import           Data.Typeable

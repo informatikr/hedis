@@ -5,8 +5,8 @@ module Database.Redis.Types where
 
 import Control.Applicative
 import Data.ByteString.Char8 (ByteString, pack)
-import Data.ByteString.Lex.Double (readDouble)
-import Data.ByteString.Lex.Integral (readSigned, readDecimal)
+import qualified Data.ByteString.Lex.Fractional as F (readSigned, readDecimal)
+import qualified Data.ByteString.Lex.Integral as I (readSigned, readDecimal)
 
 import Database.Redis.Protocol
 
@@ -52,10 +52,10 @@ instance RedisResult ByteString where
 instance RedisResult Integer where
     decode (Integer n) = Right n
     decode r           =
-        maybe (Left r) (Right . fst) . readSigned readDecimal =<< decode r
+        maybe (Left r) (Right . fst) . I.readSigned I.readDecimal =<< decode r
 
 instance RedisResult Double where
-    decode r = maybe (Left r) (Right . fst) . readDouble =<< decode r
+    decode r = maybe (Left r) (Right . fst) . F.readSigned F.readDecimal =<< decode r
 
 instance RedisResult Status where
     decode (SingleLine s) = Right $ case s of
