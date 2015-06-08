@@ -4,8 +4,8 @@ module Database.Redis.Protocol (Reply(..), reply, renderRequest) where
 
 import Prelude hiding (error, take)
 import Control.Applicative
-import Data.Attoparsec (takeTill)
-import Data.Attoparsec.Char8 hiding (takeTill)
+import Data.Attoparsec.ByteString (takeTill)
+import Data.Attoparsec.ByteString.Char8 hiding (takeTill)
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as B
 

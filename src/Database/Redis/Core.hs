@@ -10,7 +10,7 @@ module Database.Redis.Core (
     auth, select
 ) where
 
-import Prelude hiding (catch)
+import Prelude
 import Control.Applicative
 import Control.Monad.Reader
 import qualified Data.ByteString as B
