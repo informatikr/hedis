@@ -56,7 +56,7 @@ library
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    attoparsec >= 0.12,
-                    base >= 4.6,
+                    base >= 4.6 && < 5,
                     BoundedChan >= 1.0,
                     bytestring >= 0.9 && < 0.11,
                     bytestring-lexing >= 0.5,
