@@ -131,7 +131,7 @@ data ConnectInfo = ConnInfo
     --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
     --   your redis.conf file is non-zero, it should be larger than
     --   'connectMaxIdleTime'.
-    }
+    } deriving Show
 
 -- |Default information for connecting:
 --
