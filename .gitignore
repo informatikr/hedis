@@ -1,4 +1,3 @@
-
 /redis/
 /dist/
 /cabal-dev/
@@ -7,3 +6,5 @@ appendonly.aof
 *.prof
 /.hpc
 Main.hs
+.cabal-sandbox/
+cabal.sandbox.config

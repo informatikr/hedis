@@ -4,6 +4,7 @@
 module Database.Redis.Types where
 
 import Control.Applicative
+import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString, pack)
 import qualified Data.ByteString.Lex.Fractional as F (readSigned, readDecimal)
 import qualified Data.ByteString.Lex.Integral as I (readSigned, readDecimal)
@@ -37,6 +38,8 @@ instance RedisArg Double where
 --
 data Status = Ok | Pong | Status ByteString
     deriving (Show, Eq)
+
+instance NFData Status
 
 data RedisType = None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
