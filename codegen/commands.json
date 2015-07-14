@@ -747,7 +747,7 @@
     ],
     "since": "1.0.0",
     "group": "generic",
-    "returns": "list-string"
+    "returns": "list-key"
   },
   "LASTSAVE": {
     "summary": "Get the UNIX time stamp of the last successful save to disk",

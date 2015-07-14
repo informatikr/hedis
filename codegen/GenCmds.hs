@@ -331,6 +331,7 @@ retType Cmd{..} = maybe err translate cmdRetType
         "maybe-string" -> "(Maybe ByteString)"
         "list-string"  -> "[ByteString]"
         "list-maybe"   -> "[Maybe ByteString]"
+        "list-key"     -> "[Key]"
         "list-bool"    -> "[Bool]"
         "hash"         -> "[(ByteString,ByteString)]"
         "set"          -> "[ByteString]"

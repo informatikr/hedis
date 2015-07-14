@@ -595,7 +595,7 @@ dump key = sendRequest (["DUMP"] ++ [encode key] )
 keys
     :: (RedisCtx m f)
     => ByteString -- ^ pattern
-    -> m (f [ByteString])
+    -> m (f [Key])
 keys pattern = sendRequest (["KEYS"] ++ [encode pattern] )
 
 configGet
