@@ -73,12 +73,12 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["zrangebyscore", "zrangebyscoreWithscores"
                 ,"zrangebyscoreLimit", "zrangebyscoreWithscoresLimit"]
             , manual "ZREVRANGE" ["zrevrange", "zrevrangeWithscores"]
-            , manual "ZREVRANGEBYSCORE" 
+            , manual "ZREVRANGEBYSCORE"
                 ["zrevrangebyscore", "zrevrangebyscoreWithscores"
                 ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
             , unimplemented "MONITOR"        -- debugging command
-            , unimplemented "SYNC"           -- internal command            
+            , unimplemented "SYNC"           -- internal command
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
             , unimplemented "DEBUG SEGFAULT" -- crashes the server
             ]
@@ -151,7 +151,7 @@ instance FromJSON Arg where
             [typ1,typ2]   <- arg .: "type"
             return $ Pair Arg{ argName = name1, argType = typ1 }
                           Arg{ argName = name2, argType = typ2 }
-        -- example: ZREVRANGEBYSCORE 
+        -- example: ZREVRANGEBYSCORE
         parseCommand = do
             s <- arg .: "command"
             return $ Command s
@@ -195,7 +195,7 @@ unimplementedCmds =
         , cmdDescriptionLink cmd
         , fromString ")\n"
         , fromString "--\n"
-        ]                             
+        ]
 
 exportList :: [Cmd] -> Builder
 exportList cmds =
@@ -211,13 +211,13 @@ exportList cmds =
     exportCmd cmd@Cmd{..}
         | implemented cmd = exportCmdNames cmd
         | otherwise       = mempty
-    
+
     implemented Cmd{..} =
         case lookup cmdName blacklist of
             Nothing       -> True
             Just (Just _) -> True
             Just Nothing  -> False
-    
+
     translateGroup Cmd{..} = case cmdGroup of
         "generic"      -> "Keys"
         "string"       -> "Strings"
@@ -237,10 +237,10 @@ exportCmdNames Cmd{..} = types `mappend` functions
   where
     types = mconcat $ flip map typeNames
         (\name -> mconcat [fromString name, fromString ",\n"])
-        
+
     functions = mconcat $ flip map funNames
         (\name -> mconcat [fromString name, fromString ", ", haddock, newline])
-      
+
     funNames = case lookup cmdName blacklist of
         Nothing            -> [camelCase cmdName]
         Just (Just (xs,_)) -> xs
@@ -315,7 +315,7 @@ fromCmd cmd@Cmd{..}
             , fromString " )"
             ]
     name = camelCase cmdName
-    
+
 retType :: Cmd -> Builder
 retType Cmd{..} = maybe err translate cmdRetType
   where
@@ -325,8 +325,8 @@ retType Cmd{..} = maybe err translate cmdRetType
         "bool"         -> "Bool"
         "integer"      -> "Integer"
         "maybe-integer"-> "(Maybe Integer)"
-        "key"          -> "ByteString"
-        "maybe-key"    -> "(Maybe ByteString)"
+        "key"          -> "Key"
+        "maybe-key"    -> "(Maybe Key)"
         "string"       -> "ByteString"
         "maybe-string" -> "(Maybe ByteString)"
         "list-string"  -> "[ByteString]"
@@ -340,7 +340,7 @@ retType Cmd{..} = maybe err translate cmdRetType
         "reply"        -> "Reply"
         "time"         -> "(Integer,Integer)"
         _              -> error $ "untranslated return type: " ++ t
-    
+
 
 argumentList :: Arg -> Builder
 argumentList a = fromString " ++ " `mappend` go a
@@ -376,7 +376,7 @@ argumentType a = mconcat [ go a
     translateArgType Arg{..} = fromString $ case argType of
         "integer"    -> "Integer"
         "string"     -> "ByteString"
-        "key"        -> "ByteString"
+        "key"        -> "Key"
         "pattern"    -> "ByteString"
         "posix time" -> "Integer"
         "double"     -> "Double"
@@ -395,7 +395,7 @@ camelCase s = case split (map toLower s) of
   where
     upcaseFirst []     = ""
     upcaseFirst (c:cs) = toUpper c : cs
-    
+
     -- modified version of Data.List.words
     split s = case dropWhile (not . isAlphaNum) s of
                 "" -> []

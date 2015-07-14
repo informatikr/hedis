@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances, OverlappingInstances, TypeSynonymInstances,
-    OverloadedStrings #-}
+    OverloadedStrings, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 
 module Database.Redis.Types where
 
+import Data.Data
+import Data.String
 import Control.Applicative
 import Data.ByteString.Char8 (ByteString, pack)
 import qualified Data.ByteString.Lex.Fractional as F (readSigned, readDecimal)
@@ -10,6 +12,10 @@ import qualified Data.ByteString.Lex.Integral as I (readSigned, readDecimal)
 
 import Database.Redis.Protocol
 
+------------------------------------------------------------------------------
+-- Redis Key Newtype
+newtype Key = Key { getKey :: ByteString }
+  deriving (Eq,Ord,Data,Read,Show,IsString,Monoid)
 
 ------------------------------------------------------------------------------
 -- Classes of types Redis understands
@@ -32,6 +38,9 @@ instance RedisArg Integer where
 instance RedisArg Double where
     encode = pack . show
 
+instance RedisArg Key where
+    encode = getKey
+
 ------------------------------------------------------------------------------
 -- RedisResult instances
 --
@@ -47,6 +56,11 @@ instance RedisResult Reply where
 instance RedisResult ByteString where
     decode (SingleLine s)  = Right s
     decode (Bulk (Just s)) = Right s
+    decode r               = Left r
+
+instance RedisResult Key where
+    decode (SingleLine s)  = Right . Key $ s
+    decode (Bulk (Just s)) = Right . Key $ s
     decode r               = Left r
 
 instance RedisResult Integer where
@@ -89,7 +103,7 @@ instance (RedisResult a) => RedisResult (Maybe a) where
 instance (RedisResult a) => RedisResult [a] where
     decode (MultiBulk (Just rs)) = mapM decode rs
     decode r                     = Left r
- 
+
 instance (RedisResult a, RedisResult b) => RedisResult (a,b) where
     decode (MultiBulk (Just [x, y])) = (,) <$> decode x <*> decode y
     decode r                         = Left r

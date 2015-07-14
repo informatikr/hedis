@@ -77,9 +77,9 @@ data TxResult a
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).
 watch
-    :: [ByteString] -- ^ key
+    :: [Key] -- ^ key
     -> Redis (Either Reply Status)
-watch key = sendRequest ("WATCH" : key)
+watch key = sendRequest ("WATCH" : fmap encode key)
 
 -- |Forget about all watched keys (<http://redis.io/commands/unwatch>).
 unwatch :: Redis (Either Reply Status)
