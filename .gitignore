@@ -7,3 +7,4 @@ appendonly.aof
 *.prof
 /.hpc
 Main.hs
+.stack-work/
