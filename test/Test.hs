@@ -52,7 +52,7 @@ assert = liftIO . HUnit.assert
 --
 tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets
+    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, testHyperLogLogs
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testQuit]
     ]
@@ -351,7 +351,35 @@ testZStore = testCase "zunionstore/zinterstore" $ do
     zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
     zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
 
+------------------------------------------------------------------------------
+-- HyperLogLogs
+--
 
+testHyperLogLogs :: [Test]
+testHyperLogLogs = [testPfAdd, testPfCount, testPfMerge]
+
+testPfAdd :: Test
+testPfAdd = testCase "pfadd" $ do
+    pfadd "key" ["oneValue"] >>=? 1
+    pfadd "key" ["oneValue"] >>=? 0
+
+    pfadd "key" ["v1","v2"] >>=? 1
+
+testPfCount :: Test
+testPfCount = testCase "pfcount" $ do
+    pfcount ["hll"] >>=? 0
+    pfadd "hll" ["A"] >>=? 1
+    pfcount ["hll"] >>=? 1
+
+    pfadd "hll2" ["B"] >>=? 1
+    pfcount ["hll","hll2"] >>=? 2
+
+testPfMerge :: Test
+testPfMerge = testCase "pfmerge" $ do
+    pfadd "hll1" ["foo", "bar", "zap", "a"] >>=? 1
+    pfadd "hll2" ["a", "b", "c", "foo"] >>=? 1
+    pfmerge "hll3" ["hll1", "hll2"] >>=? Ok
+    pfcount ["hll3"] >>=? 6
 ------------------------------------------------------------------------------
 -- Pub/Sub
 --

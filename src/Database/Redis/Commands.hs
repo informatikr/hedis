@@ -55,6 +55,11 @@ hset, -- |Set the string value of a hash field (<http://redis.io/commands/hset>)
 hsetnx, -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>).
 hvals, -- |Get all the values in a hash (<http://redis.io/commands/hvals>).
 
+-- ** HyperLogLogs
+pfadd, -- |Adds all the element arguments to the HyperLogLog data structure stored at the variable name specified as first argument (<http://redis.io/commands/pfadd>).
+pfcount, -- | When called with a single key, returns the approximated cardinality computed by the HyperLogLog data structure stored at the specified variable, which is 0 if the variable does not exist. When called with multiple keys, returns the approximated cardinality of the union of the HyperLogLogs passed, by internally merging the HyperLogLogs stored at the provided keys into a temporary HyperLogLog. (<http://redis.io/commands/pfcount>).
+pfmerge, -- | Merge multiple HyperLogLog values into an unique value that will approximate the cardinality of the union of the observed Sets of the source HyperLogLog structures. (<http://redis.io/commands/pfmerge>).
+
 -- ** Lists
 blpop, -- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>).
 brpop, -- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
@@ -938,4 +943,24 @@ lpush
 lpush key value = sendRequest (["LPUSH"] ++ [encode key] ++ map encode value )
 
 
+-- HyperLogLogs
 
+pfadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [ByteString] -- ^ value
+    -> m (f Integer)
+pfadd key value = sendRequest (["PFADD"] ++ [encode key] ++ map encode value )
+
+pfcount
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> m (f Integer)
+pfcount keys = sendRequest (["PFCOUNT"] ++ map encode keys)
+
+pfmerge
+    :: (RedisCtx m f)
+    => ByteString -- ^ destination
+    -> [ByteString] -- ^ source(s)
+    -> m (f Status)
+pfmerge destination sources = sendRequest (["PFMERGE"] ++ [encode destination] ++ map encode sources)
