@@ -58,13 +58,13 @@ library
   build-depends:    attoparsec >= 0.12,
                     base >= 4.6 && < 5,
                     BoundedChan >= 1.0,
-                    bytestring >= 0.9 && < 0.11,
+                    bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
                     mtl >= 2,
                     network >= 2,
                     resource-pool >= 0.2,
                     time,
-                    vector >= 0.9 && < 0.11
+                    vector >= 0.9
 
   other-modules:    Database.Redis.Core,
                     Database.Redis.ProtocolPipelining,
