@@ -9,6 +9,7 @@ module Database.Redis.Transactions (
 import Control.Applicative
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
+import Data.ByteString.Char8 (unpack)
 import Data.Vector (Vector, fromList, (!))
 
 import Database.Redis.Core
@@ -120,6 +121,8 @@ multiExec rtx = do
                 TxAborted
                 (either (TxError . show) TxSuccess . f . fromList)
                 rs
+        Error err ->
+            return (TxError $ unpack err)
         _ -> error $ "hedis: EXEC returned " ++ show r
 
 multi :: Redis (Either Reply Status)
