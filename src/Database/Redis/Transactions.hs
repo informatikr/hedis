@@ -121,8 +121,7 @@ multiExec rtx = do
                 TxAborted
                 (either (TxError . show) TxSuccess . f . fromList)
                 rs
-        Error err ->
-            return (TxError $ unpack err)
+        Error err -> return (TxError $ unpack err)
         _ -> error $ "hedis: EXEC returned " ++ show r
 
 multi :: Redis (Either Reply Status)

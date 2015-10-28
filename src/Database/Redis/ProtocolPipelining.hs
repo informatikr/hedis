@@ -38,7 +38,7 @@ import           Control.Exception
 import           Control.Monad
 import           Data.Attoparsec.ByteString
 import qualified Data.ByteString as S
-import Data.ByteString.Char8 (pack)
+import           Data.ByteString.Char8 (pack)
 import           Data.IORef
 import           Data.Typeable
 import           Network
@@ -46,7 +46,7 @@ import           System.IO
 import           System.IO.Error (catchIOError)
 import           System.IO.Unsafe
 
-import Database.Redis.Protocol (Reply(..))
+import           Database.Redis.Protocol (Reply(..))
 
 data Connection a = Conn
     { connHandle   :: Handle        -- ^ Connection socket-handle.
