@@ -4,6 +4,7 @@ module Database.Redis.Protocol (Reply(..), reply, renderRequest) where
 
 import Prelude hiding (error, take)
 import Control.Applicative
+import Control.DeepSeq
 import Data.Attoparsec.ByteString (takeTill)
 import Data.Attoparsec.ByteString.Char8 hiding (takeTill)
 import Data.ByteString.Char8 (ByteString)
@@ -16,6 +17,13 @@ data Reply = SingleLine ByteString
            | Bulk (Maybe ByteString)
            | MultiBulk (Maybe [Reply])
          deriving (Eq, Show)
+
+instance NFData Reply where
+    rnf (SingleLine bs) = rnf bs
+    rnf (Error bs) = rnf bs
+    rnf (Integer i) = rnf i
+    rnf (Bulk maybeBS) = rnf maybeBS
+    rnf (MultiBulk maybeReplies) = rnf maybeReplies
 
 ------------------------------------------------------------------------------
 -- Request

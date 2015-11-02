@@ -7,6 +7,7 @@ module Database.Redis.Transactions (
 ) where
 
 import Control.Applicative
+import Control.DeepSeq
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
 import Data.Vector (Vector, fromList, (!))
@@ -73,6 +74,8 @@ data TxResult a
     | TxError String
     -- ^ At least one of the commands returned an 'Error' reply.
     deriving (Show, Eq)
+
+instance NFData a => NFData (TxResult a)
 
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).
