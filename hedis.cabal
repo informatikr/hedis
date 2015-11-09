@@ -71,9 +71,10 @@ library
                     Database.Redis.Protocol,
                     Database.Redis.PubSub,
                     Database.Redis.Transactions,
-                    Database.Redis.Types
+                    Database.Redis.Types,
                     Database.Redis.Commands,
-                    Database.Redis.ManualCommands
+                    Database.Redis.ManualCommands,
+                    Database.Redis.Cursors
 
 benchmark hedis-benchmark
     type: exitcode-stdio-1.0
@@ -95,8 +96,8 @@ test-suite hedis-test
         hedis,
         HUnit == 1.2.*,
         mtl == 2.*,
-        test-framework,
-        test-framework-hunit,
+        test-framework >= 0.8,
+        test-framework-hunit >= 0.3,
         time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind

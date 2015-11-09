@@ -141,6 +141,9 @@ module Database.Redis (
     
     -- * Transactions
     module Database.Redis.Transactions,
+
+    -- * Cursor support
+    module Database.Redis.Cursors,
     
     -- * Pub\/Sub
     module Database.Redis.PubSub,
@@ -166,6 +169,7 @@ import Database.Redis.PubSub
 import Database.Redis.Protocol
 import Database.Redis.ProtocolPipelining
     (HostName, PortID(..), ConnectionLostException(..))
+import Database.Redis.Cursors
 import Database.Redis.Transactions
 import Database.Redis.Types
 

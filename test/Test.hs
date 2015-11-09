@@ -54,7 +54,7 @@ tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testQuit]
+    , testsConnection, testsServer, [testCursors], [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -139,7 +139,19 @@ testKeys = testCase "keys" $ do
     renamenx "key'" "key" >>=? True
     del ["key"]           >>=? 1
     select 0              >>=? Ok
-    
+
+testCursors :: Test
+testCursors = testCase "cursors" $ do
+    select 4                >>=? Ok
+    set "key" "value"       >>=? Ok
+    scan "0"                >>=? ("0", ["key"])
+    sadd "set" ["1"]        >>=? 1
+    sscan "set" "0"         >>=? ("0", ["1"])
+    hset "hash" "k" "v"     >>=? True
+    hscan "hash" "0"        >>=? ("0", [("k", "v")])
+    zadd "zset" [(42, "2")] >>=? 1
+    zscan "zset" "0"        >>=? ("0", [("2", 42)])
+
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
     set "key" "value"             >>=? Ok
