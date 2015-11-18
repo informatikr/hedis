@@ -214,7 +214,7 @@ sinter key = sendRequest (["SINTER"] ++ map encode key )
 
 scriptExists
     :: (RedisCtx m f)
-    => [ByteString] -- ^ script
+    => [ByteString] -- ^ SHA1 digests to check
     -> m (f [Bool])
 scriptExists script = sendRequest (["SCRIPT","EXISTS"] ++ map encode script )
 

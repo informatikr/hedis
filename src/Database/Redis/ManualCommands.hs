@@ -343,7 +343,7 @@ eval script keys args =
 
 evalsha
     :: (RedisCtx m f, RedisResult a)
-    => ByteString -- ^ script
+    => ByteString -- ^ SHA1 digest of the script
     -> [ByteString] -- ^ keys
     -> [ByteString] -- ^ args
     -> m (f a)
