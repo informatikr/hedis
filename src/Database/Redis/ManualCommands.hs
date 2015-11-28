@@ -11,25 +11,25 @@ import Database.Redis.Types
 
 objectRefcount
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> m (f Integer)
 objectRefcount key = sendRequest ["OBJECT", "refcount", encode key]
 
 objectIdletime
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> m (f Integer)
 objectIdletime key = sendRequest ["OBJECT", "idletime", encode key]
 
 objectEncoding
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> m (f ByteString)
 objectEncoding key = sendRequest ["OBJECT", "encoding", encode key]
 
 linsertBefore
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
     -> m (f Integer)
@@ -38,7 +38,7 @@ linsertBefore key pivot value =
 
 linsertAfter
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> ByteString -- ^ pivot
     -> ByteString -- ^ value
     -> m (f Integer)
@@ -47,7 +47,7 @@ linsertAfter key pivot value =
 
 getType
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> m (f RedisType)
 getType key = sendRequest ["TYPE", encode key]
 
@@ -86,7 +86,7 @@ slowlogReset = sendRequest ["SLOWLOG", "RESET"]
 
 zrange
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f [ByteString])
@@ -95,7 +95,7 @@ zrange key start stop =
 
 zrangeWithscores
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f [(ByteString, Double)])
@@ -104,7 +104,7 @@ zrangeWithscores key start stop =
 
 zrevrange
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f [ByteString])
@@ -113,7 +113,7 @@ zrevrange key start stop =
 
 zrevrangeWithscores
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f [(ByteString, Double)])
@@ -123,7 +123,7 @@ zrevrangeWithscores key start stop =
 
 zrangebyscore
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> m (f [ByteString])
@@ -132,7 +132,7 @@ zrangebyscore key min max =
 
 zrangebyscoreWithscores
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> m (f [(ByteString, Double)])
@@ -142,7 +142,7 @@ zrangebyscoreWithscores key min max =
 
 zrangebyscoreLimit
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> Integer -- ^ offset
@@ -154,7 +154,7 @@ zrangebyscoreLimit key min max offset count =
 
 zrangebyscoreWithscoresLimit
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> Integer -- ^ offset
@@ -166,7 +166,7 @@ zrangebyscoreWithscoresLimit key min max offset count =
 
 zrevrangebyscore
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> m (f [ByteString])
@@ -175,7 +175,7 @@ zrevrangebyscore key min max =
 
 zrevrangebyscoreWithscores
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> m (f [(ByteString, Double)])
@@ -185,7 +185,7 @@ zrevrangebyscoreWithscores key min max =
 
 zrevrangebyscoreLimit
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> Integer -- ^ offset
@@ -197,7 +197,7 @@ zrevrangebyscoreLimit key min max offset count =
 
 zrevrangebyscoreWithscoresLimit
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Double -- ^ max
     -> Double -- ^ min
     -> Integer -- ^ offset
@@ -241,7 +241,7 @@ data SortOrder = Asc | Desc deriving (Show, Eq)
 
 sortStore
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> ByteString -- ^ destination
     -> SortOpts
     -> m (f Integer)
@@ -249,14 +249,14 @@ sortStore key dest = sortInternal key (Just dest)
 
 sort
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> SortOpts
     -> m (f [ByteString])
 sort key = sortInternal key Nothing
 
 sortInternal
     :: (RedisResult a, RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Maybe ByteString -- ^ destination
     -> SortOpts
     -> m (f a)
@@ -276,7 +276,7 @@ data Aggregate = Sum | Min | Max deriving (Show,Eq)
 zunionstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> Aggregate
     -> m (f Integer)
 zunionstore dest keys =
@@ -285,7 +285,7 @@ zunionstore dest keys =
 zunionstoreWeights
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [(ByteString,Double)] -- ^ weighted keys
+    -> [(Key,Double)] -- ^ weighted keys
     -> Aggregate
     -> m (f Integer)
 zunionstoreWeights dest kws =
@@ -295,7 +295,7 @@ zunionstoreWeights dest kws =
 zinterstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> Aggregate
     -> m (f Integer)
 zinterstore dest keys =
@@ -304,7 +304,7 @@ zinterstore dest keys =
 zinterstoreWeights
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [(ByteString,Double)] -- ^ weighted keys
+    -> [(Key,Double)] -- ^ weighted keys
     -> Aggregate
     -> m (f Integer)
 zinterstoreWeights dest kws =
@@ -315,12 +315,12 @@ zstoreInternal
     :: (RedisCtx m f)
     => ByteString -- ^ cmd
     -> ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> [Double] -- ^ weights
-    -> Aggregate    
+    -> Aggregate
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
-    concat [ [cmd, dest, encode . toInteger $ length keys], keys
+    concat [ [cmd, dest, encode . toInteger $ length keys], fmap encode keys
            , if null weights then [] else "WEIGHTS" : map encode weights
            , ["AGGREGATE", aggregate']
            ]
@@ -333,71 +333,71 @@ zstoreInternal cmd dest keys weights aggregate = sendRequest $
 eval
     :: (RedisCtx m f, RedisResult a)
     => ByteString -- ^ script
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> [ByteString] -- ^ args
     -> m (f a)
 eval script keys args =
-    sendRequest $ ["EVAL", script, encode numkeys] ++ keys ++ args
+    sendRequest $ ["EVAL", script, encode numkeys] ++ fmap encode keys ++ args
   where
     numkeys = toInteger (length keys)
 
 evalsha
     :: (RedisCtx m f, RedisResult a)
     => ByteString -- ^ script
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> [ByteString] -- ^ args
     -> m (f a)
 evalsha script keys args =
-    sendRequest $ ["EVALSHA", script, encode numkeys] ++ keys ++ args
+    sendRequest $ ["EVALSHA", script, encode numkeys] ++ fmap encode keys ++ args
   where
     numkeys = toInteger (length keys)
 
 bitcount
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> m (f Integer)
-bitcount key = sendRequest ["BITCOUNT", key]
+bitcount key = sendRequest ["BITCOUNT", encode key]
 
 bitcountRange
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => Key -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ end
     -> m (f Integer)
 bitcountRange key start end =
-    sendRequest ["BITCOUNT", key, encode start, encode end]
+    sendRequest ["BITCOUNT", encode key, encode start, encode end]
 
 bitopAnd
     :: (RedisCtx m f)
-    => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    => Key -- ^ destkey
+    -> [Key] -- ^ srckeys
     -> m (f Integer)
 bitopAnd dst srcs = bitop "AND" (dst:srcs)
 
 bitopOr
     :: (RedisCtx m f)
-    => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    => Key -- ^ destkey
+    -> [Key] -- ^ srckeys
     -> m (f Integer)
 bitopOr dst srcs = bitop "OR" (dst:srcs)
 
 bitopXor
     :: (RedisCtx m f)
-    => ByteString -- ^ destkey
-    -> [ByteString] -- ^ srckeys
+    => Key -- ^ destkey
+    -> [Key] -- ^ srckeys
     -> m (f Integer)
 bitopXor dst srcs = bitop "XOR" (dst:srcs)
 
 bitopNot
     :: (RedisCtx m f)
-    => ByteString -- ^ destkey
-    -> ByteString -- ^ srckey
+    => Key -- ^ destkey
+    -> Key -- ^ srckey
     -> m (f Integer)
 bitopNot dst src = bitop "NOT" [dst, src]
 
 bitop
     :: (RedisCtx m f)
     => ByteString -- ^ operation
-    -> [ByteString] -- ^ keys
+    -> [Key] -- ^ keys
     -> m (f Integer)
-bitop op ks = sendRequest $ "BITOP" : op : ks
+bitop op ks = sendRequest $ "BITOP" : op : fmap encode ks
