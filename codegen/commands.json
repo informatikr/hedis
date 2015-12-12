@@ -227,7 +227,7 @@
     ],
     "since": "1.0.0",
     "group": "string",
-    "returns": "integer"    
+    "returns": "integer"
   },
   "DEL": {
     "summary": "Delete a key",
@@ -1105,6 +1105,56 @@
     "since": "2.6.0",
     "group": "generic",
 	"returns": "bool"
+  },
+  "PFADD": {
+    "summary": "Adds all the elements arguments to the HyperLogLog data structure stored at the variable name specified as first argument.",
+    "complexity": "O(1)",
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "multiple": true
+     }
+   ],
+   "since": "2.8.9",
+   "group": "hyperloglog",
+   "returns": "integer"
+  },
+  "PFCOUNT": {
+    "summary": "Returns the approximated cardinality for the union of the HyperLogLogs stored in the specified keys.",
+    "complexity": "O(1) with every small average constant times when called with a single key. O(N) with N being the number of keys, and much bigger constant times, when called with multiple keys.",
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "multiple": true
+      }
+   ],
+   "since": "2.8.9",
+   "group": "hyperloglog",
+   "returns": "integer"
+  },
+  "PFMERGE": {
+    "summary": "Merge multiple HyperLogLog values into an unique value that will approximate the cardinality of the union of the observed Sets of the source HyperLogLog structures.",
+    "complexity": "O(N) to merge N HyperLogLogs, but with high constant times.",
+    "arguments": [
+      {
+        "name": "destkey",
+        "type": "key"
+      },
+      {
+        "name": "sourcekey",
+        "type": "key",
+        "multiple": true
+     }
+   ],
+   "since": "2.8.9",
+   "group": "hyperloglog",
+   "returns": "string"
   },
   "PING": {
     "summary": "Ping the server",

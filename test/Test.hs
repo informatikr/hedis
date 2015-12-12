@@ -36,7 +36,7 @@ testCase name r conn = Test.testCase name $ do
         deltaT <-fmap (`diffUTCTime` start) getCurrentTime
         when (deltaT > limit) $
             putStrLn $ name ++ ": " ++ show deltaT
-    
+
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
 redis >>=? expected = do
     a <- redis
@@ -52,7 +52,7 @@ assert = liftIO . HUnit.assert
 --
 tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets
+    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testQuit]
     ]
@@ -89,9 +89,9 @@ testPipelining = testCase "pipelining" $ do
     tPipe <- deltaT $ do
         pongs <- replicateM n ping
         assert $ pongs == replicate n (Right Pong)
-    
+
     tNoPipe <- deltaT $ replicateM_ n (ping >>=? Pong)
-    -- pipelining should at least be twice as fast.    
+    -- pipelining should at least be twice as fast.
     assert $ tNoPipe / tPipe > 2
   where
     deltaT redis = do
@@ -139,7 +139,7 @@ testKeys = testCase "keys" $ do
     renamenx "key'" "key" >>=? True
     del ["key"]           >>=? 1
     select 0              >>=? Ok
-    
+
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
     set "key" "value"             >>=? Ok
@@ -165,7 +165,7 @@ testSort = testCase "sort" $ do
                                , sortBy    = Just "weight_*"
                                , sortGet   = ["#", "object_*"] }
     sort "ids" opts >>=? ["2", "bar", "1", "foo"]
-    
+
 
 testGetType :: Test
 testGetType = testCase "getType" $ do
@@ -218,7 +218,7 @@ testStrings = testCase "strings" $ do
     getbit "key" 42                   >>=? 1
     bitcount "key"                    >>=? 1
     bitcountRange "key" 0 (-1)        >>=? 1
-    
+
 testBitops :: Test
 testBitops = testCase "bitops" $ do
     set "k1" "a"               >>=? Ok
@@ -264,7 +264,7 @@ testLists = testCase "lists" $ do
     rpop "key"                    >>=? Just "value"
     rpush "key" ["v2"]            >>=? 1
     linsertBefore "key" "v2" "v1" >>=? 2
-    linsertAfter "key" "v2" "v3"  >>=? 3    
+    linsertAfter "key" "v2" "v3"  >>=? 3
     lindex "key" 0                >>=? Just "v1"
     lrange "key" 0 (-1)           >>=? ["v1", "v2", "v3"]
     lset "key" 1 "v2"             >>=? Ok
@@ -280,7 +280,7 @@ testBpop = testCase "blocking push/pop" $ do
     rpush "k1" ["v1","v2"]       >>=? 2
     brpoplpush "k1" "k2" 1       >>=? Just "v2"
     rpoplpush "k1" "k2"          >>=? Just "v1"
-    
+
 ------------------------------------------------------------------------------
 -- Sets
 --
@@ -320,7 +320,7 @@ testZSets = testCase "sorted sets" $ do
     zcard "key"                                       >>=? 3
     zscore "key" "v3"                                 >>=? Just 40
     zincrby "key" 2 "v3"                              >>=? 42
-                                                     
+
     zrank "key" "v1"                                  >>=? Just 0
     zrevrank "key" "v1"                               >>=? Just 2
     zcount "key" 10 100                               >>=? 1
@@ -337,7 +337,7 @@ testZSets = testCase "sorted sets" $ do
     zrevrangebyscoreWithscores "key" 1.5 0.5          >>=? [("v1",1)]
     zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
     zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
-    
+
     zrem "key" ["v2"]                                 >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
@@ -351,6 +351,27 @@ testZStore = testCase "zunionstore/zinterstore" $ do
     zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
     zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
 
+------------------------------------------------------------------------------
+-- HyperLogLog
+--
+
+testHyperLogLog :: Test
+testHyperLogLog = testCase "hyperloglog" $ do
+  -- test creation
+  pfadd "hll1" ["a"]
+  pfcount ["hll1"] >>=? 1
+  -- test cardinality
+  pfadd "hll1" ["a"]
+  pfcount ["hll1"] >>=? 1
+  pfadd "hll1" ["b", "c", "foo", "bar"]
+  pfcount ["hll1"] >>=? 5
+  -- test merge
+  pfadd "hll2" ["1", "2", "3"]
+  pfadd "hll3" ["4", "5", "6"]
+  pfmerge "hll4" ["hll2", "hll3"]
+  pfcount ["hll4"] >>=? 6
+  -- test union cardinality
+  pfcount ["hll2", "hll3"] >>=? 6
 
 ------------------------------------------------------------------------------
 -- Pub/Sub
@@ -473,7 +494,7 @@ testConfig = testCase "config/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
-    
+
 testFlushall :: Test
 testFlushall = testCase "flushall/flushdb" $ do
     flushall >>=? Ok
