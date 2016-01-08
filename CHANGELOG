@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.6.10
+
+* Add HyperLogLog support
+
 ## 0.6.4
 
 * New connection option to automatically SELECT a database.
