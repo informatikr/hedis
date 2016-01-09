@@ -12,11 +12,13 @@ module Database.Redis.Core (
 
 import Prelude
 import Control.Applicative
+import Control.Exception (throwIO)
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.Pool
 import Data.Time
 import Network
+import System.IO.Error (catchIOError)
 
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
@@ -59,10 +61,11 @@ instance MonadRedis Redis where
 --  while all connections from the pool are in use.
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
-    withResource pool $ \conn -> runRedisInternal conn redis
+    withResource pool (\conn -> runRedisInternal conn redis)
+      `catchIOError` const (throwIO PP.ConnectionLost)
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
---  abstraction. Used to run the AUTH command when connecting. 
+--  abstraction. Used to run the AUTH command when connecting.
 runRedisInternal :: PP.Connection Reply -> Redis a -> IO a
 runRedisInternal env (Redis redis) = runReaderT redis env
 
@@ -108,7 +111,7 @@ newtype Connection = Conn (Pool (PP.Connection Reply))
 -- Instead use 'defaultConnectInfo' and update it with record syntax. For
 -- example to connect to a password protected Redis server running on localhost
 -- and listening to the default port:
--- 
+--
 -- @
 -- myConnectInfo :: ConnectInfo
 -- myConnectInfo = defaultConnectInfo {connectAuth = Just \"secret\"}

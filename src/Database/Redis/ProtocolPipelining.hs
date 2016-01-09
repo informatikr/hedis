@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE RecordWildCards, DeriveDataTypeable, OverloadedStrings #-}
 
 -- |A module for automatic, optimal protocol pipelining.
 --
@@ -38,12 +38,15 @@ import           Control.Exception
 import           Control.Monad
 import           Data.Attoparsec.ByteString
 import qualified Data.ByteString as S
+import           Data.ByteString.Char8 (pack)
 import           Data.IORef
 import           Data.Typeable
 import           Network
 import           System.IO
+import           System.IO.Error (catchIOError)
 import           System.IO.Unsafe
 
+import           Database.Redis.Protocol (Reply(..))
 
 data Connection a = Conn
     { connHandle   :: Handle        -- ^ Connection socket-handle.
@@ -60,8 +63,8 @@ instance Exception ConnectionLostException
 connect
     :: HostName
     -> PortID
-    -> Parser a
-    -> IO (Connection a)
+    -> Parser Reply
+    -> IO (Connection Reply)
 connect host port parser = do
     connHandle  <- connectTo host port
     hSetBinaryMode connHandle True
@@ -105,28 +108,25 @@ request conn req = send conn req >> recv conn
 --  of the list is evaluated up to that 'Reply'. Each 'Reply' is cons'd in front
 --  of the (unevaluated) list of all remaining replies.
 --
---  'unsafeInterleaveIO' only evaluates it's result once, making this function 
+--  'unsafeInterleaveIO' only evaluates it's result once, making this function
 --  thread-safe. 'Handle' as implemented by GHC is also threadsafe, it is safe
 --  to call 'hFlush' here. The list constructor '(:)' must be called from
 --  /within/ unsafeInterleaveIO, to keep the replies in correct order.
-hGetReplies :: Handle -> Parser a -> IO [a]
+hGetReplies :: Handle -> Parser Reply -> IO [Reply]
 hGetReplies h parser = go S.empty
   where
-    go rest = unsafeInterleaveIO $ do        
+    go rest = unsafeInterleaveIO $ do
         parseResult <- parseWith readMore parser rest
+                        `catchIOError` (\e -> return $ Fail "" [] (show e))
         case parseResult of
-            Fail{}       -> errConnClosed
-            Partial{}    -> error "Hedis: parseWith returned Partial"
+            (Fail _ _ err)      -> return (repeat (Error $ pack err))
+            Partial{}    -> return (repeat (Error "Hedis: parseWith returned Partial"))
             Done rest' r -> do
                 rs <- go rest'
                 return (r:rs)
 
     readMore = do
         hFlush h -- send any pending requests
-        S.hGetSome h maxRead `catchIOError` const errConnClosed
+        S.hGetSome h maxRead
 
     maxRead       = 4*1024
-    errConnClosed = throwIO ConnectionLost
-
-    catchIOError :: IO a -> (IOError -> IO a) -> IO a
-    catchIOError = catch
