@@ -42,6 +42,7 @@ import           Data.IORef
 import           Data.Typeable
 import           Network
 import           System.IO
+import           System.IO.Error
 import           System.IO.Unsafe
 
 
@@ -81,7 +82,7 @@ disconnect Conn{..} = do
 --
 --  The 'Handle' is 'hFlush'ed when reading replies.
 send :: Connection a -> S.ByteString -> IO ()
-send Conn{..} = S.hPut connHandle
+send Conn{..} = ioErrorToConnLost . S.hPut connHandle
 
 -- |Take a reply from the list of future replies.
 --
@@ -121,12 +122,14 @@ hGetReplies h parser = go S.empty
                 rs <- go rest'
                 return (r:rs)
 
-    readMore = do
+    readMore = ioErrorToConnLost $ do
         hFlush h -- send any pending requests
-        S.hGetSome h maxRead `catchIOError` const errConnClosed
+        S.hGetSome h maxRead
 
     maxRead       = 4*1024
-    errConnClosed = throwIO ConnectionLost
 
-    catchIOError :: IO a -> (IOError -> IO a) -> IO a
-    catchIOError = catch
+ioErrorToConnLost :: IO a -> IO a
+ioErrorToConnLost a = a `catchIOError` const errConnClosed
+
+errConnClosed :: IO a
+errConnClosed = throwIO ConnectionLost
