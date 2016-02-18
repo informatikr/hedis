@@ -103,6 +103,9 @@ module Database.Redis (
     --
     --  Automatic pipelining also works across several calls to 'runRedis', as
     --  long as replies are only evaluated /outside/ the 'runRedis' block.
+    --  Please take a note that as blocking commands could lead to possible
+    --  race conditions between multiple `runRedis` calls they are set to force
+    --  replies evaluation up to those blocking commands.
     --
     --  To keep memory usage low, the number of requests \"in the pipeline\" is
     --  limited (per connection) to 1000. After that number, the next command is

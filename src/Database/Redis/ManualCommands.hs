@@ -401,3 +401,32 @@ bitop
     -> [ByteString] -- ^ keys
     -> m (f Integer)
 bitop op ks = sendRequest $ "BITOP" : op : ks
+
+
+blpop
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> m (f (Maybe (ByteString,ByteString)))
+blpop key timeout = do
+  r <- sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
+  return $! r
+
+brpop
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> m (f (Maybe (ByteString,ByteString)))
+brpop key timeout = do
+  r <- sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
+  return $! r
+
+brpoplpush
+    :: (RedisCtx m f)
+    => ByteString -- ^ source
+    -> ByteString -- ^ destination
+    -> Integer -- ^ timeout
+    -> m (f (Maybe ByteString))
+brpoplpush source destination timeout = do
+  r <- sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
+  return $! r

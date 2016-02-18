@@ -290,13 +290,6 @@ rpoplpush
     -> m (f (Maybe ByteString))
 rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
 
-brpop
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> Integer -- ^ timeout
-    -> m (f (Maybe (ByteString,ByteString)))
-brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
-
 bgrewriteaof
     :: (RedisCtx m f)
     => m (f Status)
@@ -723,14 +716,6 @@ hset
     -> m (f Bool)
 hset key field value = sendRequest (["HSET"] ++ [encode key] ++ [encode field] ++ [encode value] )
 
-brpoplpush
-    :: (RedisCtx m f)
-    => ByteString -- ^ source
-    -> ByteString -- ^ destination
-    -> Integer -- ^ timeout
-    -> m (f (Maybe ByteString))
-brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
-
 zrevrank
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -924,13 +909,6 @@ quit
     :: (RedisCtx m f)
     => m (f Status)
 quit  = sendRequest (["QUIT"] )
-
-blpop
-    :: (RedisCtx m f)
-    => [ByteString] -- ^ key
-    -> Integer -- ^ timeout
-    -> m (f (Maybe (ByteString,ByteString)))
-blpop key timeout = sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
 
 srem
     :: (RedisCtx m f)
