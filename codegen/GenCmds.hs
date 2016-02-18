@@ -78,6 +78,10 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["zrevrangebyscore", "zrevrangebyscoreWithscores"
                 ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
+              -- blocking commands force their result to exclude unexpected races
+            , manual "BLPOP" ["blpop"]
+            , manual "BRPOP" ["brpop"]
+            , manual "BRPOPLPUSH" ["brpoplpush"]
             , unimplemented "MONITOR"        -- debugging command
             , unimplemented "SYNC"           -- internal command
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
