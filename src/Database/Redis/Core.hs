@@ -12,7 +12,8 @@ module Database.Redis.Core (
 
 import Prelude
 import Control.Applicative
-import Control.Monad.Reader
+import Control.Exception (evaluate)
+import Control.Monad.State
 import qualified Data.ByteString as B
 import Data.Pool
 import Data.Time
@@ -32,7 +33,7 @@ import Database.Redis.Types
 --
 --  In this context, each result is wrapped in an 'Either' to account for the
 --  possibility of Redis returning an 'Error' reply.
-newtype Redis a = Redis (ReaderT (PP.Connection Reply) IO a)
+newtype Redis a = Redis (StateT (PP.Connection Reply, Maybe Reply) IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 -- |This class captures the following behaviour: In a context @m@, a command
@@ -64,15 +65,26 @@ runRedis (Conn pool) redis =
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting. 
 runRedisInternal :: PP.Connection Reply -> Redis a -> IO a
-runRedisInternal env (Redis redis) = runReaderT redis env
+runRedisInternal env (Redis redis) = do
+  (r, (_, lastReply)) <- runStateT redis (env, Nothing)
+  void $ traverse evaluate lastReply
+  return r
+
+
+getConn :: StateT (PP.Connection Reply, Maybe Reply) IO (PP.Connection Reply)
+getConn = fst <$> get
+
+
+putReply :: Reply -> StateT (PP.Connection Reply, Maybe Reply) IO ()
+putReply r = modify $ \(c, _) -> (c, Just r)
 
 
 recv :: (MonadRedis m) => m Reply
-recv = liftRedis $ Redis $ ask >>= liftIO . PP.recv
+recv = liftRedis $ Redis getConn >>= liftIO . PP.recv
 
 send :: (MonadRedis m) => [B.ByteString] -> m ()
 send req = liftRedis $ Redis $ do
-    conn <- ask
+    conn <- getConn
     liftIO $ PP.send conn (renderRequest req)
 
 -- |'sendRequest' can be used to implement commands from experimental
@@ -88,10 +100,12 @@ send req = liftRedis $ Redis $ do
 sendRequest :: (RedisCtx m f, RedisResult a)
     => [B.ByteString] -> m (f a)
 sendRequest req = do
-    r <- liftRedis $ Redis $ do
-        conn <- ask
-        liftIO $ PP.request conn (renderRequest req)
-    returnDecode r
+    r' <- liftRedis $ Redis $ do
+        conn <- getConn
+        r <- liftIO $ PP.request conn (renderRequest req)
+        putReply r
+        return r
+    returnDecode r'
 
 
 --------------------------------------------------------------------------------
