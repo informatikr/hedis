@@ -38,7 +38,7 @@ import Database.Redis.Types
 --
 --  In this context, each result is wrapped in an 'Either' to account for the
 --  possibility of Redis returning an 'Error' reply.
-newtype Redis a = Redis (StateT (PP.Connection Reply, Maybe Reply) IO a)
+newtype Redis a = Redis (StateT (PP.Connection, Maybe Reply) IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 -- |This class captures the following behaviour: In a context @m@, a command
@@ -68,19 +68,19 @@ runRedis (Conn pool) redis =
     withResource pool $ \conn -> runRedisInternal conn redis
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
---  abstraction. Used to run the AUTH command when connecting. 
-runRedisInternal :: PP.Connection Reply -> Redis a -> IO a
+--  abstraction. Used to run the AUTH command when connecting.
+runRedisInternal :: PP.Connection -> Redis a -> IO a
 runRedisInternal env (Redis redis) = do
   (r, (_, lastReply)) <- runStateT redis (env, Nothing)
   void $ traverse evaluate lastReply
   return r
 
 
-getConn :: StateT (PP.Connection Reply, Maybe Reply) IO (PP.Connection Reply)
+getConn :: StateT (PP.Connection, Maybe Reply) IO PP.Connection
 getConn = fst <$> get
 
 
-putReply :: Reply -> StateT (PP.Connection Reply, Maybe Reply) IO ()
+putReply :: Reply -> StateT (PP.Connection, Maybe Reply) IO ()
 putReply r = modify $ \(c, _) -> (c, Just r)
 
 
@@ -119,7 +119,7 @@ sendRequest req = do
 
 -- |A threadsafe pool of network connections to a Redis server. Use the
 --  'connect' function to create one.
-newtype Connection = Conn (Pool (PP.Connection Reply))
+newtype Connection = Conn (Pool PP.Connection)
 
 -- |Information for connnecting to a Redis server.
 --
@@ -127,7 +127,7 @@ newtype Connection = Conn (Pool (PP.Connection Reply))
 -- Instead use 'defaultConnectInfo' and update it with record syntax. For
 -- example to connect to a password protected Redis server running on localhost
 -- and listening to the default port:
--- 
+--
 -- @
 -- myConnectInfo :: ConnectInfo
 -- myConnectInfo = defaultConnectInfo {connectAuth = Just \"secret\"}
@@ -180,7 +180,7 @@ connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
   where
     create = do
-        conn <- PP.connect connectHost connectPort reply
+        conn <- PP.connect connectHost connectPort
         runRedisInternal conn $ do
             -- AUTH
             case connectAuth of

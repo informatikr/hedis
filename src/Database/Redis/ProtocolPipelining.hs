@@ -1,5 +1,4 @@
-{-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, DeriveDataTypeable, OverloadedStrings #-}
 
 -- |A module for automatic, optimal protocol pipelining.
 --
@@ -14,27 +13,14 @@
 --      as possible, i.e. as long as a request's response is not used before any
 --      subsequent requests.
 --
---  We use a BoundedChan to make sure the evaluator thread can only start to
---  evaluate a reply after the request is written to the output buffer.
---  Otherwise we will flush the output buffer (in hGetReplies) before a command
---  is written by the user thread, creating a deadlock.
---
---
---  # Notes
---
---  [Eval thread synchronization]
---      * BoundedChan performs better than Control.Concurrent.STM.TBQueue
---
 module Database.Redis.ProtocolPipelining (
-    Connection,
-    connect, disconnect, request, send, recv,
-    ConnectionLostException(..),
-    HostName, PortID(..)
+  Connection,
+  connect, disconnect, request, send, recv,
+  ConnectionLostException(..),
+  HostName, PortID(..)
 ) where
 
 import           Prelude
-import           Control.Concurrent (ThreadId, forkIO, killThread, myThreadId)
-import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Control.Monad
 import           Data.Attoparsec.ByteString
@@ -46,93 +32,109 @@ import           System.IO
 import           System.IO.Error
 import           System.IO.Unsafe
 
+import           Database.Redis.Protocol
 
-data Connection a = Conn
-    { connHandle   :: Handle        -- ^ Connection socket-handle.
-    , connReplies  :: IORef [a]     -- ^ Reply thunks.
-    , connThunks   :: BoundedChan a -- ^ See note [Eval thread synchronization].
-    , connEvalTId  :: ThreadId      -- ^ 'ThreadID' of the eval thread.
-    }
+
+data Connection = Conn
+  { connHandle     :: Handle        -- ^ Connection socket-handle.
+  , connReplies    :: IORef [Reply] -- ^ Reply thunks for unsent requests.
+  , connPending    :: IORef [Reply]
+    -- ^ Reply thunks for requests "in the pipeline". Refers to the same list as
+    --   'connReplies', but can have an offset.
+  , connPendingCnt :: IORef Int
+    -- ^ Number of pending replies and thus the difference length between
+    --   'connReplies' and 'connPending'.
+    --   length connPending  - pendingCount = length connReplies
+  }
 
 data ConnectionLostException = ConnectionLost
-    deriving (Show, Typeable)
+  deriving (Show, Typeable)
 
 instance Exception ConnectionLostException
 
-connect
-    :: HostName
-    -> PortID
-    -> Parser a
-    -> IO (Connection a)
-connect host port parser = do
-    connHandle  <- connectTo host port
-    hSetBinaryMode connHandle True
-    rs          <- hGetReplies connHandle parser
-    connReplies <- newIORef rs
-    connThunks  <- newBoundedChan 1000
-    tid <- myThreadId
-    connEvalTId <- forkIO $ (do
-        forever $ readChan connThunks >>= evaluate
-        ) `catch` rethrowTo tid
-    return Conn{..}
-  where
-    rethrowTo tid (e :: SomeException) = throwTo tid e
+connect :: HostName -> PortID -> IO Connection
+connect host port = do
+  connHandle  <- connectTo host port
+  hSetBinaryMode connHandle True
+  connReplies <- newIORef []
+  connPending <- newIORef []
+  connPendingCnt <- newIORef 0
+  let conn = Conn{..}
+  rs <- connGetReplies conn
+  writeIORef connReplies rs
+  writeIORef connPending rs
+  return conn
 
-disconnect :: Connection a -> IO ()
+disconnect :: Connection -> IO ()
 disconnect Conn{..} = do
-    open <- hIsOpen connHandle
-    when open (hClose connHandle)
-    killThread connEvalTId
+  open <- hIsOpen connHandle
+  when open (hClose connHandle)
 
--- |Write the request to the socket output buffer.
---
---  The 'Handle' is 'hFlush'ed when reading replies.
-send :: Connection a -> S.ByteString -> IO ()
-send Conn{..} = ioErrorToConnLost . S.hPut connHandle
+-- |Write the request to the socket output buffer, without actually sending.
+--  The 'Handle' is 'hFlush'ed when reading replies from the 'connHandle'.
+send :: Connection -> S.ByteString -> IO ()
+send Conn{..} s = do
+  ioErrorToConnLost (S.hPut connHandle s)
+  -- Signal that we expect one more reply from Redis.
+  n <- atomicModifyIORef' connPendingCnt $ \n -> let n' = n+1 in (n', n')
+  -- Limit the "pipeline length". This is necessary in long pipelines, to avoid
+  -- thunk build-up, and thus space-leaks.
+  -- TODO find smallest max pending with good-enough performance.
+  when (n >= 1000) $ do
+    -- Force oldest pending reply.
+    r:_ <- readIORef connPending
+    r `seq` return ()
 
--- |Take a reply from the list of future replies.
---
---  The list of thunks must be deconstructed lazily, i.e. strictly matching (:)
---  would block until a reply can be read. Using 'head' and 'tail' achieves ~2%
---  more req/s in pipelined code than a lazy pattern match @~(r:rs)@.
-recv :: Connection a -> IO a
+-- |Take a reply-thunk from the list of future replies.
+recv :: Connection -> IO Reply
 recv Conn{..} = do
-    rs <- readIORef connReplies
-    writeIORef connReplies (tail rs)
-    let r = head rs
-    writeChan connThunks r
-    return r
+  (r:rs) <- readIORef connReplies
+  writeIORef connReplies rs
+  return r
 
-request :: Connection a -> S.ByteString -> IO a
+-- |Send a request and receive the corresponding reply
+request :: Connection -> S.ByteString -> IO Reply
 request conn req = send conn req >> recv conn
 
--- |Read all the replies from the Handle and return them as a lazy list.
+-- |A list of all future 'Reply's of the 'Connection'.
 --
---  The actual reading and parsing of each 'Reply' is deferred until the spine
---  of the list is evaluated up to that 'Reply'. Each 'Reply' is cons'd in front
---  of the (unevaluated) list of all remaining replies.
+--  The spine of the list can be evaluated without forcing the replies.
 --
---  'unsafeInterleaveIO' only evaluates it's result once, making this function 
+--  Evaluating/forcing a 'Reply' from the list will 'unsafeInterleaveIO' the
+--  reading and parsing from the 'connHandle'. To ensure correct ordering, each
+--  Reply first evaluates (and thus reads from the network) the previous one.
+--
+--  'unsafeInterleaveIO' only evaluates it's result once, making this function
 --  thread-safe. 'Handle' as implemented by GHC is also threadsafe, it is safe
 --  to call 'hFlush' here. The list constructor '(:)' must be called from
 --  /within/ unsafeInterleaveIO, to keep the replies in correct order.
-hGetReplies :: Handle -> Parser a -> IO [a]
-hGetReplies h parser = go S.empty
+connGetReplies :: Connection -> IO [Reply]
+connGetReplies Conn{..} = go S.empty (SingleLine "previous of first")
   where
-    go rest = unsafeInterleaveIO $ do        
-        parseResult <- parseWith readMore parser rest
+    go rest previous = do
+      -- lazy pattern match to actually delay the receiving
+      ~(r, rest') <- unsafeInterleaveIO $ do
+        -- Force previous reply for correct order.
+        previous `seq` return ()
+        parseResult <- parseWith readMore reply rest
         case parseResult of
-            Fail{}       -> errConnClosed
-            Partial{}    -> error "Hedis: parseWith returned Partial"
-            Done rest' r -> do
-                rs <- go rest'
-                return (r:rs)
+          Fail{}       -> errConnClosed
+          Partial{}    -> error "Hedis: parseWith returned Partial"
+          Done rest' r -> do
+            -- r is the same as 'head' of 'connPending'. Since we just
+            -- received r, we remove it from the pending list.
+            atomicModifyIORef' connPending $ \(_:rs) -> (rs, ())
+            -- We now expect one less reply from Redis. We don't count to
+            -- negative, which would otherwise occur during pubsub.
+            atomicModifyIORef' connPendingCnt $ \n -> (max 0 (n-1), ())
+            return (r, rest')
+      rs <- unsafeInterleaveIO (go rest' r)
+      return (r:rs)
 
     readMore = ioErrorToConnLost $ do
-        hFlush h -- send any pending requests
-        S.hGetSome h maxRead
+      hFlush connHandle -- send any pending requests
+      S.hGetSome connHandle 4096
 
-    maxRead       = 4*1024
 
 ioErrorToConnLost :: IO a -> IO a
 ioErrorToConnLost a = a `catchIOError` const errConnClosed
