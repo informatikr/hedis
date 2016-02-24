@@ -1,0 +1,7 @@
+resolver: lts-2.22
+packages:
+- '.'
+extra-deps:
+- bytestring-lexing-0.5.0.2
+flags: {}
+extra-package-dbs: []
