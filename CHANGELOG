@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.7.0
+
+* Enforce all replies being recieved in runRedis. Pipelining between runRedis 
+  calls doesn't work now.
+
 ## 0.6.10
 
 * Add HyperLogLog support
