@@ -1,7 +1,7 @@
 name:               hedis
 version:            0.7.1
 synopsis:
-    Client library for the Redis datastore: supports full command set,  
+    Client library for the Redis datastore: supports full command set,
     pipelining.
 Description:
     Redis is an open source, advanced key-value store. It is often referred to
@@ -81,7 +81,7 @@ benchmark hedis-benchmark
     main-is: benchmark/Benchmark.hs
     build-depends:
         base == 4.*,
-        mtl == 2.*,
+        mtl >= 2.0,
         hedis,
         time >= 1.2
     ghc-options: -O2 -Wall -rtsopts -Werror
@@ -92,7 +92,7 @@ test-suite hedis-test
     main-is: test/Test.hs
     build-depends:
         base == 4.*,
-        bytestring >= 0.9 && < 0.11,
+        bytestring >= 0.10,
         hedis,
         HUnit,
         mtl == 2.*,
@@ -103,4 +103,3 @@ test-suite hedis-test
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind -Werror
     ghc-prof-options: -auto-all
-    
