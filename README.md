@@ -1,5 +1,7 @@
 # Welcome to hedis
 
+[![Build Status](https://travis-ci.org/informatikr/hedis.svg?branch=master)](https://travis-ci.org/informatikr/hedis)
+
 This is a Redis client library for the Haskell programming language. Please consult the library's [Hackage page](http://hackage.haskell.org/package/hedis) for documentation.
 
 # Testimonials
