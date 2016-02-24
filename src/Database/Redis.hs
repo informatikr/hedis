@@ -101,8 +101,9 @@ module Database.Redis (
     --  Automatic pipelining makes use of Haskell's laziness. As long as a
     --  previous reply is not evaluated, subsequent commands can be pipelined.
     --
-    --  Automatic pipelining also works across several calls to 'runRedis', as
-    --  long as replies are only evaluated /outside/ the 'runRedis' block.
+    --  Automatic pipelining is limited to the scope of 'runRedis' call and
+    --  it is guaranteed that every reply expected as a part of 'runRedis'
+    --  execution gets received after 'runRedis` invocation.
     --
     --  To keep memory usage low, the number of requests \"in the pipeline\" is
     --  limited (per connection) to 1000. After that number, the next command is
