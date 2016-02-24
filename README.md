@@ -22,7 +22,6 @@ Andrew Frederick Cowie [mentioned hedis](http://research.operationaldynamics.com
 
 > _Nice_ Haskell bindings.
 
-
 # Join in!
 
 We are happy to receive bug reports, fixes, documentation enhancements, and other improvements.
@@ -35,4 +34,5 @@ Master [git repository](http://github.com/informatikr/hedis):
 
 # Authors
 
-This library is written and maintained by Falko Peters, <falko.peters@gmail.com>.
+This library is written by Falko Peters <falko.peters@gmail.com>.
+Currently maintainer by Kostiantyn Rybnikov <k-bx@k-bx.com>.
