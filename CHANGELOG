@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.7.1
+
+* Add NFData instances
+
 ## 0.7.0
 
 * Enforce all replies being recieved in runRedis. Pipelining between runRedis 
