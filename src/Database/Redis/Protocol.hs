@@ -1,12 +1,18 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Redis.Protocol (Reply(..), reply, renderRequest) where
 
 import Prelude hiding (error, take)
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
+import Control.DeepSeq
 import Data.Attoparsec.ByteString (takeTill)
 import Data.Attoparsec.ByteString.Char8 hiding (takeTill)
 import Data.ByteString.Char8 (ByteString)
+import GHC.Generics
 import qualified Data.ByteString.Char8 as B
 
 -- |Low-level representation of replies from the Redis server.
@@ -15,7 +21,9 @@ data Reply = SingleLine ByteString
            | Integer Integer
            | Bulk (Maybe ByteString)
            | MultiBulk (Maybe [Reply])
-         deriving (Eq, Show)
+         deriving (Eq, Show, Generic)
+
+instance NFData Reply
 
 ------------------------------------------------------------------------------
 -- Request

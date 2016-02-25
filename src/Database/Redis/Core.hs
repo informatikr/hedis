@@ -11,7 +11,9 @@ module Database.Redis.Core (
 ) where
 
 import Prelude
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
 import Control.Exception (evaluate)
 import Control.Monad.State
 import qualified Data.ByteString as B
