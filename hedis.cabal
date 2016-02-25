@@ -55,11 +55,12 @@ library
   ghc-options:      -Wall -fwarn-tabs
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
-  build-depends:    attoparsec >= 0.12,
+  build-depends:    BoundedChan >= 1.0,
+                    attoparsec >= 0.12,
                     base >= 4.6 && < 5,
-                    BoundedChan >= 1.0,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
+                    deepseq,
                     mtl >= 2,
                     network >= 2,
                     resource-pool >= 0.2,
@@ -93,7 +94,7 @@ test-suite hedis-test
         base == 4.*,
         bytestring >= 0.9 && < 0.11,
         hedis,
-        HUnit == 1.2.*,
+        HUnit,
         mtl == 2.*,
         test-framework,
         test-framework-hunit,

@@ -1,12 +1,17 @@
-{-# LANGUAGE FlexibleInstances, OverlappingInstances, TypeSynonymInstances,
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE CPP, FlexibleInstances, OverlappingInstances, TypeSynonymInstances,
     OverloadedStrings #-}
 
 module Database.Redis.Types where
 
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
+import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString, pack)
 import qualified Data.ByteString.Lex.Fractional as F (readSigned, readDecimal)
 import qualified Data.ByteString.Lex.Integral as I (readSigned, readDecimal)
+import GHC.Generics
 
 import Database.Redis.Protocol
 
@@ -36,7 +41,9 @@ instance RedisArg Double where
 -- RedisResult instances
 --
 data Status = Ok | Pong | Status ByteString
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData Status
 
 data RedisType = None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)

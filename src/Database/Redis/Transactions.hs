@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, FlexibleInstances, MultiParamTypeClasses,
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE CPP, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses,
     GeneralizedNewtypeDeriving #-}
 
 module Database.Redis.Transactions (
@@ -6,8 +7,12 @@ module Database.Redis.Transactions (
     Queued(), TxResult(..), RedisTx(),
 ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
 import Control.Monad.State.Strict
+import Control.DeepSeq
+import GHC.Generics
 import Data.ByteString (ByteString)
 import Data.Vector (Vector, fromList, (!))
 
@@ -72,7 +77,9 @@ data TxResult a
     -- ^ Transaction aborted due to an earlier 'watch' command.
     | TxError String
     -- ^ At least one of the commands returned an 'Error' reply.
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData a => NFData (TxResult a)
 
 -- |Watch the given keys to determine execution of the MULTI\/EXEC block
 --  (<http://redis.io/commands/watch>).

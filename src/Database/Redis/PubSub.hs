@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, EmptyDataDecls,
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, EmptyDataDecls,
     FlexibleInstances, FlexibleContexts #-}
 
 module Database.Redis.PubSub (
@@ -9,7 +9,9 @@ module Database.Redis.PubSub (
     subscribe, unsubscribe, psubscribe, punsubscribe
 ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
 import Control.Monad
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
