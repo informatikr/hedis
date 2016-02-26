@@ -1,6 +1,12 @@
 language: c
 sudo: false
 
+cache:
+  directories:
+  - $HOME/.ghc
+  - $HOME/.cabal
+  - $HOME/.stack
+
 before_install:
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
