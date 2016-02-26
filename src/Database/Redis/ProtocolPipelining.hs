@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |A module for automatic, optimal protocol pipelining.
 --
@@ -32,7 +33,7 @@ module Database.Redis.ProtocolPipelining (
 ) where
 
 import           Prelude
-import           Control.Concurrent (ThreadId, forkIO, killThread)
+import           Control.Concurrent (ThreadId, forkIO, killThread, myThreadId)
 import           Control.Concurrent.BoundedChan
 import           Control.Exception
 import           Control.Monad
@@ -69,8 +70,13 @@ connect host port parser = do
     rs          <- hGetReplies connHandle parser
     connReplies <- newIORef rs
     connThunks  <- newBoundedChan 1000
-    connEvalTId <- forkIO $ forever $ readChan connThunks >>= evaluate
+    tid <- myThreadId
+    connEvalTId <- forkIO $ (do
+        forever $ readChan connThunks >>= evaluate
+        ) `catch` rethrowTo tid
     return Conn{..}
+  where
+    rethrowTo tid (e :: SomeException) = throwTo tid e
 
 disconnect :: Connection a -> IO ()
 disconnect Conn{..} = do
