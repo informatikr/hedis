@@ -7,6 +7,9 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
+services:
+  - redis-server
+
 before_install:
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
