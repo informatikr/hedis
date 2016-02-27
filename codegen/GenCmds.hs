@@ -45,6 +45,9 @@ groupCmds (Cmds cmds) =
              , "connection"
              , "server"
              , "scripting"
+             -- not implemented:
+             -- , "cluster"
+             -- , "geo"
              ]
 
 -- |Blacklisted commands, optionally paired with the name of their
@@ -78,6 +81,39 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["zrevrangebyscore", "zrevrangebyscoreWithscores"
                 ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
+            , manualWithType "SET"
+                ["set", "setOpts"]
+                ["Condition", "SetOpts(..)"]
+            , manualWithType "ZADD"
+                ["zadd", "zaddOpts"]
+                ["ZaddOpts(..)"]
+            , manualWithType "MIGRATE"
+                ["migrate", "migrateMultiple"]
+                ["MigrateOpts(..)"]
+            , manual "RESTORE"
+                ["restore", "restoreReplace"]
+            , manualWithType "CLIENT REPLY"
+                ["clientReply"]
+                ["ReplyMode"]
+            , manualWithType "SCRIPT DEBUG"
+                ["scriptDebug"]
+                ["DebugMode"]
+            , manual "SRANDMEMBER" ["srandmember", "srandmemberN"]
+            , manual "SPOP" ["spop"]
+            , manual "INFO" ["info", "infoSection"]
+            , manual "EXISTS" ["exists"]
+            , unimplemented "COMMAND"
+            , unimplemented "COMMAND GETKEYS"
+            , unimplemented "ROLE"
+            , unimplemented "CLIENT KILL"
+            , unimplemented "SCAN"
+            , unimplemented "SSCAN"
+            , unimplemented "HSCAN"
+            , unimplemented "ZSCAN"
+            , unimplemented "ZRANGEBYLEX"
+            , unimplemented "ZREVRANGEBYLEX"
+            , unimplemented "ZRANGEBYSCORE"
+            , unimplemented "ZREVRANGEBYSCORE"
             , unimplemented "MONITOR"        -- debugging command
             , unimplemented "SYNC"           -- internal command
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
@@ -374,6 +410,7 @@ argumentType a = mconcat [ go a
     go (Pair a a')  =
         mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
     go a@Arg{..}    = translateArgType a
+    go a = error ("failed to user argument type: " ++ show a)
 
     translateArgType Arg{..} = fromString $ case argType of
         "integer"    -> "Integer"
