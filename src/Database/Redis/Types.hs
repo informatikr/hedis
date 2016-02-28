@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE CPP, FlexibleInstances, OverlappingInstances, TypeSynonymInstances,
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances,
     OverloadedStrings #-}
 
 module Database.Redis.Types where
@@ -45,7 +45,7 @@ data Status = Ok | Pong | Status ByteString
 
 instance NFData Status
 
-data RedisType = None | String | Hash | List | Set | ZSet
+data RedisType = None | String | Hash | List | Set | ZSet
     deriving (Show, Eq)
 
 instance RedisResult Reply where
@@ -93,7 +93,7 @@ instance (RedisResult a) => RedisResult (Maybe a) where
     decode (MultiBulk Nothing) = Right Nothing
     decode r                   = Just <$> decode r
 
-instance (RedisResult a) => RedisResult [a] where
+instance {-# OVERLAPPABLE #-} (RedisResult a) => RedisResult [a] where
     decode (MultiBulk (Just rs)) = mapM decode rs
     decode r                     = Left r
  

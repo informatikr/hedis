@@ -11,11 +11,11 @@ module Database.Redis.PubSub (
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+import Data.Monoid
 #endif
 import Control.Monad
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
-import Data.Monoid
 import qualified Database.Redis.Core as Core
 import Database.Redis.Protocol (Reply(..))
 import Database.Redis.Types

@@ -96,6 +96,7 @@ test-suite hedis-test
         hedis,
         HUnit,
         mtl == 2.*,
+        slave-thread,
         test-framework,
         test-framework-hunit,
         time

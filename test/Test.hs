@@ -1,14 +1,17 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards #-}
 module Main (main) where
 
+#if __GLASGOW_HASKELL__ < 710
 import Prelude hiding (catch)
 import Control.Applicative
+import Data.Monoid (mappend)
+#endif
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
-import Data.Monoid (mappend)
 import Data.Time
 import Data.Time.Clock.POSIX
+import SlaveThread (fork)
 import qualified Test.Framework as Test (Test, defaultMain)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
@@ -32,7 +35,7 @@ testCase name r conn = Test.testCase name $ do
   where
     withTimeLimit limit act = do
         start <- getCurrentTime
-        act
+        _ <- act
         deltaT <-fmap (`diffUTCTime` start) getCurrentTime
         when (deltaT > limit) $
             putStrLn $ name ++ ": " ++ show deltaT
@@ -76,7 +79,7 @@ testConstantSpacePipelining = testCase "constant-space pipelining" $ do
 
 testForceErrorReply :: Test
 testForceErrorReply = testCase "force error reply" $ do
-    set "key" "value"
+    Right _ <- set "key" "value"
     -- key is not a hash -> wrong kind of value
     reply <- hkeys "key"
     assert $ case reply of
@@ -96,7 +99,7 @@ testPipelining = testCase "pipelining" $ do
   where
     deltaT redis = do
         start <- liftIO $ getCurrentTime
-        redis
+        _ <- redis
         liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
 testEvalReplies :: Test
@@ -107,7 +110,7 @@ testEvalReplies conn = testCase "eval unused replies" go conn
         (liftIO $ do
             threadDelay $ 10^(5::Int)
             mvar <- newEmptyMVar
-            forkIO $ runRedis conn (get "key") >>= putMVar mvar
+            _ <- fork $ runRedis conn (get "key") >>= putMVar mvar
             takeMVar mvar)
           >>=? Just "value"
 
@@ -153,7 +156,8 @@ testSort = testCase "sort" $ do
     lpush "ids"     ["1","2","3"]                >>=? 3
     sort "ids" defaultSortOpts                   >>=? ["1","2","3"]
     sortStore "ids" "anotherKey" defaultSortOpts >>=? 3
-    mset [("weight_1","1")
+    Right _ <- mset
+         [("weight_1","1")
          ,("weight_2","2")
          ,("weight_3","3")
          ,("object_1","foo")
@@ -344,8 +348,8 @@ testZSets = testCase "sorted sets" $ do
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
-    zadd "k1" [(1, "v1"), (2, "v2")]
-    zadd "k2" [(2, "v2"), (3, "v3")]
+    Right _ <- zadd "k1" [(1, "v1"), (2, "v2")]
+    Right _ <- zadd "k2" [(2, "v2"), (3, "v3")]
     zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
     zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
     zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
@@ -358,17 +362,17 @@ testZStore = testCase "zunionstore/zinterstore" $ do
 testHyperLogLog :: Test
 testHyperLogLog = testCase "hyperloglog" $ do
   -- test creation
-  pfadd "hll1" ["a"]
+  Right _ <- pfadd "hll1" ["a"]
   pfcount ["hll1"] >>=? 1
   -- test cardinality
-  pfadd "hll1" ["a"]
+  Right _ <- pfadd "hll1" ["a"]
   pfcount ["hll1"] >>=? 1
-  pfadd "hll1" ["b", "c", "foo", "bar"]
+  Right _ <- pfadd "hll1" ["b", "c", "foo", "bar"]
   pfcount ["hll1"] >>=? 5
   -- test merge
-  pfadd "hll2" ["1", "2", "3"]
-  pfadd "hll3" ["4", "5", "6"]
-  pfmerge "hll4" ["hll2", "hll3"]
+  Right _ <- pfadd "hll2" ["1", "2", "3"]
+  Right _ <- pfadd "hll3" ["4", "5", "6"]
+  Right _ <- pfmerge "hll4" ["hll2", "hll3"]
   pfcount ["hll4"] >>=? 6
   -- test union cardinality
   pfcount ["hll2", "hll3"] >>=? 6
@@ -381,7 +385,7 @@ testPubSub conn = testCase "pubSub" go conn
   where
     go = do
         -- producer
-        liftIO $ forkIO $ do
+        _ <- liftIO $ fork $ do
             runRedis conn $ do
                 let t = 10^(5 :: Int)
                 liftIO $ threadDelay t
@@ -409,8 +413,8 @@ testTransaction :: Test
 testTransaction = testCase "transaction" $ do
     watch ["k1", "k2"] >>=? Ok
     unwatch            >>=? Ok
-    set "foo" "foo"
-    set "bar" "bar"
+    Right _ <- set "foo" "foo"
+    Right _ <- set "bar" "bar"
     foobar <- multiExec $ do
         foo <- get "foo"
         bar <- get "bar"
@@ -428,14 +432,14 @@ testScripting conn = testCase "scripting" go conn
         let script    = "return {false, 42}"
             scriptRes = (False, 42 :: Integer)
         Right scriptHash <- scriptLoad script
-        eval script [] []                       >>=? scriptRes
+        eval script [] []                       >>=? scriptRes
         evalsha scriptHash [] []                >>=? scriptRes
         scriptExists [scriptHash, "notAScript"] >>=? [True, False]
         scriptFlush                             >>=? Ok
         -- start long running script from another client
         configSet "lua-time-limit" "100"        >>=? Ok
         liftIO $ do
-            forkIO $ runRedis conn $ do
+            _ <- fork $ runRedis conn $ do
                 -- we must pattern match to block the thread
                 Left _ <- eval "while true do end" [] []
                     :: Redis (Either Reply Integer)
