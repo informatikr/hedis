@@ -2,7 +2,6 @@
 module Main (main) where
 
 #if __GLASGOW_HASKELL__ < 710
-import Prelude hiding (catch)
 import Control.Applicative
 import Data.Monoid (mappend)
 #endif
