@@ -97,7 +97,11 @@ instance (RedisResult a) => RedisResult (Maybe a) where
     decode (MultiBulk Nothing) = Right Nothing
     decode r                   = Just <$> decode r
 
-instance {-# OVERLAPPABLE #-} (RedisResult a) => RedisResult [a] where
+instance
+#if __GLASGOW_HASKELL__ >= 710
+    {-# OVERLAPPABLE #-}
+#endif
+    (RedisResult a) => RedisResult [a] where
     decode (MultiBulk (Just rs)) = mapM decode rs
     decode r                     = Left r
  
