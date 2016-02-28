@@ -2,6 +2,10 @@
 {-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances,
     OverloadedStrings #-}
 
+#if __GLASGOW_HASKELL__ < 710
+{-# LANGUAGE OverlappingInstances #-}
+#endif
+
 module Database.Redis.Types where
 
 #if __GLASGOW_HASKELL__ < 710
