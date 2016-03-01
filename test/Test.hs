@@ -56,7 +56,9 @@ tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testQuit]
+    , testsConnection, testsServer, [testScans]
+      -- should always be run last as connection gets closed after it
+    , [testQuit]
     ]
 
 ------------------------------------------------------------------------------
@@ -521,3 +523,14 @@ testDebugObject = testCase "debugObject/debugSegfault" $ do
     set "key" "value" >>=? Ok
     Right _ <- debugObject "key"
     return ()
+
+testScans :: Test
+testScans = testCase "scans" $ do
+    set "key" "value"       >>=? Ok
+    scan cursor0            >>=? (cursor0, ["key"])
+    sadd "set" ["1"]        >>=? 1
+    sscan "set" cursor0     >>=? (cursor0, ["1"])
+    hset "hash" "k" "v"     >>=? True
+    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+    zadd "zset" [(42, "2")] >>=? 1
+    zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])

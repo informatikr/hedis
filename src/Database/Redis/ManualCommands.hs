@@ -318,7 +318,7 @@ zstoreInternal
     -> ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> [Double] -- ^ weights
-    -> Aggregate    
+    -> Aggregate
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
     concat [ [cmd, dest, encode . toInteger $ length keys], keys
@@ -638,3 +638,117 @@ exists
     => ByteString -- ^ key
     -> m (f Bool)
 exists key = sendRequest ["EXISTS", key]
+
+newtype Cursor = Cursor ByteString deriving (Show, Eq)
+
+
+instance RedisArg Cursor where
+  encode (Cursor c) = encode c
+
+
+instance RedisResult Cursor where
+  decode (Bulk (Just s)) = Right $ Cursor s
+  decode r               = Left r
+
+
+cursor0 :: Cursor
+cursor0 = Cursor "0"
+
+
+scan
+    :: (RedisCtx m f)
+    => Cursor
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+scan cursor = scanOpts cursor defaultScanOpts
+
+
+data ScanOpts = ScanOpts
+  { scanMatch :: Maybe ByteString
+  , scanCount :: Maybe Integer
+  } deriving (Show, Eq)
+
+
+-- |Redis default 'ScanOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- ScanOpts
+--     { scanMatch = Nothing -- don't match any pattern
+--     , scanCount = Nothing -- don't set any requirements on number elements returned (works like value @COUNT 10@)
+--     }
+-- @
+--
+defaultScanOpts :: ScanOpts
+defaultScanOpts = ScanOpts
+  { scanMatch = Nothing
+  , scanCount = Nothing
+  }
+
+
+scanOpts
+    :: (RedisCtx m f)
+    => Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+scanOpts cursor opts = sendRequest $ addScanOpts ["SCAN", encode cursor] opts
+
+
+addScanOpts
+    :: [ByteString] -- ^ main part of scan command
+    -> ScanOpts
+    -> [ByteString]
+addScanOpts cmd ScanOpts{..} =
+    concat [cmd, match, count]
+  where
+    match = maybeToList scanMatch
+    count = map encode $ maybeToList scanCount
+
+
+sscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+sscan key cursor = sscanOpts key cursor defaultScanOpts
+
+
+sscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+sscanOpts key cursor opts = sendRequest $ addScanOpts ["SSCAN", key, encode cursor] opts
+
+
+hscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
+hscan key cursor = hscanOpts key cursor defaultScanOpts
+
+
+hscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
+hscanOpts key cursor opts = sendRequest $ addScanOpts ["HSCAN", key, encode cursor] opts
+
+
+zscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
+zscan key cursor = zscanOpts key cursor defaultScanOpts
+
+
+zscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
+zscanOpts key cursor opts = sendRequest $ addScanOpts ["ZSCAN", key, encode cursor] opts
