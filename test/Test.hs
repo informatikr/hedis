@@ -87,7 +87,7 @@ testForceErrorReply = testCase "force error reply" $ do
 
 testPipelining :: Test
 testPipelining = testCase "pipelining" $ do
-    let n = 10
+    let n = 100
     tPipe <- deltaT $ do
         pongs <- replicateM n ping
         assert $ pongs == replicate n (Right Pong)
@@ -443,7 +443,7 @@ testScripting conn = testCase "scripting" go conn
                 Left _ <- eval "while true do end" [] []
                     :: Redis (Either Reply Integer)
                 return ()
-            threadDelay $ 10^(5 :: Int)
+            threadDelay 500000 -- 0.5s
         scriptKill                              >>=? Ok
 
 ------------------------------------------------------------------------------
