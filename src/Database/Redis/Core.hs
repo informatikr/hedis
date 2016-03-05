@@ -14,16 +14,12 @@ import Prelude
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
-import Control.Exception (evaluate)
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.IORef
 import Data.Pool
 import Data.Time
 import Network
-#if __GLASGOW_HASKELL__ < 710
-import Data.Traversable (traverse)
-#endif
 
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
