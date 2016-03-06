@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.7.5
+version:            0.7.6
 synopsis:
     Client library for the Redis datastore: supports full command set,
     pipelining.
@@ -50,7 +50,7 @@ source-repository head
   type:     git
   location: https://github.com/informatikr/hedis
 
-flag manual
+flag dev
   description: enable this for local development -Werror and profiling options
   default: False
   manual: True
@@ -58,9 +58,9 @@ flag manual
 library
   hs-source-dirs:   src
   ghc-options:      -Wall -fwarn-tabs
-  if flag(manual)
+  if flag(dev)
     ghc-options:    -Werror
-  if flag(manual)
+  if flag(dev)
     ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    attoparsec >= 0.12,
@@ -92,9 +92,9 @@ benchmark hedis-benchmark
         hedis,
         time >= 1.2
     ghc-options: -O2 -Wall -rtsopts
-    if flag(manual)
+    if flag(dev)
       ghc-options: -Werror
-    if flag(manual)
+    if flag(dev)
       ghc-prof-options: -auto-all
 
 test-suite hedis-test
@@ -112,7 +112,7 @@ test-suite hedis-test
         time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
-    if flag(manual)
+    if flag(dev)
       ghc-options: -Werror
-    if flag(manual)
+    if flag(dev)
       ghc-prof-options: -auto-all

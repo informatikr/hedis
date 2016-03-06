@@ -4,5 +4,5 @@ packages:
 extra-deps: []
 flags:
   hedis:
-    manual: true
+    dev: true
 extra-package-dbs: []
