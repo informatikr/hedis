@@ -72,14 +72,3 @@ Currently every command returns the result wrapped in `Maybe Reply`. This is
 * Return the results "unwrapped" and throw an exception when the reply is an
   error or can not be decoded to the desired return type.
 * Does this work with the `Queued` return type in Mult/Exec?
-
-
-## Automatic Pipelining Implementation
-
-* The code for the automatic pipelining feature is hard to understand. It could
-  use a simpler implementation or maybe even a differnt approach.
-
-* I have an idea for a drastic simplification of the automatic pipelining. But
-  it needs a feature of the unreleased GHC 8.0 (supposed to be released in
-  early 2016). So I suggest not making any big changes until I have tested my
-  idea.

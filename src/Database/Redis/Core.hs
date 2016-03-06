@@ -14,15 +14,12 @@ import Prelude
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
-import Control.Exception (evaluate)
-import Control.Monad.State
+import Control.Monad.Reader
 import qualified Data.ByteString as B
+import Data.IORef
 import Data.Pool
 import Data.Time
 import Network
-#if __GLASGOW_HASKELL__ < 710
-import Data.Traversable (traverse)
-#endif
 
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
@@ -38,8 +35,11 @@ import Database.Redis.Types
 --
 --  In this context, each result is wrapped in an 'Either' to account for the
 --  possibility of Redis returning an 'Error' reply.
-newtype Redis a = Redis (StateT (PP.Connection Reply, Maybe Reply) IO a)
+newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
+
+data RedisEnv = Env { envConn :: PP.Connection, envLastReply :: IORef Reply }
+
 
 -- |This class captures the following behaviour: In a context @m@, a command
 --  will return it's result wrapped in a \"container\" of type @f@.
@@ -65,31 +65,34 @@ instance MonadRedis Redis where
 --  while all connections from the pool are in use.
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
-    withResource pool $ \conn -> runRedisInternal conn redis
+  withResource pool $ \conn -> runRedisInternal conn redis
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
---  abstraction. Used to run the AUTH command when connecting. 
-runRedisInternal :: PP.Connection Reply -> Redis a -> IO a
-runRedisInternal env (Redis redis) = do
-  (r, (_, lastReply)) <- runStateT redis (env, Nothing)
-  void $ traverse evaluate lastReply
+--  abstraction. Used to run the AUTH command when connecting.
+runRedisInternal :: PP.Connection -> Redis a -> IO a
+runRedisInternal conn (Redis redis) = do
+  -- Dummy reply in case no request is sent.
+  ref <- newIORef (SingleLine "nobody will ever see this")
+  r <- runReaderT redis (Env conn ref)
+  -- Evaluate last reply to keep lazy IO inside runRedis.
+  readIORef ref >>= (`seq` return ())
   return r
 
-
-getConn :: StateT (PP.Connection Reply, Maybe Reply) IO (PP.Connection Reply)
-getConn = fst <$> get
-
-
-putReply :: Reply -> StateT (PP.Connection Reply, Maybe Reply) IO ()
-putReply r = modify $ \(c, _) -> (c, Just r)
-
+setLastReply :: Reply -> ReaderT RedisEnv IO ()
+setLastReply r = do
+  ref <- asks envLastReply
+  lift (writeIORef ref r)
 
 recv :: (MonadRedis m) => m Reply
-recv = liftRedis $ Redis getConn >>= liftIO . PP.recv
+recv = liftRedis $ Redis $ do
+  conn <- asks envConn
+  r <- liftIO (PP.recv conn)
+  setLastReply r
+  return r
 
 send :: (MonadRedis m) => [B.ByteString] -> m ()
 send req = liftRedis $ Redis $ do
-    conn <- getConn
+    conn <- asks envConn
     liftIO $ PP.send conn (renderRequest req)
 
 -- |'sendRequest' can be used to implement commands from experimental
@@ -106,9 +109,9 @@ sendRequest :: (RedisCtx m f, RedisResult a)
     => [B.ByteString] -> m (f a)
 sendRequest req = do
     r' <- liftRedis $ Redis $ do
-        conn <- getConn
+        conn <- asks envConn
         r <- liftIO $ PP.request conn (renderRequest req)
-        putReply r
+        setLastReply r
         return r
     returnDecode r'
 
@@ -119,7 +122,7 @@ sendRequest req = do
 
 -- |A threadsafe pool of network connections to a Redis server. Use the
 --  'connect' function to create one.
-newtype Connection = Conn (Pool (PP.Connection Reply))
+newtype Connection = Conn (Pool PP.Connection)
 
 -- |Information for connnecting to a Redis server.
 --
@@ -127,7 +130,7 @@ newtype Connection = Conn (Pool (PP.Connection Reply))
 -- Instead use 'defaultConnectInfo' and update it with record syntax. For
 -- example to connect to a password protected Redis server running on localhost
 -- and listening to the default port:
--- 
+--
 -- @
 -- myConnectInfo :: ConnectInfo
 -- myConnectInfo = defaultConnectInfo {connectAuth = Just \"secret\"}
@@ -180,7 +183,7 @@ connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
   where
     create = do
-        conn <- PP.connect connectHost connectPort reply
+        conn <- PP.connect connectHost connectPort
         runRedisInternal conn $ do
             -- AUTH
             case connectAuth of
