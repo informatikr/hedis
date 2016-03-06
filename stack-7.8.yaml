@@ -3,5 +3,7 @@ packages:
 - '.'
 extra-deps:
 - bytestring-lexing-0.5.0.2
-flags: {}
+flags:
+  hedis:
+    manual: true
 extra-package-dbs: []
