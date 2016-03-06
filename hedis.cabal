@@ -55,8 +55,7 @@ library
   ghc-options:      -Wall -fwarn-tabs -Werror
   ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
-  build-depends:    BoundedChan >= 1.0,
-                    attoparsec >= 0.12,
+  build-depends:    attoparsec >= 0.12,
                     base >= 4.6 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
