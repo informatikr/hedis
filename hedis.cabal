@@ -52,7 +52,7 @@ source-repository head
 
 flag manual
   description: enable this for local development -Werror and profiling options
-  default: false
+  default: False
 
 library
   hs-source-dirs:   src
