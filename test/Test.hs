@@ -11,7 +11,7 @@ import Control.Monad.Trans
 import Data.Time
 import Data.Time.Clock.POSIX
 import SlaveThread (fork)
-import qualified Test.Framework as Test (Test, defaultMain)
+import qualified Test.Framework as Test (Test, defaultMain, testGroup)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
 
@@ -52,12 +52,25 @@ assert = liftIO . HUnit.assert
 ------------------------------------------------------------------------------
 -- Tests
 --
+
 tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
-    , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testQuit]
+tests conn =
+    [ def "Misc" testsMisc
+    , def "Keys" testsKeys
+    , def "Strings" testsStrings
+    , def "Hashes" [testHashes]
+    , def "Lists" testsLists
+    , def "Sets" testsSets
+    , def "HyperLogLog" [testHyperLogLog]
+    , def "ZSets" testsZSets
+    , def "PubSub" [testPubSub]
+    , def "Transaction" [testTransaction]
+    , def "Scripting" [testScripting]
+    , def "Connection" testsConnection
+    , def "Server" testsServer
+    , def "Quit" [testQuit]
     ]
+    where def name l = Test.testGroup name $ map ($ conn) l
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
