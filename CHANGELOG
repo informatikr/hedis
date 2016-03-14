@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.7.7
+
+* Close connection handle on error
+
 ## 0.7.2
 
 * Improve speed, rewrite internal logic (PR #56)
