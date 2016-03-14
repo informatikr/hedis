@@ -53,17 +53,17 @@ data ConnectionLostException = ConnectionLost
 instance Exception ConnectionLostException
 
 connect :: HostName -> PortID -> IO Connection
-connect host port = do
-  connHandle  <- connectTo host port
-  hSetBinaryMode connHandle True
-  connReplies <- newIORef []
-  connPending <- newIORef []
-  connPendingCnt <- newIORef 0
-  let conn = Conn{..}
-  rs <- connGetReplies conn
-  writeIORef connReplies rs
-  writeIORef connPending rs
-  return conn
+connect host port =
+  bracketOnError (connectTo host port) hClose $ \connHandle -> do
+    hSetBinaryMode connHandle True
+    connReplies <- newIORef []
+    connPending <- newIORef []
+    connPendingCnt <- newIORef 0
+    let conn = Conn{..}
+    rs <- connGetReplies conn
+    writeIORef connReplies rs
+    writeIORef connPending rs
+    return conn
 
 disconnect :: Connection -> IO ()
 disconnect Conn{..} = do
