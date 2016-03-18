@@ -178,6 +178,13 @@ punsubscribe ps = mempty{ punsubs = Cmd ps }
 --      return $ unsubscribe [\"chat\"]
 --  @
 --
+-- It should be noted that Redis Pub\/Sub by its nature is asynchronous
+-- so returning `unsubscribe` does not mean that callback won't be able
+-- to receive any further messages. And to guarantee that you won't
+-- won't process messages after unsubscription and won't unsubscribe
+-- from the same channel more than once you need to use `IORef` or
+-- something similar
+--
 pubSub
     :: PubSub                 -- ^ Initial subscriptions.
     -> (Message -> IO PubSub) -- ^ Callback function.
