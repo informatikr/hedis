@@ -8,3 +8,4 @@ appendonly.aof
 /.hpc
 Main.hs
 .stack-work
+TAGS
