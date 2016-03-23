@@ -5,181 +5,181 @@
 module Database.Redis.Commands (
 
 -- ** Connection
-auth, -- |Authenticate to the server (<http://redis.io/commands/auth>).
-echo, -- |Echo the given string (<http://redis.io/commands/echo>).
-ping, -- |Ping the server (<http://redis.io/commands/ping>).
-quit, -- |Close the connection (<http://redis.io/commands/quit>).
-select, -- |Change the selected database for the current connection (<http://redis.io/commands/select>).
+auth, -- |Authenticate to the server (<http://redis.io/commands/auth>). Since Redis 1.0.0
+echo, -- |Echo the given string (<http://redis.io/commands/echo>). Since Redis 1.0.0
+ping, -- |Ping the server (<http://redis.io/commands/ping>). Since Redis 1.0.0
+quit, -- |Close the connection (<http://redis.io/commands/quit>). Since Redis 1.0.0
+select, -- |Change the selected database for the current connection (<http://redis.io/commands/select>). Since Redis 1.0.0
 
 -- ** Keys
-del, -- |Delete a key (<http://redis.io/commands/del>).
-dump, -- |Return a serialized version of the value stored at the specified key. (<http://redis.io/commands/dump>).
-exists, -- |Determine if a key exists (<http://redis.io/commands/exists>).
-expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>).
-expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
-keys, -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>).
-migrate, -- |Atomically transfer a key from a Redis instance to another one. (<http://redis.io/commands/migrate>).
-move, -- |Move a key to another database (<http://redis.io/commands/move>).
-objectRefcount, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
-objectEncoding, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
-objectIdletime, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'.
-persist, -- |Remove the expiration from a key (<http://redis.io/commands/persist>).
-pexpire, -- |Set a key's time to live in milliseconds (<http://redis.io/commands/pexpire>).
-pexpireat, -- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>).
-pttl, -- |Get the time to live for a key in milliseconds (<http://redis.io/commands/pttl>).
-randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>).
-rename, -- |Rename a key (<http://redis.io/commands/rename>).
-renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>).
-restore, -- |Create a key using the provided serialized value, previously obtained using DUMP. (<http://redis.io/commands/restore>).
+del, -- |Delete a key (<http://redis.io/commands/del>). Since Redis 1.0.0
+dump, -- |Return a serialized version of the value stored at the specified key (<http://redis.io/commands/dump>). Since Redis 2.6.0
+exists, -- |Determine if a key exists (<http://redis.io/commands/exists>). Since Redis 1.0.0
+expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>). Since Redis 1.0.0
+expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>). Since Redis 1.2.0
+keys, -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>). Since Redis 1.0.0
+migrate, -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). Since Redis 2.6.0
+move, -- |Move a key to another database (<http://redis.io/commands/move>). Since Redis 1.0.0
+objectRefcount, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
+objectEncoding, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
+objectIdletime, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
+persist, -- |Remove the expiration from a key (<http://redis.io/commands/persist>). Since Redis 2.2.0
+pexpire, -- |Set a key's time to live in milliseconds (<http://redis.io/commands/pexpire>). Since Redis 2.6.0
+pexpireat, -- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>). Since Redis 2.6.0
+pttl, -- |Get the time to live for a key in milliseconds (<http://redis.io/commands/pttl>). Since Redis 2.6.0
+randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>). Since Redis 1.0.0
+rename, -- |Rename a key (<http://redis.io/commands/rename>). Since Redis 1.0.0
+renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>). Since Redis 1.0.0
+restore, -- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). Since Redis 2.6.0
 SortOpts(..),
 defaultSortOpts,
 SortOrder(..),
-sort, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
-sortStore, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'.
-ttl, -- |Get the time to live for a key (<http://redis.io/commands/ttl>).
+sort, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
+sortStore, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
+ttl, -- |Get the time to live for a key (<http://redis.io/commands/ttl>). Since Redis 1.0.0
 RedisType(..),
-getType, -- |Determine the type stored at key (<http://redis.io/commands/type>).
+getType, -- |Determine the type stored at key (<http://redis.io/commands/type>). Since Redis 1.0.0
 
 -- ** Hashes
-hdel, -- |Delete one or more hash fields (<http://redis.io/commands/hdel>).
-hexists, -- |Determine if a hash field exists (<http://redis.io/commands/hexists>).
-hget, -- |Get the value of a hash field (<http://redis.io/commands/hget>).
-hgetall, -- |Get all the fields and values in a hash (<http://redis.io/commands/hgetall>).
-hincrby, -- |Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>).
-hincrbyfloat, -- |Increment the float value of a hash field by the given amount (<http://redis.io/commands/hincrbyfloat>).
-hkeys, -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>).
-hlen, -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>).
-hmget, -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>).
-hmset, -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>).
-hset, -- |Set the string value of a hash field (<http://redis.io/commands/hset>).
-hsetnx, -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>).
-hvals, -- |Get all the values in a hash (<http://redis.io/commands/hvals>).
+hdel, -- |Delete one or more hash fields (<http://redis.io/commands/hdel>). Since Redis 2.0.0
+hexists, -- |Determine if a hash field exists (<http://redis.io/commands/hexists>). Since Redis 2.0.0
+hget, -- |Get the value of a hash field (<http://redis.io/commands/hget>). Since Redis 2.0.0
+hgetall, -- |Get all the fields and values in a hash (<http://redis.io/commands/hgetall>). Since Redis 2.0.0
+hincrby, -- |Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>). Since Redis 2.0.0
+hincrbyfloat, -- |Increment the float value of a hash field by the given amount (<http://redis.io/commands/hincrbyfloat>). Since Redis 2.6.0
+hkeys, -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>). Since Redis 2.0.0
+hlen, -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>). Since Redis 2.0.0
+hmget, -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>). Since Redis 2.0.0
+hmset, -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>). Since Redis 2.0.0
+hset, -- |Set the string value of a hash field (<http://redis.io/commands/hset>). Since Redis 2.0.0
+hsetnx, -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>). Since Redis 2.0.0
+hvals, -- |Get all the values in a hash (<http://redis.io/commands/hvals>). Since Redis 2.0.0
 
 -- ** HyperLogLogs
-pfadd, -- |Adds all the elements arguments to the HyperLogLog data structure stored at the variable name specified as first argument. (<http://redis.io/commands/pfadd>).
-pfcount, -- |Returns the approximated cardinality for the union of the HyperLogLogs stored in the specified keys. (<http://redis.io/commands/pfcount>).
-pfmerge, -- |Merge multiple HyperLogLog values into an unique value that will approximate the cardinality of the union of the observed Sets of the source HyperLogLog structures. (<http://redis.io/commands/pfmerge>).
+pfadd, -- |Adds all the elements arguments to the HyperLogLog data structure stored at the variable name specified as first argument (<http://redis.io/commands/pfadd>). Since Redis 2.8.9
+pfcount, -- |Returns the approximated cardinality for the union of the HyperLogLogs stored in the specified keys (<http://redis.io/commands/pfcount>). Since Redis 2.8.9
+pfmerge, -- |Merge multiple HyperLogLog values into an unique value that will approximate the cardinality of the union of the observed Sets of the source HyperLogLog structures (<http://redis.io/commands/pfmerge>). Since Redis 2.8.9
 
 -- ** Lists
-blpop, -- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>).
-brpop, -- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
-brpoplpush, -- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>).
-lindex, -- |Get an element from a list by its index (<http://redis.io/commands/lindex>).
-linsertBefore, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'.
-linsertAfter, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'.
-llen, -- |Get the length of a list (<http://redis.io/commands/llen>).
-lpop, -- |Remove and get the first element in a list (<http://redis.io/commands/lpop>).
-lpush, -- |Prepend one or multiple values to a list (<http://redis.io/commands/lpush>).
-lpushx, -- |Prepend a value to a list, only if the list exists (<http://redis.io/commands/lpushx>).
-lrange, -- |Get a range of elements from a list (<http://redis.io/commands/lrange>).
-lrem, -- |Remove elements from a list (<http://redis.io/commands/lrem>).
-lset, -- |Set the value of an element in a list by its index (<http://redis.io/commands/lset>).
-ltrim, -- |Trim a list to the specified range (<http://redis.io/commands/ltrim>).
-rpop, -- |Remove and get the last element in a list (<http://redis.io/commands/rpop>).
-rpoplpush, -- |Remove the last element in a list, append it to another list and return it (<http://redis.io/commands/rpoplpush>).
-rpush, -- |Append one or multiple values to a list (<http://redis.io/commands/rpush>).
-rpushx, -- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>).
+blpop, -- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>). Since Redis 2.0.0
+brpop, -- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>). Since Redis 2.0.0
+brpoplpush, -- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>). Since Redis 2.2.0
+lindex, -- |Get an element from a list by its index (<http://redis.io/commands/lindex>). Since Redis 1.0.0
+linsertBefore, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
+linsertAfter, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
+llen, -- |Get the length of a list (<http://redis.io/commands/llen>). Since Redis 1.0.0
+lpop, -- |Remove and get the first element in a list (<http://redis.io/commands/lpop>). Since Redis 1.0.0
+lpush, -- |Prepend one or multiple values to a list (<http://redis.io/commands/lpush>). Since Redis 1.0.0
+lpushx, -- |Prepend a value to a list, only if the list exists (<http://redis.io/commands/lpushx>). Since Redis 2.2.0
+lrange, -- |Get a range of elements from a list (<http://redis.io/commands/lrange>). Since Redis 1.0.0
+lrem, -- |Remove elements from a list (<http://redis.io/commands/lrem>). Since Redis 1.0.0
+lset, -- |Set the value of an element in a list by its index (<http://redis.io/commands/lset>). Since Redis 1.0.0
+ltrim, -- |Trim a list to the specified range (<http://redis.io/commands/ltrim>). Since Redis 1.0.0
+rpop, -- |Remove and get the last element in a list (<http://redis.io/commands/rpop>). Since Redis 1.0.0
+rpoplpush, -- |Remove the last element in a list, append it to another list and return it (<http://redis.io/commands/rpoplpush>). Since Redis 1.2.0
+rpush, -- |Append one or multiple values to a list (<http://redis.io/commands/rpush>). Since Redis 1.0.0
+rpushx, -- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>). Since Redis 2.2.0
 
 -- ** Scripting
-eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>).
-evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/evalsha>).
-scriptExists, -- |Check existence of scripts in the script cache. (<http://redis.io/commands/script-exists>).
-scriptFlush, -- |Remove all the scripts from the script cache. (<http://redis.io/commands/script-flush>).
-scriptKill, -- |Kill the script currently in execution. (<http://redis.io/commands/script-kill>).
-scriptLoad, -- |Load the specified Lua script into the script cache. (<http://redis.io/commands/script-load>).
+eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). Since Redis 2.6.0
+evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/evalsha>). Since Redis 2.6.0
+scriptExists, -- |Check existence of scripts in the script cache (<http://redis.io/commands/script-exists>). Since Redis 2.6.0
+scriptFlush, -- |Remove all the scripts from the script cache (<http://redis.io/commands/script-flush>). Since Redis 2.6.0
+scriptKill, -- |Kill the script currently in execution (<http://redis.io/commands/script-kill>). Since Redis 2.6.0
+scriptLoad, -- |Load the specified Lua script into the script cache (<http://redis.io/commands/script-load>). Since Redis 2.6.0
 
 -- ** Server
-bgrewriteaof, -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>).
-bgsave, -- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>).
-configGet, -- |Get the value of a configuration parameter (<http://redis.io/commands/config-get>).
-configResetstat, -- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>).
-configSet, -- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>).
-dbsize, -- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>).
-debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>).
-flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>).
-flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
-info, -- |Get information and statistics about the server (<http://redis.io/commands/info>).
-lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>).
-save, -- |Synchronously save the dataset to disk (<http://redis.io/commands/save>).
-slaveof, -- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>).
+bgrewriteaof, -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>). Since Redis 1.0.0
+bgsave, -- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>). Since Redis 1.0.0
+configGet, -- |Get the value of a configuration parameter (<http://redis.io/commands/config-get>). Since Redis 2.0.0
+configResetstat, -- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>). Since Redis 2.0.0
+configSet, -- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>). Since Redis 2.0.0
+dbsize, -- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>). Since Redis 1.0.0
+debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>). Since Redis 1.0.0
+flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>). Since Redis 1.0.0
+flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>). Since Redis 1.0.0
+info, -- |Get information and statistics about the server (<http://redis.io/commands/info>). Since Redis 1.0.0
+lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>). Since Redis 1.0.0
+save, -- |Synchronously save the dataset to disk (<http://redis.io/commands/save>). Since Redis 1.0.0
+slaveof, -- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>). Since Redis 1.0.0
 Slowlog(..),
-slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
-slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
-slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'.
-time, -- |Return the current server time (<http://redis.io/commands/time>).
+slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
+slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
+slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
+time, -- |Return the current server time (<http://redis.io/commands/time>). Since Redis 2.6.0
 
 -- ** Sets
-sadd, -- |Add one or more members to a set (<http://redis.io/commands/sadd>).
-scard, -- |Get the number of members in a set (<http://redis.io/commands/scard>).
-sdiff, -- |Subtract multiple sets (<http://redis.io/commands/sdiff>).
-sdiffstore, -- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>).
-sinter, -- |Intersect multiple sets (<http://redis.io/commands/sinter>).
-sinterstore, -- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>).
-sismember, -- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>).
-smembers, -- |Get all the members in a set (<http://redis.io/commands/smembers>).
-smove, -- |Move a member from one set to another (<http://redis.io/commands/smove>).
-spop, -- |Remove and return a random member from a set (<http://redis.io/commands/spop>).
-srandmember, -- |Get a random member from a set (<http://redis.io/commands/srandmember>).
-srem, -- |Remove one or more members from a set (<http://redis.io/commands/srem>).
-sunion, -- |Add multiple sets (<http://redis.io/commands/sunion>).
-sunionstore, -- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>).
+sadd, -- |Add one or more members to a set (<http://redis.io/commands/sadd>). Since Redis 1.0.0
+scard, -- |Get the number of members in a set (<http://redis.io/commands/scard>). Since Redis 1.0.0
+sdiff, -- |Subtract multiple sets (<http://redis.io/commands/sdiff>). Since Redis 1.0.0
+sdiffstore, -- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>). Since Redis 1.0.0
+sinter, -- |Intersect multiple sets (<http://redis.io/commands/sinter>). Since Redis 1.0.0
+sinterstore, -- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>). Since Redis 1.0.0
+sismember, -- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>). Since Redis 1.0.0
+smembers, -- |Get all the members in a set (<http://redis.io/commands/smembers>). Since Redis 1.0.0
+smove, -- |Move a member from one set to another (<http://redis.io/commands/smove>). Since Redis 1.0.0
+spop, -- |Remove and return a random member from a set (<http://redis.io/commands/spop>). Since Redis 1.0.0
+srandmember, -- |Get a random member from a set (<http://redis.io/commands/srandmember>). Since Redis 1.0.0
+srem, -- |Remove one or more members from a set (<http://redis.io/commands/srem>). Since Redis 1.0.0
+sunion, -- |Add multiple sets (<http://redis.io/commands/sunion>). Since Redis 1.0.0
+sunionstore, -- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>). Since Redis 1.0.0
 
 -- ** Sorted Sets
-zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>).
-zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>).
-zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>).
-zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>).
+zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). Since Redis 1.2.0
+zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>). Since Redis 1.2.0
+zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>). Since Redis 2.0.0
+zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>). Since Redis 1.2.0
 Aggregate(..),
-zinterstore, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'.
-zinterstoreWeights, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'.
-zrange, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'.
-zrangeWithscores, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'.
-zrangebyscore, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'.
-zrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'.
-zrangebyscoreLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'.
-zrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'.
-zrank, -- |Determine the index of a member in a sorted set (<http://redis.io/commands/zrank>).
-zrem, -- |Remove one or more members from a sorted set (<http://redis.io/commands/zrem>).
-zremrangebyrank, -- |Remove all members in a sorted set within the given indexes (<http://redis.io/commands/zremrangebyrank>).
-zremrangebyscore, -- |Remove all members in a sorted set within the given scores (<http://redis.io/commands/zremrangebyscore>).
-zrevrange, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'.
-zrevrangeWithscores, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'.
-zrevrangebyscore, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'.
-zrevrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'.
-zrevrangebyscoreLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'.
-zrevrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'.
-zrevrank, -- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>).
-zscore, -- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>).
-zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'.
-zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'.
+zinterstore, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
+zinterstoreWeights, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
+zrange, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
+zrangeWithscores, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
+zrangebyscore, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
+zrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
+zrangebyscoreLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
+zrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
+zrank, -- |Determine the index of a member in a sorted set (<http://redis.io/commands/zrank>). Since Redis 2.0.0
+zrem, -- |Remove one or more members from a sorted set (<http://redis.io/commands/zrem>). Since Redis 1.2.0
+zremrangebyrank, -- |Remove all members in a sorted set within the given indexes (<http://redis.io/commands/zremrangebyrank>). Since Redis 2.0.0
+zremrangebyscore, -- |Remove all members in a sorted set within the given scores (<http://redis.io/commands/zremrangebyscore>). Since Redis 1.2.0
+zrevrange, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'. Since Redis 1.2.0
+zrevrangeWithscores, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'. Since Redis 1.2.0
+zrevrangebyscore, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
+zrevrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
+zrevrangebyscoreLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
+zrevrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
+zrevrank, -- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>). Since Redis 2.0.0
+zscore, -- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>). Since Redis 1.2.0
+zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
+zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 
 -- ** Strings
-append, -- |Append a value to a key (<http://redis.io/commands/append>).
-bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
-bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'.
-bitopAnd, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
-bitopOr, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
-bitopXor, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
-bitopNot, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'.
-decr, -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>).
-decrby, -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>).
-get, -- |Get the value of a key (<http://redis.io/commands/get>).
-getbit, -- |Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>).
-getrange, -- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>).
-getset, -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>).
-incr, -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>).
-incrby, -- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>).
-incrbyfloat, -- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>).
-mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>).
-mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>).
-msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
-psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>).
-set, -- |Set the string value of a key (<http://redis.io/commands/set>).
-setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>).
-setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>).
-setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>).
-setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>).
-strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>).
+append, -- |Append a value to a key (<http://redis.io/commands/append>). Since Redis 2.0.0
+bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
+bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
+bitopAnd, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
+bitopOr, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
+bitopXor, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
+bitopNot, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
+decr, -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>). Since Redis 1.0.0
+decrby, -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>). Since Redis 1.0.0
+get, -- |Get the value of a key (<http://redis.io/commands/get>). Since Redis 1.0.0
+getbit, -- |Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>). Since Redis 2.2.0
+getrange, -- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>). Since Redis 2.4.0
+getset, -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>). Since Redis 1.0.0
+incr, -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>). Since Redis 1.0.0
+incrby, -- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>). Since Redis 1.0.0
+incrbyfloat, -- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>). Since Redis 2.6.0
+mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>). Since Redis 1.0.0
+mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>). Since Redis 1.0.1
+msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>). Since Redis 1.0.1
+psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>). Since Redis 2.6.0
+set, -- |Set the string value of a key (<http://redis.io/commands/set>). Since Redis 1.0.0
+setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>). Since Redis 2.2.0
+setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>). Since Redis 2.0.0
+setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>). Since Redis 1.0.0
+setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
+strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
