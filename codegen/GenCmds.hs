@@ -101,6 +101,7 @@ data Cmd = Cmd { cmdName, cmdGroup :: String
                , cmdRetType        :: Maybe String
                , cmdArgs           :: [Arg]
                , cmdSummary        :: String
+               , cmdSince          :: String
                }
     deriving (Show)
 
@@ -123,6 +124,7 @@ instance FromJSON Cmds where
             cmdGroup   <- cmd .: "group"
             cmdRetType <- cmd .:? "returns"
             cmdSummary <- cmd .: "summary"
+            cmdSince   <- cmd .: "since"
             cmdArgs    <- cmd .:? "arguments" .!= []
                             <|> error ("failed to parse args: " ++ cmdName)
             return Cmd{..})
@@ -267,6 +269,7 @@ exportCmdNames Cmd{..} = types `mappend` functions
                 , fromString "'."
                 ]
             else mempty
+        , fromString " Since Redis ", fromString cmdSince
         ]
 
 cmdDescriptionLink :: String -> Builder
