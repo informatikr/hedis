@@ -8,6 +8,7 @@ import Data.Monoid (mappend)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import qualified Data.List as L (sort)
 import Data.Time
 import Data.Time.Clock.POSIX
 import SlaveThread (fork)
@@ -52,13 +53,14 @@ assert = liftIO . HUnit.assert
 ------------------------------------------------------------------------------
 -- Tests
 --
+-- Defines all the test groups.
 
 tests :: Connection -> [Test.Test]
 tests conn =
     [ def "Misc" testsMisc
     , def "Keys" testsKeys
     , def "Strings" testsStrings
-    , def "Hashes" [testHashes]
+    , def "Hashes" testHashes
     , def "Lists" testsLists
     , def "Sets" testsSets
     , def "HyperLogLog" [testHyperLogLog]
@@ -77,7 +79,9 @@ tests conn =
 --
 testsMisc :: [Test]
 testsMisc =
-    [ testConstantSpacePipelining, testForceErrorReply, testPipelining
+    [ testConstantSpacePipelining
+    , testForceErrorReply
+    , testPipelining
     , testEvalReplies
     ]
 
@@ -209,7 +213,7 @@ testObject = testCase "object" $ do
 -- Strings
 --
 testsStrings :: [Test]
-testsStrings = [testStrings, testBitops]
+testsStrings = [testStrings, testBitops, testBITPOS]
 
 testStrings :: Test
 testStrings = testCase "strings" $ do
@@ -244,11 +248,25 @@ testBitops = testCase "bitops" $ do
     bitopXor "k3" ["k1", "k2"] >>=? 1
     bitopNot "k3" "k1"         >>=? 1
 
+testBITPOS :: Test
+testBITPOS = testCase "BITPOS" $ do
+  set "k1" "\xff\xf0\x00" >>=? Ok
+  bitpos "k1" 0 0 2       >>=? 12
+
+  set "k2" "\x00\x00\x00" >>=? Ok
+  bitpos "k2" 1 0 2       >>=? (-1)
+
+  bitpos "k3" 0 0 1       >>=? 0
+
 ------------------------------------------------------------------------------
 -- Hashes
 --
-testHashes :: Test
-testHashes = testCase "hashes" $ do
+
+testHashes :: [Test]
+testHashes = [testHashesAll, testHSTRLEN]
+
+testHashesAll :: Test
+testHashesAll = testCase "hashes" $ do
     hset "key" "field" "value"   >>=? True
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
@@ -262,6 +280,11 @@ testHashes = testCase "hashes" $ do
     hmset "key" [("field","40")] >>=? Ok
     hincrby "key" "field" 2      >>=? 42
     hincrbyfloat "key" "field" 2 >>=? 44
+
+testHSTRLEN :: Test
+testHSTRLEN = testCase "HSTRLEN" $ do
+  hset "key" "field" "value" >>=? True
+  hstrlen "key" "field"      >>=? 5
 
 ------------------------------------------------------------------------------
 -- Lists
@@ -301,28 +324,116 @@ testBpop = testCase "blocking push/pop" $ do
 -- Sets
 --
 testsSets :: [Test]
-testsSets = [testSets, testSetAlgebra]
+testsSets =
+  [ testSADD
+  , testSISMEMBER
+  , testSCARD
+  , testSMEMBERS
+  , testSRANDMEMBER
+  , testSPOP
+  , testSREM
+  , testSMOVE
+  , testSDIFF
+  , testSUNION
+  , testSINTER
+  , testSDIFFSTORE
+  , testSUNIONSTORE
+  , testSINTERSTORE
+  ]
 
-testSets :: Test
-testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
-    sismember "set" "member"    >>=? True
-    scard "set"                 >>=? 1
-    smembers "set"              >>=? ["member"]
-    srandmember "set"           >>=? Just "member"
-    spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
-    smove "set" "set'" "member" >>=? False
+testSADD :: Test
+testSADD = testCase "SADD" $ do
+  sadd "s1" ["a"] >>=? 1
 
-testSetAlgebra :: Test
-testSetAlgebra = testCase "set algebra" $ do
-    sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
-    sdiffstore "s3" ["s1", "s2"]  >>=? 1
-    sunionstore "s3" ["s1", "s2"] >>=? 1
-    sinterstore "s3" ["s1", "s2"] >>=? 0
+testSISMEMBER :: Test
+testSISMEMBER = testCase "SISMEMBER" $ do
+  sadd "s1" ["a"]    >>=? 1
+  sismember "s1" "a" >>=? True
+  sismember "s1" "b" >>=? False
+
+testSCARD :: Test
+testSCARD = testCase "SCARD" $ do
+  scard "s1"      >>=? 0
+  sadd "s1" ["a"] >>=? 1
+  scard "s1"      >>=? 1
+
+testSMEMBERS :: Test
+testSMEMBERS = testCase "SMEMBERS" $ do
+  smembers "s1"        >>=? []
+  sadd "s1" ["a", "b"] >>=? 2
+  Right mem <- smembers "s1"
+  assert $ L.sort mem == ["a", "b"]
+
+testSRANDMEMBER :: Test
+testSRANDMEMBER = testCase "SRANDMEMBER" $ do
+  srandmember "s1" >>=? Nothing
+  sadd "s1" l >>=? 3
+  Right (Just mem) <- srandmember "s1"
+  assert $ mem `elem` l
+  where l = ["a", "b", "c"]
+
+testSPOP :: Test
+testSPOP = testCase "SPOP" $ do
+  spop "s1" >>=? Nothing
+  sadd "s1" l >>=? 3
+  Right (Just mem) <- spop "s1"
+  assert $ mem `elem` l
+
+  where l = ["a", "b", "c"]
+
+testSREM :: Test
+testSREM = testCase "SREM" $ do
+  srem "s1" ["a"]      >>=? 0
+  sadd "s1" ["a", "b"] >>=? 2
+  srem "s1" ["a"]      >>=? 1
+
+testSMOVE :: Test
+testSMOVE = testCase "SMOVE" $ do
+  sadd "s1" ["a"]     >>=? 1
+  smove "s1" "s2" "a" >>=? True
+  smembers "s2"       >>=? ["a"]
+
+testSDIFF :: Test
+testSDIFF = testCase "SDIFF" $ do
+  sadd "s1" ["a", "b"] >>=? 2
+  sadd "s2" ["a"]      >>=? 1
+  sdiff ["s1", "s2"]   >>=? ["b"]
+
+testSUNION :: Test
+testSUNION = testCase "SUNION" $ do
+  sadd "s1" ["a"] >>=? 1
+  sadd "s2" ["b"] >>=? 1
+  Right res <- sunion ["s1", "s2"]
+  assert $ L.sort res == ["a", "b"]
+
+testSINTER :: Test
+testSINTER = testCase "SINTER" $ do
+  sadd "s1" ["a", "b"] >>=? 2
+  sadd "s2" ["b", "c"] >>=? 2
+  sinter ["s1", "s2"]  >>=? ["b"]
+
+testSDIFFSTORE :: Test
+testSDIFFSTORE = testCase "SDIFFSTORE" $ do
+  sadd "s1" ["a", "b"] >>=? 2
+  sadd "s2" ["a"] >>=? 1
+  sdiffstore "s3" ["s1", "s2"] >>=? 1
+  smembers "s3" >>=? ["b"]
+
+testSUNIONSTORE :: Test
+testSUNIONSTORE = testCase "SUNIONSTORE" $ do
+  sadd "s1" ["a"] >>=? 1
+  sadd "s2" ["b"] >>=? 1
+  sunionstore "s3" ["s1", "s2"] >>=? 2
+  Right m <- smembers "s3"
+  assert $ L.sort m == ["a", "b"]
+
+testSINTERSTORE :: Test
+testSINTERSTORE = testCase "SINTERSTORE" $ do
+  sadd "s1" ["a", "b", "c"] >>=? 3
+  sadd "s2" ["a", "b"] >>=? 2
+  sinterstore "s3" ["s1", "s2"] >>=? 2
+  Right m <- smembers "s3"
+  assert $ L.sort m == ["a", "b"]
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
