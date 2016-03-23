@@ -255,8 +255,12 @@ exportCmdNames Cmd{..} = types `mappend` functions
         Just (Just (_,ts)) -> ts
         Just Nothing       -> error "unhandled"
 
+    dropTrailingDot s = case reverse s of
+        ('.':rest) -> reverse rest
+        _          -> s
+
     haddock = mconcat
-        [ fromString "-- |", fromString cmdSummary
+        [ fromString "-- |", fromString (dropTrailingDot cmdSummary)
         , fromString " ("
         , cmdDescriptionLink cmdName
         , fromString ")."
