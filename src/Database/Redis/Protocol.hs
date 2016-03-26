@@ -49,27 +49,35 @@ crlf = "\r\n"
 -- Reply parsers
 --
 reply :: Parser Reply
-reply = choice [singleLine, integer, bulk, multiBulk, error]
+reply = do
+  c <- anyChar
+  case c of
+    '+' -> singleLine
+    '-' -> error
+    ':' -> integer
+    '$' -> bulk
+    '*' -> multiBulk
+    _ -> fail "Unknown reply type"
 
 singleLine :: Parser Reply
-singleLine = SingleLine <$> (char '+' *> takeTill isEndOfLine <* endOfLine)
+singleLine = SingleLine <$> (takeTill isEndOfLine <* endOfLine)
 
 error :: Parser Reply
-error = Error <$> (char '-' *> takeTill isEndOfLine <* endOfLine)
+error = Error <$> (takeTill isEndOfLine <* endOfLine)
 
 integer :: Parser Reply
-integer = Integer <$> (char ':' *> signed decimal <* endOfLine)
+integer = Integer <$> (signed decimal <* endOfLine)
 
 bulk :: Parser Reply
 bulk = Bulk <$> do
-    len <- char '$' *> signed decimal <* endOfLine
+    len <- signed decimal <* endOfLine
     if len < 0
         then return Nothing
         else Just <$> take len <* endOfLine
 
 multiBulk :: Parser Reply
 multiBulk = MultiBulk <$> do
-    len <- char '*' *> signed decimal <* endOfLine
+    len <- signed decimal <* endOfLine
     if len < 0
         then return Nothing
         else Just <$> count len reply
