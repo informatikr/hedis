@@ -108,11 +108,13 @@ blacklist = [ manual "AUTH" ["auth"]
             , manual "SSCAN" ["sscan", "sscanOpts"]
             , manual "HSCAN" ["hscan", "hscanOpts"]
             , manual "ZSCAN" ["zscan", "zscanOpts"]
+            , manualWithType "ZRANGEBYLEX"
+                ["zrangebylex, zrangebylexLimit"]
+                ["RangeLex(..)"]
             , unimplemented "COMMAND"
             , unimplemented "COMMAND GETKEYS"
             , unimplemented "ROLE"
             , unimplemented "CLIENT KILL"
-            , unimplemented "ZRANGEBYLEX"
             , unimplemented "ZREVRANGEBYLEX"
             , unimplemented "ZRANGEBYSCORE"
             , unimplemented "ZREVRANGEBYSCORE"
