@@ -2,8 +2,9 @@
 
 module Database.Redis.ManualCommands where
 
-import Prelude hiding (min,max)
-import Data.ByteString (ByteString)
+import Prelude hiding (min, max)
+import Data.ByteString (ByteString, empty, append)
+import Data.Maybe (maybeToList)
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -267,7 +268,7 @@ sortInternal key destination SortOpts{..} = sendRequest $
     limit = let (off,cnt) = sortLimit in ["LIMIT", encode off, encode cnt]
     get   = concatMap (\pattern -> ["GET", pattern]) sortGet
     order = case sortOrder of Desc -> ["DESC"]; Asc -> ["ASC"]
-    alpha = ["ALPHA" | sortAlpha]
+    alpha = ["ALPHA" | sortAlpha]
     store = maybe [] (\dest -> ["STORE", dest]) destination
 
 
@@ -317,7 +318,7 @@ zstoreInternal
     -> ByteString -- ^ destination
     -> [ByteString] -- ^ keys
     -> [Double] -- ^ weights
-    -> Aggregate    
+    -> Aggregate
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
     concat [ [cmd, dest, encode . toInteger $ length keys], keys
@@ -401,3 +402,381 @@ bitop
     -> [ByteString] -- ^ keys
     -> m (f Integer)
 bitop op ks = sendRequest $ "BITOP" : op : ks
+
+-- setRange
+--   ::
+-- setRange = sendRequest (["SET"] ++ [encode key] ++ [encode value] ++ )
+
+migrate
+    :: (RedisCtx m f)
+    => ByteString -- ^ host
+    -> ByteString -- ^ port
+    -> ByteString -- ^ key
+    -> Integer -- ^ destinationDb
+    -> Integer -- ^ timeout
+    -> m (f Status)
+migrate host port key destinationDb timeout =
+  sendRequest ["MIGRATE", host, port, key, encode destinationDb, encode timeout]
+
+
+-- |Options for the 'migrate' command.
+data MigrateOpts = MigrateOpts
+    { migrateCopy    :: Bool
+    , migrateReplace :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'MigrateOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- MigrateOpts
+--     { migrateCopy    = False -- remove the key from the local instance
+--     , migrateReplace = False -- don't replace existing key on the remote instance
+--     }
+-- @
+--
+defaultMigrateOpts :: MigrateOpts
+defaultMigrateOpts = MigrateOpts
+    { migrateCopy    = False
+    , migrateReplace = False
+    }
+
+migrateMultiple
+    :: (RedisCtx m f)
+    => ByteString   -- ^ host
+    -> ByteString   -- ^ port
+    -> Integer      -- ^ destinationDb
+    -> Integer      -- ^ timeout
+    -> MigrateOpts
+    -> [ByteString] -- ^ keys
+    -> m (f Status)
+migrateMultiple host port destinationDb timeout MigrateOpts{..} keys =
+    sendRequest $
+    concat [["MIGRATE", host, port, empty, encode destinationDb, encode timeout],
+            copy, replace, keys]
+  where
+    copy = ["COPY" | migrateCopy]
+    replace = ["REPLACE" | migrateReplace]
+
+
+restore
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ timeToLive
+    -> ByteString -- ^ serializedValue
+    -> m (f Status)
+restore key timeToLive serializedValue =
+  sendRequest ["RESTORE", key, encode timeToLive, serializedValue]
+
+
+restoreReplace
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ timeToLive
+    -> ByteString -- ^ serializedValue
+    -> m (f Status)
+restoreReplace key timeToLive serializedValue =
+  sendRequest ["RESTORE", key, encode timeToLive, serializedValue, "REPLACE"]
+
+
+set
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f Status)
+set key value = sendRequest ["SET", key, value]
+
+
+data Condition = Nx | Xx deriving (Show, Eq)
+
+
+instance RedisArg Condition where
+  encode Nx = "NX"
+  encode Xx = "XX"
+
+
+data SetOpts = SetOpts
+  { setSeconds      :: Maybe Integer
+  , setMilliseconds :: Maybe Integer
+  , setCondition    :: Maybe Condition
+  } deriving (Show, Eq)
+
+
+setOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> SetOpts
+    -> m (f Status)
+setOpts key value SetOpts{..} =
+    sendRequest $ concat [["SET", key, value], ex, px, condition]
+  where
+    ex = maybe [] (\s -> ["EX", encode s]) setSeconds
+    px = maybe [] (\s -> ["PX", encode s]) setMilliseconds
+    condition = map encode $ maybeToList setCondition
+
+
+data DebugMode = Yes | Sync | No deriving (Show, Eq)
+
+
+instance RedisArg DebugMode where
+  encode Yes = "YES"
+  encode Sync = "SYNC"
+  encode No = "NO"
+
+
+scriptDebug
+    :: (RedisCtx m f)
+    => DebugMode
+    -> m (f Bool)
+scriptDebug mode =
+    sendRequest ["SCRIPT DEBUG", encode mode]
+
+
+zadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> [(Double,ByteString)] -- ^ scoreMember
+    -> m (f Integer)
+zadd key scoreMembers =
+  zaddOpts key scoreMembers defaultZaddOpts
+
+
+data ZaddOpts = ZaddOpts
+  { zaddCondition :: Maybe Condition
+  , zaddChange    :: Bool
+  , zaddIncrement :: Bool
+  } deriving (Show, Eq)
+
+
+-- |Redis default 'ZaddOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- ZaddOpts
+--     { zaddCondition = Nothing -- omit NX and XX options
+--     , zaddChange    = False   -- don't modify the return value from the number of new elements added, to the total number of elements changed
+--     , zaddIncrement = False   -- don't add like ZINCRBY
+--     }
+-- @
+--
+defaultZaddOpts :: ZaddOpts
+defaultZaddOpts = ZaddOpts
+  { zaddCondition = Nothing
+  , zaddChange    = False
+  , zaddIncrement = False
+  }
+
+
+zaddOpts
+    :: (RedisCtx m f)
+    => ByteString            -- ^ key
+    -> [(Double,ByteString)] -- ^ scoreMember
+    -> ZaddOpts              -- ^ options
+    -> m (f Integer)
+zaddOpts key scoreMembers ZaddOpts{..} =
+    sendRequest $ concat [["ZADD", key], condition, change, increment, scores]
+  where
+    scores = concatMap (\(x,y) -> [encode x,encode y]) scoreMembers
+    condition = map encode $ maybeToList zaddCondition
+    change = ["CH" | zaddChange]
+    increment = ["INCR" | zaddIncrement]
+
+
+data ReplyMode = On | Off | Skip deriving (Show, Eq)
+
+
+instance RedisArg ReplyMode where
+  encode On = "ON"
+  encode Off = "OFF"
+  encode Skip = "SKIP"
+
+
+clientReply
+    :: (RedisCtx m f)
+    => ReplyMode
+    -> m (f Bool)
+clientReply mode =
+    sendRequest ["CLIENT REPLY", encode mode]
+
+
+srandmember
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+srandmember key = sendRequest ["SRANDMEMBER", key]
+
+
+srandmemberN
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ count
+    -> m (f (Maybe ByteString))
+srandmemberN key count = sendRequest ["SRANDMEMBER", key, encode count]
+
+
+spop
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe ByteString))
+spop key = sendRequest ["SPOP", key]
+
+
+info
+    :: (RedisCtx m f)
+    => m (f ByteString)
+info = sendRequest ["INFO"]
+
+
+infoSection
+    :: (RedisCtx m f)
+    => ByteString -- ^ section
+    -> m (f ByteString)
+infoSection section = sendRequest ["INFO", section]
+
+
+exists
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f Bool)
+exists key = sendRequest ["EXISTS", key]
+
+newtype Cursor = Cursor ByteString deriving (Show, Eq)
+
+
+instance RedisArg Cursor where
+  encode (Cursor c) = encode c
+
+
+instance RedisResult Cursor where
+  decode (Bulk (Just s)) = Right $ Cursor s
+  decode r               = Left r
+
+
+cursor0 :: Cursor
+cursor0 = Cursor "0"
+
+
+scan
+    :: (RedisCtx m f)
+    => Cursor
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+scan cursor = scanOpts cursor defaultScanOpts
+
+
+data ScanOpts = ScanOpts
+  { scanMatch :: Maybe ByteString
+  , scanCount :: Maybe Integer
+  } deriving (Show, Eq)
+
+
+-- |Redis default 'ScanOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- ScanOpts
+--     { scanMatch = Nothing -- don't match any pattern
+--     , scanCount = Nothing -- don't set any requirements on number elements returned (works like value @COUNT 10@)
+--     }
+-- @
+--
+defaultScanOpts :: ScanOpts
+defaultScanOpts = ScanOpts
+  { scanMatch = Nothing
+  , scanCount = Nothing
+  }
+
+
+scanOpts
+    :: (RedisCtx m f)
+    => Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+scanOpts cursor opts = sendRequest $ addScanOpts ["SCAN", encode cursor] opts
+
+
+addScanOpts
+    :: [ByteString] -- ^ main part of scan command
+    -> ScanOpts
+    -> [ByteString]
+addScanOpts cmd ScanOpts{..} =
+    concat [cmd, match, count]
+  where
+    match = maybeToList scanMatch
+    count = map encode $ maybeToList scanCount
+
+
+sscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+sscan key cursor = sscanOpts key cursor defaultScanOpts
+
+
+sscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
+sscanOpts key cursor opts = sendRequest $ addScanOpts ["SSCAN", key, encode cursor] opts
+
+
+hscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
+hscan key cursor = hscanOpts key cursor defaultScanOpts
+
+
+hscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
+hscanOpts key cursor opts = sendRequest $ addScanOpts ["HSCAN", key, encode cursor] opts
+
+
+zscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
+zscan key cursor = zscanOpts key cursor defaultScanOpts
+
+
+zscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Cursor
+    -> ScanOpts
+    -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
+zscanOpts key cursor opts = sendRequest $ addScanOpts ["ZSCAN", key, encode cursor] opts
+
+data RangeLex a = Incl a | Excl a | Minr | Maxr
+
+instance RedisArg a => RedisArg (RangeLex a) where
+  encode (Incl bs) = "[" `append` encode bs
+  encode (Excl bs) = "(" `append` encode bs
+  encode Minr      = "-"
+  encode Maxr      = "+"
+
+zrangebylex::(RedisCtx m f) =>
+    ByteString             -- ^ key
+    -> RangeLex ByteString -- ^ min
+    -> RangeLex ByteString -- ^ max
+    -> m (f [ByteString])
+zrangebylex key min max =
+    sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max]
+
+zrangebylexLimit
+    ::(RedisCtx m f)
+    => ByteString -- ^ key
+    -> RangeLex ByteString -- ^ min
+    -> RangeLex ByteString -- ^ max
+    -> Integer             -- ^ offset
+    -> Integer             -- ^ count
+    -> m (f [ByteString])
+zrangebylexLimit key min max offset count  =
+    sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
+                 "LIMIT", encode offset, encode count]
