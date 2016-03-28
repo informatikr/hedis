@@ -2,8 +2,8 @@
 
 module Database.Redis.ManualCommands where
 
-import Prelude hiding (min,max)
-import Data.ByteString (ByteString, empty)
+import Prelude hiding (min, max)
+import Data.ByteString (ByteString, empty, append)
 import Data.Maybe (maybeToList)
 import Database.Redis.Core
 import Database.Redis.Protocol
@@ -752,3 +752,31 @@ zscanOpts
     -> ScanOpts
     -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
 zscanOpts key cursor opts = sendRequest $ addScanOpts ["ZSCAN", key, encode cursor] opts
+
+data RangeLex a = Incl a | Excl a | Minr | Maxr
+
+instance RedisArg a => RedisArg (RangeLex a) where
+  encode (Incl bs) = "[" `append` encode bs
+  encode (Excl bs) = "(" `append` encode bs
+  encode Minr      = "-"
+  encode Maxr      = "+"
+
+zrangebylex::(RedisCtx m f) =>
+    ByteString             -- ^ key
+    -> RangeLex ByteString -- ^ min
+    -> RangeLex ByteString -- ^ max
+    -> m (f [ByteString])
+zrangebylex key min max =
+    sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max]
+
+zrangebylexLimit
+    ::(RedisCtx m f)
+    => ByteString -- ^ key
+    -> RangeLex ByteString -- ^ min
+    -> RangeLex ByteString -- ^ max
+    -> Integer             -- ^ offset
+    -> Integer             -- ^ count
+    -> m (f [ByteString])
+zrangebylexLimit key min max offset count  =
+    sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
+                 "LIMIT", encode offset, encode count]

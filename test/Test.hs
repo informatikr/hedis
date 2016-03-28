@@ -56,7 +56,7 @@ tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testScans]
+    , testsConnection, testsServer, [testScans], [testZrangelex]
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
@@ -534,3 +534,12 @@ testScans = testCase "scans" $ do
     hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
     zadd "zset" [(42, "2")] >>=? 1
     zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
+
+testZrangelex ::Test
+testZrangelex = testCase "zrangebylex" $ do
+    let testSet = [(10, "aaa"), (10, "abb"), (10, "ccc"), (10, "ddd")]
+    zadd "zrangebylex" testSet                          >>=? 4
+    zrangebylex "zrangebylex" (Incl "aaa") (Incl "bbb") >>=? ["aaa","abb"]
+    zrangebylex "zrangebylex" (Excl "aaa") (Excl "ddd") >>=? ["abb","ccc"]
+    zrangebylex "zrangebylex" Minr Maxr                 >>=? ["aaa","abb","ccc","ddd"]
+    zrangebylexLimit "zrangebylex" Minr Maxr 2 1        >>=? ["ccc"]
