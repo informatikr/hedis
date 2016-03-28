@@ -86,10 +86,10 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["Condition", "SetOpts(..)"]
             , manualWithType "ZADD"
                 ["zadd", "zaddOpts"]
-                ["ZaddOpts(..)"]
+                ["ZaddOpts(..)", "defaultZaddOpts"]
             , manualWithType "MIGRATE"
                 ["migrate", "migrateMultiple"]
-                ["MigrateOpts(..)"]
+                ["MigrateOpts(..)", "defaultMigrateOpts"]
             , manual "RESTORE"
                 ["restore", "restoreReplace"]
             , manualWithType "CLIENT REPLY"
@@ -102,14 +102,16 @@ blacklist = [ manual "AUTH" ["auth"]
             , manual "SPOP" ["spop"]
             , manual "INFO" ["info", "infoSection"]
             , manual "EXISTS" ["exists"]
+            , manualWithType "SCAN"
+                ["scan", "scanOpts"]
+                ["Cursor", "cursor0", "ScanOpts(..)", "defaultScanOpts"]
+            , manual "SSCAN" ["sscan", "sscanOpts"]
+            , manual "HSCAN" ["hscan", "hscanOpts"]
+            , manual "ZSCAN" ["zscan", "zscanOpts"]
             , unimplemented "COMMAND"
             , unimplemented "COMMAND GETKEYS"
             , unimplemented "ROLE"
             , unimplemented "CLIENT KILL"
-            , unimplemented "SCAN"
-            , unimplemented "SSCAN"
-            , unimplemented "HSCAN"
-            , unimplemented "ZSCAN"
             , unimplemented "ZRANGEBYLEX"
             , unimplemented "ZREVRANGEBYLEX"
             , unimplemented "ZRANGEBYSCORE"

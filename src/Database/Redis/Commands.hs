@@ -19,6 +19,7 @@ expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expir
 expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>). Since Redis 1.2.0
 keys, -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>). Since Redis 1.0.0
 MigrateOpts(..),
+defaultMigrateOpts,
 migrate, -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
 migrateMultiple, -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
 move, -- |Move a key to another database (<http://redis.io/commands/move>). Since Redis 1.0.0
@@ -34,6 +35,12 @@ rename, -- |Rename a key (<http://redis.io/commands/rename>). Since Redis 1.0.0
 renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>). Since Redis 1.0.0
 restore, -- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
 restoreReplace, -- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
+Cursor,
+cursor0,
+ScanOpts(..),
+defaultScanOpts,
+scan, -- |Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
+scanOpts, -- |Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
 SortOpts(..),
 defaultSortOpts,
 SortOrder(..),
@@ -55,6 +62,8 @@ hkeys, -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>). Sinc
 hlen, -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>). Since Redis 2.0.0
 hmget, -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>). Since Redis 2.0.0
 hmset, -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>). Since Redis 2.0.0
+hscan, -- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
+hscanOpts, -- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
 hset, -- |Set the string value of a hash field (<http://redis.io/commands/hset>). Since Redis 2.0.0
 hsetnx, -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>). Since Redis 2.0.0
 hstrlen, -- |Get the length of the value of a hash field (<http://redis.io/commands/hstrlen>). Since Redis 3.2.0
@@ -139,11 +148,14 @@ spop, -- |Remove and return one or multiple random members from a set (<http://r
 srandmember, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmemberN, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srem, -- |Remove one or more members from a set (<http://redis.io/commands/srem>). Since Redis 1.0.0
+sscan, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
+sscanOpts, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
 sunion, -- |Add multiple sets (<http://redis.io/commands/sunion>). Since Redis 1.0.0
 sunionstore, -- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>). Since Redis 1.0.0
 
 -- ** Sorted Sets
 ZaddOpts(..),
+defaultZaddOpts,
 zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 zaddOpts, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>). Since Redis 1.2.0
@@ -171,6 +183,8 @@ zrevrangebyscoreWithscores, -- |Return a range of members in a sorted set, by sc
 zrevrangebyscoreLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
 zrevrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
 zrevrank, -- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>). Since Redis 2.0.0
+zscan, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
+zscanOpts, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
 zscore, -- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>). Since Redis 1.2.0
 zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
@@ -223,18 +237,6 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 --
 --
 -- * CLIENT KILL (<http://redis.io/commands/client-kill>)
---
---
--- * SCAN (<http://redis.io/commands/scan>)
---
---
--- * SSCAN (<http://redis.io/commands/sscan>)
---
---
--- * HSCAN (<http://redis.io/commands/hscan>)
---
---
--- * ZSCAN (<http://redis.io/commands/zscan>)
 --
 --
 -- * ZRANGEBYLEX (<http://redis.io/commands/zrangebylex>)
