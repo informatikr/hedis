@@ -23,7 +23,7 @@ module Database.Redis.ProtocolPipelining (
 import           Prelude
 import           Control.Exception
 import           Control.Monad
-import           Data.Attoparsec.ByteString
+import qualified Scanner
 import qualified Data.ByteString as S
 import           Data.IORef
 import           Data.Typeable
@@ -116,11 +116,11 @@ connGetReplies Conn{..} = go S.empty (SingleLine "previous of first")
       ~(r, rest') <- unsafeInterleaveIO $ do
         -- Force previous reply for correct order.
         previous `seq` return ()
-        parseResult <- parseWith readMore reply rest
-        case parseResult of
-          Fail{}       -> errConnClosed
-          Partial{}    -> error "Hedis: parseWith returned Partial"
-          Done rest' r -> do
+        scanResult <- Scanner.scanWith readMore reply rest
+        case scanResult of
+          Scanner.Fail{}       -> errConnClosed
+          Scanner.More{}    -> error "Hedis: parseWith returned Partial"
+          Scanner.Done rest' r -> do
             -- r is the same as 'head' of 'connPending'. Since we just
             -- received r, we remove it from the pending list.
             atomicModifyIORef' connPending $ \(_:rs) -> (rs, ())

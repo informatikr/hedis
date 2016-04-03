@@ -63,10 +63,11 @@ library
   if flag(dev)
     ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
-  build-depends:    attoparsec >= 0.12,
+  build-depends:    scanner >= 0.2,
                     base >= 4.6 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
+                    text,
                     deepseq,
                     mtl >= 2,
                     network >= 2,

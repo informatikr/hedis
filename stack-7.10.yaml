@@ -1,7 +1,8 @@
-resolver: lts-5.3
+resolver: lts-5.1
 packages:
 - '.'
-extra-deps: []
+extra-deps:
+- scanner-0.2
 flags:
   hedis:
     dev: true
