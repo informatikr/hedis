@@ -15,7 +15,8 @@ before_install:
   - mv ~/tmp/stack-1.0.4-linux-x86_64/stack ~/.local/bin/
   - curl -L http://download.redis.io/releases/redis-3.0.7.tar.gz | tar xz -C ~/tmp
   - cd ~/tmp/redis-3.0.7 && make
-  - ~/tmp/src/redis-server &
+  - ~/tmp/redis-3.0.7/src/redis-server &
+  - cd ${TRAVIS_BUILD_DIR}
 
 matrix:
   include:
