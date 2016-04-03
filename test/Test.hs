@@ -437,14 +437,17 @@ testScripting conn = testCase "scripting" go conn
         scriptFlush                             >>=? Ok
         -- start long running script from another client
         configSet "lua-time-limit" "100"        >>=? Ok
-        liftIO $ do
-            _ <- fork $ runRedis conn $ do
-                -- we must pattern match to block the thread
-                Left _ <- eval "while true do end" [] []
-                    :: Redis (Either Reply Integer)
-                return ()
-            threadDelay 500000 -- 0.5s
+        evalFinished <- liftIO newEmptyMVar
+        void $ liftIO $ fork $ runRedis conn $ do
+            -- we must pattern match to block the thread
+            Left _ <- eval "while true do end" [] []
+                :: Redis (Either Reply Integer)
+            liftIO (putMVar evalFinished ())
+            return ()
+        liftIO (threadDelay 500000) -- 0.5s
         scriptKill                              >>=? Ok
+        () <- liftIO (takeMVar evalFinished)
+        return ()
 
 ------------------------------------------------------------------------------
 -- Connection
