@@ -7,15 +7,15 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
-services:
-  - redis-server
-
 before_install:
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
   - export PATH=~/.local/bin:$PATH
   - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.4/stack-1.0.4-linux-x86_64.tar.gz | tar xz -C ~/tmp
   - mv ~/tmp/stack-1.0.4-linux-x86_64/stack ~/.local/bin/
+  - curl -L http://download.redis.io/releases/redis-3.0.7.tar.gz | tar xf -C ~/tmp
+  - cd ~/tmp/redis-3.0.7 && make
+  - ~/tmp/src/redis-server &
 
 matrix:
   include:
