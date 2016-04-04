@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.8.0
+
+* Major speed improvement by using non-backtracking parser (PR #69)
+
 ## 0.7.10
 
 * Improved performance (PR #64)
