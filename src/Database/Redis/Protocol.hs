@@ -9,11 +9,14 @@ import Prelude hiding (error, take)
 import Control.Applicative
 #endif
 import Control.DeepSeq
-import Data.Attoparsec.ByteString (takeTill)
-import Data.Attoparsec.ByteString.Char8 hiding (takeTill)
+import Scanner (Scanner)
+import qualified Scanner
 import Data.ByteString.Char8 (ByteString)
 import GHC.Generics
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Read as Text
+import Control.Monad (replicateM)
 
 -- |Low-level representation of replies from the Redis server.
 data Reply = SingleLine ByteString
@@ -48,36 +51,61 @@ crlf = "\r\n"
 ------------------------------------------------------------------------------
 -- Reply parsers
 --
-reply :: Parser Reply
+{-# INLINE reply #-}
+reply :: Scanner Reply
 reply = do
-  c <- anyChar
+  c <- Scanner.anyChar8
   case c of
-    '+' -> singleLine
+    '+' -> string
     '-' -> error
     ':' -> integer
     '$' -> bulk
-    '*' -> multiBulk
+    '*' -> multi
     _ -> fail "Unknown reply type"
 
-singleLine :: Parser Reply
-singleLine = SingleLine <$> (takeTill isEndOfLine <* endOfLine)
+{-# INLINE string #-}
+string :: Scanner Reply
+string = SingleLine <$> line
 
-error :: Parser Reply
-error = Error <$> (takeTill isEndOfLine <* endOfLine)
+{-# INLINE error #-}
+error :: Scanner Reply
+error = Error <$> line
 
-integer :: Parser Reply
-integer = Integer <$> (signed decimal <* endOfLine)
+{-# INLINE integer #-}
+integer :: Scanner Reply
+integer = Integer <$> integral
 
-bulk :: Parser Reply
+{-# INLINE bulk #-}
+bulk :: Scanner Reply
 bulk = Bulk <$> do
-    len <- signed decimal <* endOfLine
-    if len < 0
-        then return Nothing
-        else Just <$> take len <* endOfLine
+  len <- integral
+  if len < 0
+    then return Nothing
+    else Just <$> Scanner.take len <* eol
 
-multiBulk :: Parser Reply
-multiBulk = MultiBulk <$> do
-    len <- signed decimal <* endOfLine
-    if len < 0
-        then return Nothing
-        else Just <$> count len reply
+-- don't inline it to break the circle between reply and multi
+{-# NOINLINE multi #-}
+multi :: Scanner Reply
+multi = MultiBulk <$> do
+  len <- integral
+  if len < 0
+    then return Nothing
+    else Just <$> replicateM len reply
+
+{-# INLINE integral #-}
+integral :: Integral i => Scanner i
+integral = do
+  str <- line
+  case Text.signed Text.decimal (Text.decodeUtf8 str) of
+    Left err -> fail (show err)
+    Right (l, _) -> return l
+
+{-# INLINE line #-}
+line :: Scanner ByteString
+line = Scanner.takeWhileChar8 (/= '\r') <* eol
+
+{-# INLINE eol #-}
+eol :: Scanner ()
+eol = do
+  Scanner.char8 '\r'
+  Scanner.char8 '\n'
