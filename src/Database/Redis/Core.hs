@@ -4,7 +4,7 @@
 module Database.Redis.Core (
     Connection, connect,
     ConnectInfo(..), defaultConnectInfo,
-    Redis(),runRedis,
+    Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
     send, recv, sendRequest,
     auth, select
@@ -66,6 +66,17 @@ instance MonadRedis Redis where
 runRedis :: Connection -> Redis a -> IO a
 runRedis (Conn pool) redis =
   withResource pool $ \conn -> runRedisInternal conn redis
+
+-- |Deconstruct Redis constructor.
+--
+-- 'unRedis' and 'reRedis' can be used to define instances for arbitrary
+-- typeclasses.
+unRedis :: Redis a -> ReaderT RedisEnv IO a
+unRedis (Redis r) = r
+
+-- |Reconstruct Redis constructor.
+reRedis :: ReaderT RedisEnv IO a -> Redis a
+reRedis r = Redis r
 
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting.
