@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.8.1
+
+* Export unRedis/reRedis internalish functions which let you define
+  MonadCatch instance easily (see PR #73)
+
 ## 0.8.0
 
 * Major speed improvement by using non-backtracking parser (PR #69)
