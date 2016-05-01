@@ -130,6 +130,7 @@ module Database.Redis (
     
     -- * The Redis Monad
     Redis(), runRedis,
+    unRedis, reRedis,
     RedisCtx(), MonadRedis(),
 
     -- * Connection
