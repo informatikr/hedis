@@ -69,8 +69,11 @@ runRedis (Conn pool) redis =
 
 -- |Deconstruct Redis constructor.
 --
--- 'unRedis' and 'reRedis' can be used to define instances for arbitrary
--- typeclasses.
+--  'unRedis' and 'reRedis' can be used to define instances for
+--  arbitrary typeclasses.
+-- 
+--  WARNING! These functions are considered internal and no guarantee
+--  is given at this point that they will not break in future.
 unRedis :: Redis a -> ReaderT RedisEnv IO a
 unRedis (Redis r) = r
 
