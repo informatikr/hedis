@@ -13,7 +13,7 @@ import Control.Applicative
 #endif
 import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString, pack)
-import qualified Data.ByteString.Lex.Fractional as F (readSigned, readDecimal)
+import qualified Data.ByteString.Lex.Fractional as F (readSigned, readExponential)
 import qualified Data.ByteString.Lex.Integral as I (readSigned, readDecimal)
 import GHC.Generics
 
@@ -66,7 +66,7 @@ instance RedisResult Integer where
         maybe (Left r) (Right . fst) . I.readSigned I.readDecimal =<< decode r
 
 instance RedisResult Double where
-    decode r = maybe (Left r) (Right . fst) . F.readSigned F.readDecimal =<< decode r
+    decode r = maybe (Left r) (Right . fst) . F.readSigned F.readExponential =<< decode r
 
 instance RedisResult Status where
     decode (SingleLine s) = Right $ case s of
