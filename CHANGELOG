@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.8.2
+
+* Fix issue #74 (parsing exponentials)
+
 ## 0.8.1
 
 * Export unRedis/reRedis internalish functions which let you define
