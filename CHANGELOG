@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.9.0
+
+* Merge in a fresh commands.json and a set of new commands
+  implemented. See PR #52 for more info
+
 ## 0.8.3
 
 * Export MonadRedis methods
