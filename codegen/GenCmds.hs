@@ -45,6 +45,9 @@ groupCmds (Cmds cmds) =
              , "connection"
              , "server"
              , "scripting"
+             -- not implemented:
+             -- , "cluster"
+             -- , "geo"
              ]
 
 -- |Blacklisted commands, optionally paired with the name of their
@@ -78,6 +81,43 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["zrevrangebyscore", "zrevrangebyscoreWithscores"
                 ,"zrevrangebyscoreLimit", "zrevrangebyscoreWithscoresLimit"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
+            , manualWithType "SET"
+                ["set", "setOpts"]
+                ["Condition", "SetOpts(..)"]
+            , manualWithType "ZADD"
+                ["zadd", "zaddOpts"]
+                ["ZaddOpts(..)", "defaultZaddOpts"]
+            , manualWithType "MIGRATE"
+                ["migrate", "migrateMultiple"]
+                ["MigrateOpts(..)", "defaultMigrateOpts"]
+            , manual "RESTORE"
+                ["restore", "restoreReplace"]
+            , manualWithType "CLIENT REPLY"
+                ["clientReply"]
+                ["ReplyMode"]
+            , manualWithType "SCRIPT DEBUG"
+                ["scriptDebug"]
+                ["DebugMode"]
+            , manual "SRANDMEMBER" ["srandmember", "srandmemberN"]
+            , manual "SPOP" ["spop"]
+            , manual "INFO" ["info", "infoSection"]
+            , manual "EXISTS" ["exists"]
+            , manualWithType "SCAN"
+                ["scan", "scanOpts"]
+                ["Cursor", "cursor0", "ScanOpts(..)", "defaultScanOpts"]
+            , manual "SSCAN" ["sscan", "sscanOpts"]
+            , manual "HSCAN" ["hscan", "hscanOpts"]
+            , manual "ZSCAN" ["zscan", "zscanOpts"]
+            , manualWithType "ZRANGEBYLEX"
+                ["zrangebylex, zrangebylexLimit"]
+                ["RangeLex(..)"]
+            , unimplemented "COMMAND"
+            , unimplemented "COMMAND GETKEYS"
+            , unimplemented "ROLE"
+            , unimplemented "CLIENT KILL"
+            , unimplemented "ZREVRANGEBYLEX"
+            , unimplemented "ZRANGEBYSCORE"
+            , unimplemented "ZREVRANGEBYSCORE"
             , unimplemented "MONITOR"        -- debugging command
             , unimplemented "SYNC"           -- internal command
             , unimplemented "SHUTDOWN"       -- kills server, throws exception
@@ -101,7 +141,7 @@ data Cmd = Cmd { cmdName, cmdGroup :: String
                , cmdRetType        :: Maybe String
                , cmdArgs           :: [Arg]
                , cmdSummary        :: String
-               , cmdSince          :: String
+               , cmdSince          :: Maybe String
                }
     deriving (Show)
 
@@ -124,7 +164,7 @@ instance FromJSON Cmds where
             cmdGroup   <- cmd .: "group"
             cmdRetType <- cmd .:? "returns"
             cmdSummary <- cmd .: "summary"
-            cmdSince   <- cmd .: "since"
+            cmdSince   <- cmd .:? "since"
             cmdArgs    <- cmd .:? "arguments" .!= []
                             <|> error ("failed to parse args: " ++ cmdName)
             return Cmd{..})
@@ -273,7 +313,9 @@ exportCmdNames Cmd{..} = types `mappend` functions
                 , fromString "'."
                 ]
             else mempty
-        , fromString " Since Redis ", fromString cmdSince
+        , case cmdSince of
+            Just ver -> mconcat [fromString " Since Redis ", fromString ver]
+            Nothing  -> fromString " In unstable version of Redis"
         ]
 
 cmdDescriptionLink :: String -> Builder
@@ -381,6 +423,7 @@ argumentType a = mconcat [ go a
     go (Pair a a')  =
         mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
     go a@Arg{..}    = translateArgType a
+    go a = error ("failed to user argument type: " ++ show a)
 
     translateArgType Arg{..} = fromString $ case argType of
         "integer"    -> "Integer"
