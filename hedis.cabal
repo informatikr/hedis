@@ -103,12 +103,17 @@ benchmark hedis-benchmark
 
 test-suite hedis-test
     type: exitcode-stdio-1.0
-    main-is: test/Test.hs
+    hs-source-dirs: test
+    main-is: Test.hs
+    other-modules: PubSubTest
     build-depends:
         base == 4.*,
         bytestring >= 0.10,
         hedis,
         HUnit,
+        async,
+        stm,
+        text,
         mtl == 2.*,
         slave-thread,
         test-framework,
