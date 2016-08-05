@@ -45,6 +45,11 @@ msgHandler msg = hPutStrLn stderr $ "Saw msg: " ++ unpack (decodeUtf8 msg)
 pmsgHandler :: RedisChannel -> ByteString -> IO ()
 pmsgHandler channel msg = hPutStrLn stderr $ "Saw pmsg: " ++ unpack (decodeUtf8 channel) ++ unpack (decodeUtf8 msg)
 
+showChannels :: Connection -> IO ()
+showChannels c = do
+  resp :: Either Reply [ByteString] <- runRedis c $ sendRequest ["PUBSUB", "CHANNELS"]
+  liftIO $ hPutStrLn stderr $ "Current redis channels: " ++ show resp
+
 main :: IO ()
 main = do
   ctrl <- newPubSubController [("foo", msgHandler)] []
@@ -54,10 +59,10 @@ main = do
   withAsync (handlerThread conn ctrl) $ \_handlerT -> do
 
   void $ hPutStrLn stderr "Press enter to subscribe to bar" >> getLine
-  addChannels ctrl [("bar", msgHandler)] []
+  void $ addChannels ctrl [("bar", msgHandler)] []
 
   void $ hPutStrLn stderr "Press enter to subscribe to baz:*" >> getLine
-  addChannels ctrl [] [("baz:*", pmsgHandler)]
+  void $ addChannels ctrl [] [("baz:*", pmsgHandler)]
 
   void $ hPutStrLn stderr "Press enter to unsub from foo" >> getLine
   removeChannels ctrl ["foo"] []
@@ -68,4 +73,20 @@ main = do
   void $ hPutStrLn stderr "Press enter to unsub from baz:*" >> getLine
   removeChannels ctrl [] ["baz:*"]
 
+  void $ hPutStrLn stderr "Press enter to sub to foo and baz:*" >> getLine
+  unsub1 <- addChannelsAndWait ctrl [("foo", msgHandler)] [("baz:*", pmsgHandler)]
+  showChannels conn
+
+  void $ hPutStrLn stderr "Press enter to sub to foo again and baz:1" >> getLine
+  unsub2 <- addChannelsAndWait ctrl [("foo", msgHandler), ("baz:1", msgHandler)] []
+  showChannels conn
+
+  void $ hPutStrLn stderr "Press enter to unsub to foo and baz:1" >> getLine
+  unsub2
+
+  void $ hPutStrLn stderr "Press enter to unsub to foo and baz:*" >> getLine
+  showChannels conn
+  unsub1
+
   void $ hPutStrLn stderr "Press enter to exit" >> getLine
+  showChannels conn
