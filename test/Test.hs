@@ -16,7 +16,7 @@ import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
 
 import Database.Redis
-
+import PubSubTest
 
 ------------------------------------------------------------------------------
 -- Main and helpers
@@ -57,6 +57,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
+    , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]

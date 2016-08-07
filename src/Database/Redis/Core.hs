@@ -2,7 +2,7 @@
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP #-}
 
 module Database.Redis.Core (
-    Connection, connect,
+    Connection(..), connect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
@@ -39,7 +39,6 @@ newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 data RedisEnv = Env { envConn :: PP.Connection, envLastReply :: IORef Reply }
-
 
 -- |This class captures the following behaviour: In a context @m@, a command
 --  will return it's result wrapped in a \"container\" of type @f@.

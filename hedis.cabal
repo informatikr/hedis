@@ -64,14 +64,17 @@ library
     ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
   build-depends:    scanner >= 0.2,
+                    async >= 2.1,
                     base >= 4.6 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
+                    unordered-containers,
                     text,
                     deepseq,
                     mtl >= 2,
                     network >= 2,
                     resource-pool >= 0.2,
+                    stm,
                     time,
                     vector >= 0.9
 
@@ -100,12 +103,17 @@ benchmark hedis-benchmark
 
 test-suite hedis-test
     type: exitcode-stdio-1.0
-    main-is: test/Test.hs
+    hs-source-dirs: test
+    main-is: Test.hs
+    other-modules: PubSubTest
     build-depends:
         base == 4.*,
         bytestring >= 0.10,
         hedis,
         HUnit,
+        async,
+        stm,
+        text,
         mtl == 2.*,
         slave-thread,
         test-framework,

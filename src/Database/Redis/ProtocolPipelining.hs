@@ -15,7 +15,7 @@
 --
 module Database.Redis.ProtocolPipelining (
   Connection,
-  connect, disconnect, request, send, recv,
+  connect, disconnect, request, send, recv, flush,
   ConnectionLostException(..),
   HostName, PortID(..)
 ) where
@@ -91,6 +91,12 @@ recv Conn{..} = do
   (r:rs) <- readIORef connReplies
   writeIORef connReplies rs
   return r
+
+-- | Flush the socket.  Normally, the socket is flushed in 'recv' (actually 'conGetReplies'), but
+-- for the multithreaded pub/sub code, the sending thread needs to explicitly flush the subscription
+-- change requests.
+flush :: Connection -> IO ()
+flush Conn{..} = hFlush connHandle
 
 -- |Send a request and receive the corresponding reply
 request :: Connection -> S.ByteString -> IO Reply
