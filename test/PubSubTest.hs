@@ -1,10 +1,6 @@
 {-# LANGUAGE CPP, OverloadedStrings, DeriveDataTypeable #-}
 module PubSubTest (testPubSubThreaded) where
 
-#if __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-import Data.Monoid (mappend)
-#endif
 import Control.Concurrent
 import Control.Monad
 import Control.Concurrent.Async
