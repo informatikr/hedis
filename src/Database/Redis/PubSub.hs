@@ -317,14 +317,22 @@ newPubSubController x y = liftIO $ do
 -- exactly reflect the subscribed channels in the Redis server, because there is a delay
 -- between adding or removing a channel in the 'PubSubController' and when Redis receives
 -- and processes the subscription change request.
+#if __GLASGOW_HASKELL__ < 710
+currentChannels :: (MonadIO m, Functor m) => PubSubController -> m [RedisChannel]
+#else
 currentChannels :: MonadIO m => PubSubController -> m [RedisChannel]
+#endif
 currentChannels ctrl = HM.keys <$> (liftIO $ atomically $ readTVar $ callbacks ctrl)
 
 -- | Get the list of current pattern channels in the 'PubSubController'.  WARNING! This might not
 -- exactly reflect the subscribed channels in the Redis server, because there is a delay
 -- between adding or removing a channel in the 'PubSubController' and when Redis receives
 -- and processes the subscription change request.
+#if __GLASGOW_HASKELL__ < 710
+currentPChannels :: (MonadIO m, Functor m) => PubSubController -> m [RedisPChannel]
+#else
 currentPChannels :: MonadIO m => PubSubController -> m [RedisPChannel]
+#endif
 currentPChannels ctrl = HM.keys <$> (liftIO $ atomically $ readTVar $ pcallbacks ctrl)
 
 -- | Add channels into the 'PubSubController', and if there is an active 'pubSubForever', send the subscribe
