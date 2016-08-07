@@ -1,22 +1,15 @@
-{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE CPP, OverloadedStrings, DeriveDataTypeable #-}
 module PubSubTest (testPubSubThreaded) where
 
-#if __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-import Data.Monoid (mappend)
-#endif
 import Control.Concurrent
 import Control.Monad
 import Control.Concurrent.Async
 import Control.Exception
 import Data.Typeable
---import Control.Monad.Trans
---import Data.Time
 import qualified Data.List
 import Data.Text
 import Data.ByteString
 import Control.Concurrent.STM
---import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
