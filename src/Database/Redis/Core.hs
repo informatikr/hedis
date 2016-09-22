@@ -220,3 +220,9 @@ select
     => Integer -- ^ index
     -> m (f Status)
 select ix = sendRequest ["SELECT", encode ix]
+
+-- The PING command. Used in 'checkedConnect'.
+ping
+    :: (RedisCtx m f)
+    => m (f Status)
+ping  = sendRequest (["PING"] )
