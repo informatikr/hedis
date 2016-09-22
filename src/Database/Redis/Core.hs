@@ -216,7 +216,7 @@ connect ConnInfo{..} = Conn <$>
 checkedConnect :: ConnectInfo -> IO Connection
 checkedConnect connInfo = do
     conn <- connect connInfo
-    runRedis conn ping
+    runRedis conn $ void ping
     return conn
 
 -- The AUTH command. It has to be here because it is used in 'connect'.
