@@ -189,8 +189,9 @@ defaultConnectInfo = ConnInfo
     , connectMaxIdleTime    = 30
     }
 
--- |Opens a 'Connection' to a Redis server designated by the given
---  'ConnectInfo'.
+-- |Constructs a 'Connection' pool to a Redis server designated by the 
+--  given 'ConnectInfo'. The first connection is not actually established
+--  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
@@ -208,9 +209,9 @@ connect ConnInfo{..} = Conn <$>
 
     destroy = PP.disconnect
 
--- |Opens a 'Connection' to a Redis server designated by the given
---  'ConnectInfo', then tests if the server is actually there. Throws
---  an exception if the connection to the Redis server can't be
+-- |Constructs a 'Connection' pool to a Redis server designated by the
+--  given 'ConnectInfo', then tests if the server is actually there. 
+--  Throws an exception if the connection to the Redis server can't be
 --  established.
 checkedConnect :: ConnectInfo -> IO Connection
 checkedConnect connInfo = do
