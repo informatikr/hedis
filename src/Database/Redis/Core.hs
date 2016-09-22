@@ -2,12 +2,12 @@
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP #-}
 
 module Database.Redis.Core (
-    Connection(..), connect,
+    Connection(..), connect, checkedConnect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
     send, recv, sendRequest,
-    auth, select
+    auth, select, ping
 ) where
 
 import Prelude
@@ -189,8 +189,9 @@ defaultConnectInfo = ConnInfo
     , connectMaxIdleTime    = 30
     }
 
--- |Opens a 'Connection' to a Redis server designated by the given
---  'ConnectInfo'.
+-- |Constructs a 'Connection' pool to a Redis server designated by the 
+--  given 'ConnectInfo'. The first connection is not actually established
+--  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
@@ -208,6 +209,16 @@ connect ConnInfo{..} = Conn <$>
 
     destroy = PP.disconnect
 
+-- |Constructs a 'Connection' pool to a Redis server designated by the
+--  given 'ConnectInfo', then tests if the server is actually there. 
+--  Throws an exception if the connection to the Redis server can't be
+--  established.
+checkedConnect :: ConnectInfo -> IO Connection
+checkedConnect connInfo = do
+    conn <- connect connInfo
+    runRedis conn ping
+    return conn
+
 -- The AUTH command. It has to be here because it is used in 'connect'.
 auth
     :: B.ByteString -- ^ password
@@ -220,3 +231,9 @@ select
     => Integer -- ^ index
     -> m (f Status)
 select ix = sendRequest ["SELECT", encode ix]
+
+-- The PING command. Used in 'checkedConnect'.
+ping
+    :: (RedisCtx m f)
+    => m (f Status)
+ping  = sendRequest (["PING"] )

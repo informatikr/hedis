@@ -55,6 +55,7 @@ groupCmds (Cmds cmds) =
 blacklist :: [(String, Maybe ([String],[String]))]
 blacklist = [ manual "AUTH" ["auth"]
             , manual "SELECT" ["select"]
+            , manual "PING" ["ping"]
             , manual "OBJECT"
                 ["objectRefcount","objectEncoding","objectIdletime"]
             , manualWithType "TYPE" ["getType"] ["RedisType(..)"]
