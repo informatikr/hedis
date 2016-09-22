@@ -208,6 +208,16 @@ connect ConnInfo{..} = Conn <$>
 
     destroy = PP.disconnect
 
+-- |Opens a 'Connection' to a Redis server designated by the given
+--  'ConnectInfo', then tests if the server is actually there. Throws
+--  an exception if the connection to the Redis server can't be
+--  established.
+checkedConnect :: ConnectInfo -> IO Connection
+checkedConnect connInfo = do
+    conn <- connect connInfo
+    runRedis conn ping
+    return conn
+
 -- The AUTH command. It has to be here because it is used in 'connect'.
 auth
     :: B.ByteString -- ^ password
