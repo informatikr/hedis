@@ -2,12 +2,12 @@
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP #-}
 
 module Database.Redis.Core (
-    Connection(..), connect,
+    Connection(..), connect, checkedConnect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
     send, recv, sendRequest,
-    auth, select
+    auth, select, ping
 ) where
 
 import Prelude
