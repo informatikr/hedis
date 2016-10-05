@@ -5,7 +5,7 @@ module Database.Redis (
     --
     -- @
     -- -- connects to localhost:6379
-    -- conn <- 'connect' 'defaultConnectInfo'
+    -- conn <- 'checkedConnect' 'defaultConnectInfo'
     -- @
     --
     -- Send commands to the server:
@@ -122,6 +122,14 @@ module Database.Redis (
     --    functions throw a 'ConnectionLostException'. It can only be caught
     --    outside of 'runRedis'.
     --
+    --  [Trying to connect to an unreachable server:] When trying to connect to
+    --    a server that does not exist or can't be reached, the connection pool
+    --    only starts the first connection when actually executing a call to
+    --    the server. This can lead to discovering very late that the server is
+    --    not available, for example when running a server that logs to Redis.
+    --    To prevent this, run a 'ping' command directly after connecting or
+    --    use the 'checkedConnect' function which encapsulates this behavior.
+    --
     --  [Exceptions:] Any exceptions can only be caught /outside/ of 'runRedis'.
     --    This way the connection pool can properly close the connection, making
     --    sure it is not left in an unusable state, e.g. closed or inside a
@@ -134,7 +142,7 @@ module Database.Redis (
     RedisCtx(), MonadRedis(..),
 
     -- * Connection
-    Connection, connect,
+    Connection, connect, checkedConnect,
     ConnectInfo(..),defaultConnectInfo,
     HostName,PortID(..),
     
