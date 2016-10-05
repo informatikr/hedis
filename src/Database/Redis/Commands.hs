@@ -537,11 +537,6 @@ sinterstore
     -> m (f Integer)
 sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
 
-ping
-    :: (RedisCtx m f)
-    => m (f Status)
-ping  = sendRequest (["PING"] )
-
 hvals
     :: (RedisCtx m f)
     => ByteString -- ^ key
