@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, OverloadedLists #-}
 module Main (main) where
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
-import Data.Monoid (mappend)
+import Data.Monoid (mappend, mconcat)
 #endif
 import Control.Concurrent
 import Control.Monad
@@ -53,7 +53,7 @@ assert = liftIO . HUnit.assert
 -- Tests
 --
 tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
+tests conn = map ($conn) $ mconcat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
@@ -134,9 +134,9 @@ testKeys = testCase "keys" $ do
     expire "key" 1        >>=? True
     pexpire "key" 1000    >>=? True
     Right t <- ttl "key"
-    assert $ t `elem` [0..1]
+    assert $ t `elem` ([0..1] :: [Integer])
     Right pt <- pttl "key"
-    assert $ pt `elem` [990..1000]
+    assert $ pt `elem` ([990..1000] :: [Integer])
     persist "key"         >>=? True
     Right s <- dump "key"
     restore "key'" 0 s    >>=? Ok
@@ -181,6 +181,7 @@ testGetType = testCase "getType" $ do
         getType "key" >>=? typ
         del ["key"]   >>=? 1
   where
+    ts :: [(Redis (), RedisType)]
     ts = [ (set "key" "value"                         >>=? Ok,   String)
          , (hset "key" "field" "value"                >>=? True, Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
