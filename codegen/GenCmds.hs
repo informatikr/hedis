@@ -84,7 +84,7 @@ blacklist = [ manual "AUTH" ["auth"]
             , manual "ZUNIONSTORE" ["zunionstore","zunionstoreWeights"]
             , manualWithType "SET"
                 ["set", "setOpts"]
-                ["Condition", "SetOpts(..)"]
+                ["Condition(..)", "SetOpts(..)"]
             , manualWithType "ZADD"
                 ["zadd", "zaddOpts"]
                 ["ZaddOpts(..)", "defaultZaddOpts"]
