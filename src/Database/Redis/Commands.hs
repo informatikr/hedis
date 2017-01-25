@@ -213,7 +213,7 @@ mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>)
 mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>). Since Redis 1.0.1
 msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>). Since Redis 1.0.1
 psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>). Since Redis 2.6.0
-Condition,
+Condition(..),
 SetOpts(..),
 set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
 setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
