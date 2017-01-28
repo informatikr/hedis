@@ -41,7 +41,7 @@ newtype Redis a = Redis (ReaderT RedisEnv IO a)
 data RedisEnv = Env { envConn :: PP.Connection, envLastReply :: IORef Reply }
 
 -- |This class captures the following behaviour: In a context @m@, a command
---  will return it's result wrapped in a \"container\" of type @f@.
+--  will return its result wrapped in a \"container\" of type @f@.
 --
 --  Please refer to the Command Type Signatures section of this page for more
 --  information.

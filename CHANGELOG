@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.9.7
+
+Expose returnDecode method of RedisCtx (see issue #83)
+
 ## 0.9.2
 
 * Added multithreaded pub/sub message processing (see PR #77)
