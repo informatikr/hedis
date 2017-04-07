@@ -699,9 +699,9 @@ addScanOpts
 addScanOpts cmd ScanOpts{..} =
     concat [cmd, match, count]
   where
-    match = maybeToList scanMatch
-    count = map encode $ maybeToList scanCount
-
+    prepend x y = [x, y]
+    match       = maybe [] (prepend "MATCH") scanMatch
+    count       = maybe [] ((prepend "COUNT").encode) scanCount
 
 sscan
     :: (RedisCtx m f)
