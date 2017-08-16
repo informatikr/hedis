@@ -28,6 +28,8 @@ import qualified Data.ByteString as S
 import           Data.IORef
 import           Data.Typeable
 import           Network
+import qualified Network.BSD as BSD
+import qualified Network.Socket as NS
 import           System.IO
 import           System.IO.Error
 import           System.IO.Unsafe
@@ -53,8 +55,8 @@ data ConnectionLostException = ConnectionLost
 instance Exception ConnectionLostException
 
 connect :: HostName -> PortID -> IO Connection
-connect host port =
-  bracketOnError (connectTo host port) hClose $ \connHandle -> do
+connect hostName (PortNumber port) =
+  bracketOnError hConnect hClose $ \connHandle -> do
     hSetBinaryMode connHandle True
     connReplies <- newIORef []
     connPending <- newIORef []
@@ -64,6 +66,15 @@ connect host port =
     writeIORef connReplies rs
     writeIORef connPending rs
     return conn
+  where hConnect =
+          bracketOnError mkSocket NS.close $ \sock -> do
+          NS.setSocketOption sock NS.KeepAlive 1
+          host <- BSD.getHostByName hostName
+          NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
+          NS.socketToHandle sock ReadWriteMode
+        mkSocket = NS.socket NS.AF_INET NS.Stream 0
+connect hostName portID =
+  error $ "Connection to " ++ hostName ++ ":" ++ show portID ++ " not supported"
 
 disconnect :: Connection -> IO ()
 disconnect Conn{..} = do
