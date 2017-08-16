@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.9.9
+
+* PR #90. set SO_KEEPALIVE option on underlying connection socket 
+
 ## 0.9.8
 
 * Fix syntax errors from redis when using scanOpts to specify match
