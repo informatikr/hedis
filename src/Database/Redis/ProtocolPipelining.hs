@@ -73,6 +73,22 @@ connect hostName (PortNumber port) =
           NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
           NS.socketToHandle sock ReadWriteMode
         mkSocket = NS.socket NS.AF_INET NS.Stream 0
+connect _hostName (UnixSocket fsplace) =
+  bracketOnError hConnect hClose $ \connHandle -> do
+    hSetBinaryMode connHandle True
+    connReplies <- newIORef []
+    connPending <- newIORef []
+    connPendingCnt <- newIORef 0
+    let conn = Conn{..}
+    rs <- connGetReplies conn
+    writeIORef connReplies rs
+    writeIORef connPending rs
+    return conn
+  where hConnect =
+          bracketOnError mkSocket NS.close $ \sock -> do
+          NS.connect sock $ NS.SockAddrUnix fsplace
+          NS.socketToHandle sock ReadWriteMode
+        mkSocket = NS.socket NS.AF_UNIX NS.Stream 0
 connect hostName portID =
   error $ "Connection to " ++ hostName ++ ":" ++ show portID ++ " not supported"
 
