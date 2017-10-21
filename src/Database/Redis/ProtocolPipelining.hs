@@ -55,42 +55,25 @@ data ConnectionLostException = ConnectionLost
 instance Exception ConnectionLostException
 
 connect :: HostName -> PortID -> IO Connection
-connect hostName (PortNumber port) =
-  bracketOnError hConnect hClose $ \connHandle -> do
-    hSetBinaryMode connHandle True
-    connReplies <- newIORef []
-    connPending <- newIORef []
-    connPendingCnt <- newIORef 0
-    let conn = Conn{..}
-    rs <- connGetReplies conn
-    writeIORef connReplies rs
-    writeIORef connPending rs
-    return conn
-  where hConnect =
-          bracketOnError mkSocket NS.close $ \sock -> do
-          NS.setSocketOption sock NS.KeepAlive 1
-          host <- BSD.getHostByName hostName
-          NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
-          NS.socketToHandle sock ReadWriteMode
-        mkSocket = NS.socket NS.AF_INET NS.Stream 0
-connect _hostName (UnixSocket fsplace) =
-  bracketOnError hConnect hClose $ \connHandle -> do
-    hSetBinaryMode connHandle True
-    connReplies <- newIORef []
-    connPending <- newIORef []
-    connPendingCnt <- newIORef 0
-    let conn = Conn{..}
-    rs <- connGetReplies conn
-    writeIORef connReplies rs
-    writeIORef connPending rs
-    return conn
-  where hConnect =
-          bracketOnError mkSocket NS.close $ \sock -> do
-          NS.connect sock $ NS.SockAddrUnix fsplace
-          NS.socketToHandle sock ReadWriteMode
-        mkSocket = NS.socket NS.AF_UNIX NS.Stream 0
 connect hostName portID =
-  error $ "Connection to " ++ hostName ++ ":" ++ show portID ++ " not supported"
+  bracketOnError (hConnect portID) hClose $ \connHandle -> do
+    hSetBinaryMode connHandle True
+    connReplies <- newIORef []
+    connPending <- newIORef []
+    connPendingCnt <- newIORef 0
+    let conn = Conn{..}
+    rs <- connGetReplies conn
+    writeIORef connReplies rs
+    writeIORef connPending rs
+    return conn
+  where hConnect (PortNumber port) =
+          bracketOnError mkSocket NS.close $ \sock -> do
+            NS.setSocketOption sock NS.KeepAlive 1
+            host <- BSD.getHostByName hostName
+            NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
+            NS.socketToHandle sock ReadWriteMode
+        hConnect _ = connectTo hostName portID
+        mkSocket   = NS.socket NS.AF_INET NS.Stream 0
 
 disconnect :: Connection -> IO ()
 disconnect Conn{..} = do
