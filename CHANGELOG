@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.9.11
+
+* PR #94. Refactor fix for issue #92 - (Connection to Unix sockets is broken)
+
 ## 0.9.10
 
 * PR #93, Issue #92. Connection to Unix sockets is broken
