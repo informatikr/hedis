@@ -1,8 +1,8 @@
-resolver: lts-6.12
+compiler: ghc-8.2.1
+compiler-check: match-exact
+resolver: lts-8.13
 packages:
 - '.'
-extra-deps:
-- scanner-0.2
 flags:
   hedis:
     dev: true
