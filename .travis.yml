@@ -24,8 +24,10 @@ matrix:
       addons: {apt: {packages: [ghc-7.8.4], sources: [hvr-ghc]}}
     - env: GHCVER=7.10.3 STACK_YAML=stack-7.10.yaml
       addons: {apt: {packages: [ghc-7.10.3],sources: [hvr-ghc]}}
-    - env: GHCVER=8.0.1 STACK_YAML=stack-8.0.yaml
-      addons: {apt: {packages: [ghc-8.0.1],sources: [hvr-ghc]}}
+    - env: GHCVER=8.0.2 STACK_YAML=stack-8.0.yaml
+      addons: {apt: {packages: [ghc-8.0.2],sources: [hvr-ghc]}}
+    - env: GHCVER=8.2.1 STACK_YAML=stack-8.2.yaml
+      addons: {apt: {packages: [ghc-8.2.1],sources: [hvr-ghc]}}
     - env: GHCVER=head STACK_YAML=stack-head.yaml
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
