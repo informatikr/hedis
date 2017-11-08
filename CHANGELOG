@@ -21,6 +21,10 @@
 
 * Expose returnDecode method of RedisCtx (see issue #83)
 
+## 0.9.6
+
+* Export Condition constructors (see PR #86)
+
 ## 0.9.2
 
 * Added multithreaded pub/sub message processing (see PR #77)
