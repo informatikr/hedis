@@ -166,6 +166,10 @@ data ConnectInfo = ConnInfo
     --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
     --   your redis.conf file is non-zero, it should be larger than
     --   'connectMaxIdleTime'.
+    , connectTimeout        :: Maybe NominalDiffTime
+    -- ^ Optional timeout until connection to Redis gets
+    --   established. 'ConnectTimeoutException' gets thrown if no socket
+    --   get connected in this interval of time.
     } deriving Show
 
 -- |Default information for connecting:
@@ -187,6 +191,7 @@ defaultConnectInfo = ConnInfo
     , connectDatabase       = 0
     , connectMaxConnections = 50
     , connectMaxIdleTime    = 30
+    , connectTimeout        = Nothing
     }
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the 
@@ -197,7 +202,9 @@ connect ConnInfo{..} = Conn <$>
     createPool create destroy 1 connectMaxIdleTime connectMaxConnections
   where
     create = do
-        conn <- PP.connect connectHost connectPort
+        let timeoutOptUs =
+              round . (1000000 *) <$> connectTimeout
+        conn <- PP.connect connectHost connectPort timeoutOptUs
         runRedisInternal conn $ do
             -- AUTH
             case connectAuth of

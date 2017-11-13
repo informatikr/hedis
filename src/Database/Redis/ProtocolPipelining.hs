@@ -21,6 +21,9 @@ module Database.Redis.ProtocolPipelining (
 ) where
 
 import           Prelude
+import           Control.Concurrent (threadDelay)
+import           Control.Concurrent.Async (race)
+import           Control.Concurrent.MVar
 import           Control.Exception
 import           Control.Monad
 import qualified Scanner
@@ -54,9 +57,20 @@ data ConnectionLostException = ConnectionLost
 
 instance Exception ConnectionLostException
 
-connect :: HostName -> PortID -> IO Connection
-connect hostName portID =
-  bracketOnError (hConnect portID) hClose $ \connHandle -> do
+data ConnectPhase
+  = PhaseUnknown
+  | PhaseResolve
+  | PhaseOpenSocket
+  deriving (Show)
+
+data ConnectTimeout = ConnectTimeout ConnectPhase
+  deriving (Show, Typeable)
+
+instance Exception ConnectTimeout
+
+connect :: HostName -> PortID -> Maybe Int -> IO Connection
+connect hostName portID timeoutOpt =
+  bracketOnError hConnect hClose $ \connHandle -> do
     hSetBinaryMode connHandle True
     connReplies <- newIORef []
     connPending <- newIORef []
@@ -66,13 +80,28 @@ connect hostName portID =
     writeIORef connReplies rs
     writeIORef connPending rs
     return conn
-  where hConnect (PortNumber port) =
+  where
+        hConnect = do
+          phaseMVar <- newMVar PhaseUnknown
+          let doConnect = hConnect' portID phaseMVar
+          case timeoutOpt of
+            Nothing -> doConnect
+            Just micros -> do
+              result <- race doConnect (threadDelay micros)
+              case result of
+                Left h -> return h
+                Right () -> do
+                  phase <- readMVar phaseMVar
+                  errConnectTimeout phase
+        hConnect' (PortNumber port) mvar =
           bracketOnError mkSocket NS.close $ \sock -> do
             NS.setSocketOption sock NS.KeepAlive 1
+            void $ swapMVar mvar PhaseResolve
             host <- BSD.getHostByName hostName
+            void $ swapMVar mvar PhaseOpenSocket
             NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
             NS.socketToHandle sock ReadWriteMode
-        hConnect _ = connectTo hostName portID
+        hConnect' _ _ = connectTo hostName portID
         mkSocket   = NS.socket NS.AF_INET NS.Stream 0
 
 disconnect :: Connection -> IO ()
@@ -157,3 +186,6 @@ ioErrorToConnLost a = a `catchIOError` const errConnClosed
 
 errConnClosed :: IO a
 errConnClosed = throwIO ConnectionLost
+
+errConnectTimeout :: ConnectPhase -> IO a
+errConnectTimeout phase = throwIO $ ConnectTimeout phase
