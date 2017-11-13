@@ -181,6 +181,7 @@ data ConnectInfo = ConnInfo
 --  connectDatabase       = 0               -- SELECT database 0
 --  connectMaxConnections = 50              -- Up to 50 connections
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
+--  connectTimeout        = Nothing         -- Don't add timeout logic
 -- @
 --
 defaultConnectInfo :: ConnectInfo
