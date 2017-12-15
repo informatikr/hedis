@@ -456,7 +456,24 @@ testScripting conn = testCase "scripting" go conn
 -- Connection
 --
 testsConnection :: [Test]
-testsConnection = [ testEcho, testPing, testSelect ]
+testsConnection = [ testConnectAuth, testConnectDb
+                  , testEcho, testPing, testSelect ]
+
+testConnectAuth :: Test
+testConnectAuth = testCase "connect/auth" $ do
+    configSet "requirepass" "pass" >>=? Ok
+    liftIO $ do
+        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass" }
+        runRedis c (ping >>=? Pong)
+    auth "pass"                    >>=? Ok
+    configSet "requirepass" ""     >>=? Ok
+
+testConnectDb :: Test
+testConnectDb = testCase "connect/db" $ do
+    set "connect" "value" >>=? Ok
+    liftIO $ void $ do
+        c <- checkedConnect defaultConnectInfo { connectDatabase = 1 }
+        runRedis c (get "connect" >>=? Nothing)
 
 testEcho :: Test
 testEcho = testCase "echo" $
