@@ -142,7 +142,7 @@ module Database.Redis (
     RedisCtx(..), MonadRedis(..),
 
     -- * Connection
-    Connection, connect, checkedConnect,
+    Connection, ConnectError(..), connect, checkedConnect,
     ConnectInfo(..),defaultConnectInfo,
     HostName,PortID(..),
     

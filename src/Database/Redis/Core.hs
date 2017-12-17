@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RecordWildCards,
-    MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP #-}
+    MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP,
+    DeriveDataTypeable #-}
 
 module Database.Redis.Core (
-    Connection(..), connect, checkedConnect,
+    Connection(..), ConnectError(..), connect, checkedConnect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
@@ -14,11 +15,13 @@ import Prelude
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
+import Control.Exception
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.IORef
 import Data.Pool
 import Data.Time
+import Data.Typeable
 import Network
 
 import Database.Redis.Protocol
@@ -172,6 +175,12 @@ data ConnectInfo = ConnInfo
     --   get connected in this interval of time.
     } deriving Show
 
+data ConnectError = ConnectAuthError Reply
+                  | ConnectSelectError Reply
+    deriving (Eq, Show, Typeable)
+
+instance Exception ConnectError
+
 -- |Default information for connecting:
 --
 -- @
@@ -210,9 +219,17 @@ connect ConnInfo{..} = Conn <$>
             -- AUTH
             case connectAuth of
                 Nothing   -> return ()
-                Just pass -> void $ auth pass
+                Just pass -> do
+                  resp <- auth pass
+                  case resp of
+                    Left r -> liftIO $ throwIO $ ConnectAuthError r
+                    _      -> return ()
             -- SELECT
-            when (connectDatabase /= 0) (void $ select connectDatabase)
+            when (connectDatabase /= 0) $ do
+              resp <- select connectDatabase
+              case resp of
+                  Left r -> liftIO $ throwIO $ ConnectSelectError r
+                  _      -> return ()
         return conn
 
     destroy = PP.disconnect
