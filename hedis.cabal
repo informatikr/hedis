@@ -78,7 +78,11 @@ library
                     resource-pool >= 0.2,
                     stm,
                     time,
-                    vector >= 0.9
+                    vector >= 0.9,
+                    HTTP,
+                    errors,
+                    monadplus,
+                    network-uri
 
   other-modules:    Database.Redis.Core,
                     Database.Redis.ProtocolPipelining,
@@ -87,7 +91,8 @@ library
                     Database.Redis.Transactions,
                     Database.Redis.Types
                     Database.Redis.Commands,
-                    Database.Redis.ManualCommands
+                    Database.Redis.ManualCommands,
+                    Database.Redis.URL
 
 benchmark hedis-benchmark
     type: exitcode-stdio-1.0
