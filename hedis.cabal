@@ -132,3 +132,10 @@ test-suite hedis-test
       ghc-options: -Werror
     if flag(dev)
       ghc-prof-options: -auto-all
+
+test-suite doctest
+    type: exitcode-stdio-1.0
+    main-is: DocTest.hs
+    build-depends:
+        base == 4.*,
+        doctest
