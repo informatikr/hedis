@@ -5,6 +5,7 @@ extra-deps:
 - bytestring-lexing-0.5.0.2
 - scanner-0.2
 - async-2.1.0
+- monadplus-1.4.2
 flags:
   hedis:
     dev: true

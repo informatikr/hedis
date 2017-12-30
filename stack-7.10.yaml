@@ -3,6 +3,7 @@ packages:
 - '.'
 extra-deps:
 - scanner-0.2
+- monadplus-1.4.2
 flags:
   hedis:
     dev: true
