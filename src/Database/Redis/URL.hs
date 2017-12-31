@@ -8,13 +8,12 @@ import Control.Applicative ((<$>))
 #endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
-import Data.Bifunctor (first)
 import Data.Monoid ((<>))
 import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo)
 import Database.Redis.ProtocolPipelining (PortID(..))
 import Network.HTTP.Base
 import Network.URI (parseURI, uriPath, uriScheme)
-import Text.Read (readEither)
+import Text.Read (readMaybe)
 
 import qualified Data.ByteString.Char8 as C8
 
@@ -52,7 +51,7 @@ parseConnectInfo url = do
 
     db <- if null dbNumPart
       then return $ connectDatabase defaultConnectInfo
-      else first (const $ "Invalid port: " <> dbNumPart) $ readEither dbNumPart
+      else note ("Invalid port: " <> dbNumPart) $ readMaybe dbNumPart
 
     return defaultConnectInfo
         { connectHost = if null h
