@@ -1,7 +1,11 @@
+{-# LANGUAGE CPP #-}
 module Database.Redis.URL
     ( parseConnectInfo
     ) where
 
+#if __GLASGOW_HASKELL__ < 710
+import Control.Applicative ((<$>))
+#endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
 import Data.Bifunctor (first)
