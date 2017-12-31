@@ -4,13 +4,13 @@ module Database.Redis.URL
 
 import Control.Error.Util (note)
 import Control.Monad (guard)
-import Control.Monad.Plus (partial)
-import Data.Maybe (fromMaybe)
+import Data.Bifunctor (first)
+import Data.Monoid ((<>))
 import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo)
 import Database.Redis.ProtocolPipelining (PortID(..))
 import Network.HTTP.Base
 import Network.URI (parseURI, uriPath, uriScheme)
-import Text.Read (readMaybe)
+import Text.Read (readEither)
 
 import qualified Data.ByteString.Char8 as C8
 
@@ -21,10 +21,8 @@ import qualified Data.ByteString.Char8 as C8
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
 -- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing})
 --
--- N.B. invalid (non-integer) databases are ignored and revert to default:
---
--- >>> connectDatabase <$> parseConnectInfo "redis://username:password@host:42/db"
--- Right 0
+-- >>> parseConnectInfo "redis://username:password@host:42/db"
+-- Left "Invalid port: db"
 --
 -- The scheme is validated, to prevent mixing up configurations:
 --
@@ -45,12 +43,19 @@ parseConnectInfo url = do
         $ parseURIAuthority
         $ uriToAuthorityString uri
 
+    let h = host uriAuth
+        dbNumPart = dropWhile (== '/') (uriPath uri)
+
+    db <- if null dbNumPart
+      then return $ connectDatabase defaultConnectInfo
+      else first (const $ "Invalid port: " <> dbNumPart) $ readEither dbNumPart
+
     return defaultConnectInfo
-        { connectHost = fromMaybe (connectHost defaultConnectInfo)
-            $ partial (not . null) $ host uriAuth
+        { connectHost = if null h
+            then connectHost defaultConnectInfo
+            else h
         , connectPort = maybe (connectPort defaultConnectInfo)
             (PortNumber . fromIntegral) $ port uriAuth
         , connectAuth = C8.pack <$> password uriAuth
-        , connectDatabase = fromMaybe (connectDatabase defaultConnectInfo)
-            $ readMaybe =<< partial (not . null) (dropWhile (== '/') $ uriPath uri)
+        , connectDatabase = db
         }

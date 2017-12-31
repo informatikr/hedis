@@ -81,7 +81,6 @@ library
                     vector >= 0.9,
                     HTTP,
                     errors,
-                    monadplus,
                     network-uri
 
   other-modules:    Database.Redis.Core,

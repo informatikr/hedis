@@ -4,7 +4,6 @@ packages:
 extra-deps:
 - slave-thread-1.0.1
 - partial-handler-1.0.1
-- monadplus-1.4.2
 flags:
   hedis:
     dev: true
