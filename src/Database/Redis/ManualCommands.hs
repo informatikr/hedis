@@ -620,6 +620,14 @@ spop
 spop key = sendRequest ["SPOP", key]
 
 
+spopN
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ count
+    -> m (f [ByteString])
+spopN key count = sendRequest ["SPOP", key, encode count]
+
+
 info
     :: (RedisCtx m f)
     => m (f ByteString)
