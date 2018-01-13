@@ -1,9 +1,6 @@
-resolver: nightly-2016-05-31
+resolver: lts-10.3
 packages:
 - '.'
-extra-deps:
-- slave-thread-1.0.1
-- partial-handler-1.0.1
 flags:
   hedis:
     dev: true
