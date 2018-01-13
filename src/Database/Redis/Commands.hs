@@ -144,7 +144,8 @@ sinterstore, -- |Intersect multiple sets and store the resulting set in a key (<
 sismember, -- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>). Since Redis 1.0.0
 smembers, -- |Get all the members in a set (<http://redis.io/commands/smembers>). Since Redis 1.0.0
 smove, -- |Move a member from one set to another (<http://redis.io/commands/smove>). Since Redis 1.0.0
-spop, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). Since Redis 1.0.0
+spop, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
+spopN, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
 srandmember, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmemberN, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srem, -- |Remove one or more members from a set (<http://redis.io/commands/srem>). Since Redis 1.0.0

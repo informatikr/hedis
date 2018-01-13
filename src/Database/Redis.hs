@@ -143,8 +143,8 @@ module Database.Redis (
 
     -- * Connection
     Connection, ConnectError(..), connect, checkedConnect,
-    ConnectInfo(..),defaultConnectInfo,
-    HostName,PortID(..),
+    ConnectInfo(..), defaultConnectInfo, parseConnectInfo,
+    HostName, PortID(..),
     
     -- * Commands
     module Database.Redis.Commands,
@@ -178,5 +178,6 @@ import Database.Redis.ProtocolPipelining
     (HostName, PortID(..), ConnectionLostException(..))
 import Database.Redis.Transactions
 import Database.Redis.Types
+import Database.Redis.URL
 
 import Database.Redis.Commands

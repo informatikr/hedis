@@ -13,9 +13,9 @@ before_install:
   - export PATH=~/.local/bin:$PATH
   - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.4/stack-1.0.4-linux-x86_64.tar.gz | tar xz -C ~/tmp
   - mv ~/tmp/stack-1.0.4-linux-x86_64/stack ~/.local/bin/
-  - curl -L http://download.redis.io/releases/redis-3.0.7.tar.gz | tar xz -C ~/tmp
-  - cd ~/tmp/redis-3.0.7 && make
-  - ~/tmp/redis-3.0.7/src/redis-server &
+  - curl -L http://download.redis.io/releases/redis-3.2.11.tar.gz | tar xz -C ~/tmp
+  - cd ~/tmp/redis-3.2.11 && make
+  - ~/tmp/redis-3.2.11/src/redis-server &
   - cd ${TRAVIS_BUILD_DIR}
 
 matrix:
@@ -30,7 +30,7 @@ matrix:
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
   allow_failures:
-   - env: GHCVER=head STACK_YAML=stack-head
+   - env: GHCVER=head STACK_YAML=stack-head.yaml
 
 install:
   - stack --no-terminal --skip-ghc-check setup
