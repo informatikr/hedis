@@ -609,7 +609,7 @@ srandmemberN
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ count
-    -> m (f (Maybe ByteString))
+    -> m (f [ByteString])
 srandmemberN key count = sendRequest ["SRANDMEMBER", key, encode count]
 
 
@@ -618,6 +618,14 @@ spop
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
 spop key = sendRequest ["SPOP", key]
+
+
+spopN
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ count
+    -> m (f [ByteString])
+spopN key count = sendRequest ["SPOP", key, encode count]
 
 
 info

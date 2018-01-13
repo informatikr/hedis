@@ -1,5 +1,11 @@
 # Changelog for Hedis
 
+## 0.10.0
+
+* PR #102. Return list from srandmemberN
+* PR #103. Add spopN
+* PR #101. Add parseConnectInfo
+
 ## 0.9.12
 
 * PR #98. Added `connectTimeout` option

@@ -100,7 +100,7 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["scriptDebug"]
                 ["DebugMode"]
             , manual "SRANDMEMBER" ["srandmember", "srandmemberN"]
-            , manual "SPOP" ["spop"]
+            , manual "SPOP" ["spop", "spopN"]
             , manual "INFO" ["info", "infoSection"]
             , manual "EXISTS" ["exists"]
             , manualWithType "SCAN"

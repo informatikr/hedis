@@ -78,7 +78,10 @@ library
                     resource-pool >= 0.2,
                     stm,
                     time,
-                    vector >= 0.9
+                    vector >= 0.9,
+                    HTTP,
+                    errors,
+                    network-uri
 
   other-modules:    Database.Redis.Core,
                     Database.Redis.ProtocolPipelining,
@@ -87,7 +90,8 @@ library
                     Database.Redis.Transactions,
                     Database.Redis.Types
                     Database.Redis.Commands,
-                    Database.Redis.ManualCommands
+                    Database.Redis.ManualCommands,
+                    Database.Redis.URL
 
 benchmark hedis-benchmark
     type: exitcode-stdio-1.0
@@ -127,3 +131,10 @@ test-suite hedis-test
       ghc-options: -Werror
     if flag(dev)
       ghc-prof-options: -auto-all
+
+test-suite doctest
+    type: exitcode-stdio-1.0
+    main-is: DocTest.hs
+    build-depends:
+        base == 4.*,
+        doctest
