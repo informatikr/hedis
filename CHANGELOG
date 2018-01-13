@@ -3,6 +3,7 @@
 ## 0.10.0
 
 * PR #102. Return list from srandmemberN
+* PR #103. Add spopN
 
 ## 0.9.12
 
