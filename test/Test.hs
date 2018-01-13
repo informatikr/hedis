@@ -5,6 +5,7 @@ module Main (main) where
 import Control.Applicative
 import Data.Monoid (mappend)
 #endif
+import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
@@ -460,7 +461,45 @@ testScripting conn = testCase "scripting" go conn
 -- Connection
 --
 testsConnection :: [Test]
-testsConnection = [ testEcho, testPing, testSelect ]
+testsConnection = [ testConnectAuth, testConnectAuthUnexpected, testConnectDb
+                  , testConnectDbUnexisting, testEcho, testPing, testSelect ]
+
+testConnectAuth :: Test
+testConnectAuth = testCase "connect/auth" $ do
+    configSet "requirepass" "pass" >>=? Ok
+    liftIO $ do
+        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass" }
+        runRedis c (ping >>=? Pong)
+    auth "pass"                    >>=? Ok
+    configSet "requirepass" ""     >>=? Ok
+
+testConnectAuthUnexpected :: Test
+testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
+    liftIO $ do
+        res <- try $ void $ checkedConnect connInfo
+        HUnit.assertEqual "" err res
+
+    where connInfo = defaultConnectInfo { connectAuth = Just "pass" }
+          err = Left $ ConnectAuthError $
+                  Error "ERR Client sent AUTH, but no password is set"
+
+testConnectDb :: Test
+testConnectDb = testCase "connect/db" $ do
+    set "connect" "value" >>=? Ok
+    liftIO $ void $ do
+        c <- checkedConnect defaultConnectInfo { connectDatabase = 1 }
+        runRedis c (get "connect" >>=? Nothing)
+
+testConnectDbUnexisting :: Test
+testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
+    liftIO $ do
+        res <- try $ void $ checkedConnect connInfo
+        case res of
+          Left (ConnectSelectError _) -> return ()
+          _ -> HUnit.assertFailure $
+                  "Expected ConnectSelectError, got " ++ show res
+
+    where connInfo = defaultConnectInfo { connectDatabase = 100 }
 
 testEcho :: Test
 testEcho = testCase "echo" $
