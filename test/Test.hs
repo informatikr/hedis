@@ -307,6 +307,7 @@ testSets = testCase "sets" $ do
     smove "set" "set'" "member" >>=? False
     _ <- sadd "set" ["member1", "member2"]
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
+    _ <- sadd "set" ["member1", "member2"]
     (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
 
 testSetAlgebra :: Test
