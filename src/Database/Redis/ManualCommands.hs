@@ -609,7 +609,7 @@ srandmemberN
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ count
-    -> m (f (Maybe ByteString))
+    -> m (f [ByteString])
 srandmemberN key count = sendRequest ["SRANDMEMBER", key, encode count]
 
 

@@ -8,6 +8,7 @@ import Data.Monoid (mappend)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import qualified Data.List as L
 import Data.Time
 import Data.Time.Clock.POSIX
 import SlaveThread (fork)
@@ -303,6 +304,9 @@ testSets = testCase "sets" $ do
     spop "set"                  >>=? Just "member"
     srem "set" ["member"]       >>=? 0
     smove "set" "set'" "member" >>=? False
+    _ <- sadd "set" ["member1", "member2"]
+    (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
+
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do

@@ -30,7 +30,7 @@ matrix:
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
   allow_failures:
-   - env: GHCVER=head STACK_YAML=stack-head
+   - env: GHCVER=head STACK_YAML=stack-head.yaml
 
 install:
   - stack --no-terminal --skip-ghc-check setup
