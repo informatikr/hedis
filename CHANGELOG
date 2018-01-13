@@ -5,6 +5,7 @@
 * PR #102. Return list from srandmemberN
 * PR #103. Add spopN
 * PR #101. Add parseConnectInfo
+* PR #100, Issue #99. Throw error when AUTH or SELECT fails on connect
 
 ## 0.9.12
 
