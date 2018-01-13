@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.0
+
+* PR #102. Return list from srandmemberN
+
 ## 0.9.12
 
 * PR #98. Added `connectTimeout` option
