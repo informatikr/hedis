@@ -22,7 +22,7 @@ module Database.Redis.PubSub (
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
-import Data.Monoid
+import Data.Monoid hiding (<>)
 #endif
 import Control.Concurrent.Async (withAsync, waitEitherCatch, waitEitherCatchSTM)
 import Control.Concurrent.STM
@@ -33,6 +33,7 @@ import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
 import Data.Maybe (isJust)
 import Data.Pool
+import Data.Semigroup (Semigroup(..))
 import qualified Data.HashMap.Strict as HM
 import qualified Database.Redis.Core as Core
 import qualified Database.Redis.ProtocolPipelining as PP
@@ -66,31 +67,39 @@ data PubSub = PubSub
     , punsubs :: Cmd Unsubscribe Pattern
     } deriving (Eq)
 
-instance Monoid PubSub where
-    mempty        = PubSub mempty mempty mempty mempty
-    mappend p1 p2 = PubSub { subs    = subs p1 `mappend` subs p2
+instance Semigroup PubSub where
+    (<>) p1 p2 = PubSub { subs    = subs p1 `mappend` subs p2
                            , unsubs  = unsubs p1 `mappend` unsubs p2
                            , psubs   = psubs p1 `mappend` psubs p2
                            , punsubs = punsubs p1 `mappend` punsubs p2
                            }
 
+instance Monoid PubSub where
+    mempty        = PubSub mempty mempty mempty mempty
+    mappend = (<>)
+
 data Cmd a b = DoNothing | Cmd { changes :: [ByteString] } deriving (Eq)
 
-instance Monoid (Cmd Subscribe a) where
-    mempty                      = DoNothing
-    mappend DoNothing x         = x
-    mappend x         DoNothing = x
-    mappend (Cmd xs)  (Cmd ys)  = Cmd (xs ++ ys)
-    
-instance Monoid (Cmd Unsubscribe a) where
-    mempty                       = DoNothing
-    mappend DoNothing x          = x
-    mappend x         DoNothing  = x
-    -- empty subscription list => unsubscribe all channels and patterns
-    mappend (Cmd [])  _          = Cmd []
-    mappend _         (Cmd [])   = Cmd []
-    mappend (Cmd xs)  (Cmd ys)   = Cmd (xs ++ ys)
+instance Semigroup (Cmd Subscribe a) where
+  (<>) DoNothing x = x
+  (<>) x DoNothing = x
+  (<>) (Cmd xs) (Cmd ys) = Cmd (xs ++ ys)
 
+instance Monoid (Cmd Subscribe a) where
+  mempty = DoNothing
+  mappend = (<>)
+    
+instance Semigroup (Cmd Unsubscribe a) where
+  (<>) DoNothing x = x
+  (<>) x DoNothing = x
+  -- empty subscription list => unsubscribe all channels and patterns
+  (<>) (Cmd []) _ = Cmd []
+  (<>) _ (Cmd []) = Cmd []
+  (<>) (Cmd xs) (Cmd ys) = Cmd (xs ++ ys)
+
+instance Monoid (Cmd Unsubscribe a) where
+  mempty = DoNothing
+  mappend = (<>)
 
 class Command a where
     redisCmd      :: a -> ByteString
