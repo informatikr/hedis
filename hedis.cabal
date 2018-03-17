@@ -12,9 +12,9 @@ Description:
     .
     [Compatibility with Latest Stable Redis:] Hedis is intended
         to be used with the latest stable version of Redis (currently 3.2).
-	Most redis commands (<http://redis.io/commands>) are available as
-	haskell functions, although MONITOR and SYNC are intentionally
-	omitted. Additionally, a low-level API is
+    Most redis commands (<http://redis.io/commands>) are available as
+    haskell functions, although MONITOR and SYNC are intentionally
+    omitted. Additionally, a low-level API is
         exposed that  makes it easy for the library user to implement further
         commands, such as new commands from an experimental Redis version.
     .
