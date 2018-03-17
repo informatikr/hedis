@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.1
+
+* PR #104. Add a Semigroup instance (fix GHC 8.4)
+
 ## 0.10.0
 
 * PR #102. Return list from srandmemberN
