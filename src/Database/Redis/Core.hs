@@ -23,6 +23,7 @@ import Data.Pool
 import Data.Time
 import Data.Typeable
 import Network
+import Network.TLS (ClientParams)
 
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
@@ -173,6 +174,8 @@ data ConnectInfo = ConnInfo
     -- ^ Optional timeout until connection to Redis gets
     --   established. 'ConnectTimeoutException' gets thrown if no socket
     --   get connected in this interval of time.
+    , connectTLSParams      :: Maybe ClientParams
+    -- ^ Optional TLS parameters. TLS will be enabled if this is provided.
     } deriving Show
 
 data ConnectError = ConnectAuthError Reply
@@ -191,6 +194,7 @@ instance Exception ConnectError
 --  connectMaxConnections = 50              -- Up to 50 connections
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
 --  connectTimeout        = Nothing         -- Don't add timeout logic
+--  connectTLSParams      = Nothing         -- Do not use TLS
 -- @
 --
 defaultConnectInfo :: ConnectInfo
@@ -202,6 +206,7 @@ defaultConnectInfo = ConnInfo
     , connectMaxConnections = 50
     , connectMaxIdleTime    = 30
     , connectTimeout        = Nothing
+    , connectTLSParams      = Nothing
     }
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the 
@@ -215,7 +220,12 @@ connect ConnInfo{..} = Conn <$>
         let timeoutOptUs =
               round . (1000000 *) <$> connectTimeout
         conn <- PP.connect connectHost connectPort timeoutOptUs
-        runRedisInternal conn $ do
+        conn' <- case connectTLSParams of
+                   Nothing -> return conn
+                   Just tlsParams -> PP.enableTLS tlsParams conn
+        PP.beginReceiving conn'
+
+        runRedisInternal conn' $ do
             -- AUTH
             case connectAuth of
                 Nothing   -> return ()
@@ -230,7 +240,7 @@ connect ConnInfo{..} = Conn <$>
               case resp of
                   Left r -> liftIO $ throwIO $ ConnectSelectError r
                   _      -> return ()
-        return conn
+        return conn'
 
     destroy = PP.disconnect
 

@@ -8,6 +8,20 @@ module Database.Redis (
     -- conn <- 'checkedConnect' 'defaultConnectInfo'
     -- @
     --
+    -- Connect to a Redis server using TLS:
+    --
+    -- @
+    -- -- connects to foobar.redis.cache.windows.net:6380
+    -- import Network.TLS
+    -- import Network.TLS.Extra.Cipher
+    -- import Data.X509.CertificateStore
+    -- import Data.Default.Class (def)
+    -- (Just certStore) <- readCertificateStore "azure-redis.crt"
+    -- let tlsParams = (defaultParamsClient "foobar.redis.cache.windows.net" "") { clientSupported = def { supportedCiphers = ciphersuite_strong }, clientShared = def { sharedCAStore = certStore } }
+    -- let redisConnInfo = defaultConnectInfo { connectHost = "foobar.redis.cache.windows.net", connectPort = PortNumber 6380, connectTLSParams = Just tlsParams, connectAuth = Just "Foobar!" }
+    -- conn <- checkedConnect redisConnInfo
+    -- @
+    --
     -- Send commands to the server:
     -- 
     -- @
