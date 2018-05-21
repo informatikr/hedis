@@ -78,6 +78,7 @@ library
                     resource-pool >= 0.2,
                     stm,
                     time,
+                    tls >= 1.3,
                     vector >= 0.9,
                     HTTP,
                     errors,
