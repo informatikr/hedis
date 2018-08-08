@@ -3,7 +3,7 @@
     DeriveDataTypeable #-}
 
 module Database.Redis.Core (
-    Connection(..), ConnectError(..), connect, checkedConnect,
+    Connection(..), ConnectError(..), connect, checkedConnect, disconnect, 
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
@@ -253,6 +253,10 @@ checkedConnect connInfo = do
     conn <- connect connInfo
     runRedis conn $ void ping
     return conn
+
+-- |Destroy all idle resources in the pool.
+disconnect :: Connection -> IO ()
+disconnect (Conn pool) = destroyAllResources pool
 
 -- The AUTH command. It has to be here because it is used in 'connect'.
 auth
