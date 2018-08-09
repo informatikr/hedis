@@ -34,6 +34,12 @@ module Database.Redis (
     --      world <- get \"world\"
     --      liftIO $ print (hello,world)
     -- @
+    --
+    -- disconnect all idle resources in the connection pool:
+    --
+    -- @
+    -- 'disconnect' 'conn'
+    -- @
 
     -- ** Command Type Signatures
     -- |Redis commands behave differently when issued in- or outside of a
@@ -156,7 +162,7 @@ module Database.Redis (
     RedisCtx(..), MonadRedis(..),
 
     -- * Connection
-    Connection, ConnectError(..), connect, checkedConnect,
+    Connection, ConnectError(..), connect, checkedConnect, disconnect, 
     ConnectInfo(..), defaultConnectInfo, parseConnectInfo,
     HostName, PortID(..),
     
