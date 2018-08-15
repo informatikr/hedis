@@ -788,3 +788,75 @@ zrangebylexLimit
 zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
+
+xadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ id
+    -> [(ByteString, ByteString)] -- ^ (field, value)
+    -> m (f ByteString)
+xadd key entryId fieldValues = sendRequest (["XADD"] ++ [encode key] ++ [encode entryId] ++ concatMap (\(x,y) -> [encode x, encode y]) fieldValues)
+
+data StreamsRecord = StreamsRecord
+    { recordId :: ByteString
+    , keyValues :: [(ByteString, ByteString)]
+    } deriving (Show, Eq)
+
+instance RedisResult StreamsRecord where
+    decode (MultiBulk (Just [SingleLine recordId, MultiBulk (Just rawKeyValues)])) = do
+        keyValuesList <- mapM decode rawKeyValues
+        let keyValues = decodeKeyValues keyValuesList
+        return StreamsRecord{..}
+        where
+            decodeKeyValues :: [ByteString] -> [(ByteString, ByteString)]
+            decodeKeyValues bs = map (\[x,y] -> (x,y)) $ chunksOfTwo bs
+            chunksOfTwo (x:y:rest) = [x,y]:chunksOfTwo rest
+            chunksOfTwo _ = []
+    decode a = Left a
+
+data XReadOpts = XReadOpts
+    { block :: Maybe Integer
+    , recordCount :: Maybe Integer
+    } deriving (Show, Eq)
+
+-- |Redis default 'XReadOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- XReadOpts
+--     { block = Nothing -- Don't block waiting for more records
+--     , recordCount    = Nothing   -- no record count
+--     }
+-- @
+--
+defaultXreadOpts :: XReadOpts
+defaultXreadOpts = XReadOpts { block = Nothing, recordCount = Nothing }
+
+data XReadResponse = XReadResponse
+    { stream :: ByteString
+    , records :: [StreamsRecord]
+    } deriving (Show, Eq)
+
+instance RedisResult XReadResponse where
+    decode (MultiBulk (Just [Bulk (Just stream), MultiBulk (Just rawRecords)])) = do
+        records <- mapM decode rawRecords
+        return XReadResponse{..}
+    decode a = Left a
+
+xreadOpts
+    :: (RedisCtx m f)
+    => [(ByteString, ByteString)] -- ^ (stream, id) pairs
+    -> XReadOpts -- ^ Options
+    -> m (f (Maybe [XReadResponse]))
+xreadOpts streamsAndIds XReadOpts{..} = sendRequest $
+    concat [["XREAD"], blockArgs, countArgs, ["STREAMS"], streams, recordIds]
+  where
+    blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) block
+    countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) recordCount
+    streams = map (\(stream, _) -> stream) streamsAndIds
+    recordIds = map (\(_, recordId) -> recordId) streamsAndIds
+
+xread
+    :: (RedisCtx m f)
+    => [(ByteString, ByteString)] -- ^ (stream, id) pairs
+    -> m( f (Maybe [XReadResponse]))
+xread streamsAndIds = xreadOpts streamsAndIds defaultXreadOpts

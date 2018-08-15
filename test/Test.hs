@@ -59,6 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
+    , [testXAddRead]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -595,3 +596,17 @@ testZrangelex = testCase "zrangebylex" $ do
     zrangebylex "zrangebylex" (Excl "aaa") (Excl "ddd") >>=? ["abb","ccc"]
     zrangebylex "zrangebylex" Minr Maxr                 >>=? ["aaa","abb","ccc","ddd"]
     zrangebylexLimit "zrangebylex" Minr Maxr 2 1        >>=? ["ccc"]
+
+testXAddRead ::Test
+testXAddRead = testCase "xadd/xread" $ do
+    xadd "somestream" "123" [("key", "value"), ("key2", "value2")]
+    xadd "otherstream" "456" [("key1", "value1")]
+    xread [("somestream", "0"), ("otherstream", "0")] >>=? Just [
+        XReadResponse {
+            stream = "somestream",
+            records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value"), ("key2", "value2")]}]
+        },
+        XReadResponse {
+            stream = "otherstream",
+            records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
+        }]

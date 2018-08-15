@@ -224,6 +224,13 @@ setnx, -- |Set the value of a key, only if the key does not exist (<http://redis
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
 
+-- ** Streams
+XReadOpts(..),
+XReadResponse(..),
+StreamsRecord(..),
+xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
+xread, -- |Read values from a stream (<https://redis.io/commands/xread>). Since Redis 5.0.0
+
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from
@@ -1042,6 +1049,4 @@ sismember
     -> ByteString -- ^ member
     -> m (f Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
-
-
 
