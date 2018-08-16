@@ -59,7 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead]
+    , [testXAddRead, testXReadGroup, testXRange, testXpending]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -601,6 +601,8 @@ testXAddRead ::Test
 testXAddRead = testCase "xadd/xread" $ do
     xadd "somestream" "123" [("key", "value"), ("key2", "value2")]
     xadd "otherstream" "456" [("key1", "value1")]
+    xaddOpts "thirdstream" "*" [("k", "v")] (Maxlen 1)
+    xaddOpts "thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
     xread [("somestream", "0"), ("otherstream", "0")] >>=? Just [
         XReadResponse {
             stream = "somestream",
@@ -610,3 +612,52 @@ testXAddRead = testCase "xadd/xread" $ do
             stream = "otherstream",
             records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
         }]
+    xlen "somestream" >>=? 1
+
+testXReadGroup ::Test
+testXReadGroup = testCase "xgroupCreate/xreadgroup/xack" $ do
+    xadd "somestream" "123" [("key", "value")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Just [
+        XReadResponse {
+            stream = "somestream",
+            records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value")]}]
+        }]
+    xack "somestream" "somegroup" "123-0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Nothing
+
+testXRange ::Test
+testXRange = testCase "xrange/xrevrange" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xrange "somestream" "122" "123" Nothing >>=? [
+        StreamsRecord{recordId = "122-0", keyValues = [("key2", "value2")]},
+        StreamsRecord{recordId = "123-0", keyValues = [("key3", "value3")]}
+        ]
+    xrevRange "somestream" "123" "122" Nothing >>=? [
+        StreamsRecord{recordId = "123-0", keyValues = [("key3", "value3")]},
+        StreamsRecord{recordId = "122-0", keyValues = [("key2", "value2")]}
+        ]
+
+testXpending ::Test
+testXpending = testCase "xpending" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    xpendingSummary "somestream" "somegroup" Nothing >>=? XPendingSummaryResponse {
+        numPendingMessages = 4,
+        smallestPendingMessageId = "121-0",
+        largestPendingMessageId = "124-0",
+        numPendingMessagesByconsumer = [("consumer1", 4)]
+    }
+    detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
+    liftIO $ case detail of
+        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right [XPendingDetailRecord{..}] -> do
+            messageId HUnit.@=? "121-0"
+        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad

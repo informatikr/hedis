@@ -789,13 +789,31 @@ zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
 
-xadd
+data XAddOpts = NoArgs | Maxlen Integer | ApproxMaxlen Integer
+
+xaddOpts
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ id
     -> [(ByteString, ByteString)] -- ^ (field, value)
+    -> XAddOpts
     -> m (f ByteString)
-xadd key entryId fieldValues = sendRequest (["XADD"] ++ [encode key] ++ [encode entryId] ++ concatMap (\(x,y) -> [encode x, encode y]) fieldValues)
+xaddOpts key entryId fieldValues opts = sendRequest $
+    ["XADD", key, entryId] ++ optArgs ++ fieldArgs
+    where
+        fieldArgs = concatMap (\(x,y) -> [x,y]) fieldValues
+        optArgs = case opts of
+            NoArgs -> []
+            Maxlen max -> ["MAXLEN", encode max]
+            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+
+xadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ id
+    -> [(ByteString, ByteString)] -- ^ (field, value)
+    -> m (f ByteString)
+xadd key entryId fieldValues = xaddOpts key entryId fieldValues NoArgs
 
 data StreamsRecord = StreamsRecord
     { recordId :: ByteString
@@ -847,16 +865,146 @@ xreadOpts
     => [(ByteString, ByteString)] -- ^ (stream, id) pairs
     -> XReadOpts -- ^ Options
     -> m (f (Maybe [XReadResponse]))
-xreadOpts streamsAndIds XReadOpts{..} = sendRequest $
-    concat [["XREAD"], blockArgs, countArgs, ["STREAMS"], streams, recordIds]
-  where
-    blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) block
-    countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) recordCount
-    streams = map (\(stream, _) -> stream) streamsAndIds
-    recordIds = map (\(_, recordId) -> recordId) streamsAndIds
+xreadOpts streamsAndIds opts = sendRequest $
+    ["XREAD"] ++ (internalXreadArgs streamsAndIds opts)
+
+internalXreadArgs :: [(ByteString, ByteString)] -> XReadOpts -> [ByteString]
+internalXreadArgs streamsAndIds XReadOpts{..} =
+    concat [blockArgs, countArgs, ["STREAMS"], streams, recordIds]
+    where
+        blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) block
+        countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) recordCount
+        streams = map (\(stream, _) -> stream) streamsAndIds
+        recordIds = map (\(_, recordId) -> recordId) streamsAndIds
+
 
 xread
     :: (RedisCtx m f)
     => [(ByteString, ByteString)] -- ^ (stream, id) pairs
     -> m( f (Maybe [XReadResponse]))
 xread streamsAndIds = xreadOpts streamsAndIds defaultXreadOpts
+
+xreadGroupOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ group name
+    -> ByteString -- ^ consumer name
+    -> [(ByteString, ByteString)] -- ^ (stream, id) pairs
+    -> XReadOpts -- ^ Options
+    -> m (f (Maybe [XReadResponse]))
+xreadGroupOpts groupName consumerName streamsAndIds opts = sendRequest $
+    ["XREADGROUP", "GROUP", groupName, consumerName] ++ (internalXreadArgs streamsAndIds opts)
+
+xreadGroup
+    :: (RedisCtx m f)
+    => ByteString -- ^ group name
+    -> ByteString -- ^ consumer name
+    -> [(ByteString, ByteString)] -- ^ (stream, id) pairs
+    -> m (f (Maybe [XReadResponse]))
+xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
+
+xgroupCreate
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group name
+    -> ByteString -- ^ start ID
+    -> m (f Bool)
+xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+
+xack
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group name
+    -> ByteString -- ^ message ID
+    -> m (f Integer)
+xack stream groupName messageId = sendRequest ["XACK", stream, groupName, messageId]
+
+xrange
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ start
+    -> ByteString -- ^ end
+    -> Maybe Integer -- ^ COUNT
+    -> m (f [StreamsRecord])
+xrange stream start end count = sendRequest $ ["XRANGE", stream, start, end] ++ countArgs
+    where countArgs = maybe [] (\c -> ["COUNT", encode c]) count
+
+xrevRange
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ end
+    -> ByteString -- ^ start
+    -> Maybe Integer -- ^ COUNT
+    -> m (f [StreamsRecord])
+xrevRange stream end start count = sendRequest $ ["XREVRANGE", stream, end, start] ++ countArgs
+    where countArgs = maybe [] (\c -> ["COUNT", encode c]) count
+
+xlen
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> m (f Integer)
+xlen stream = sendRequest ["XLEN", stream]
+
+data XPendingSummaryResponse = XPendingSummaryResponse
+    { numPendingMessages :: Integer
+    , smallestPendingMessageId :: ByteString
+    , largestPendingMessageId :: ByteString
+    , numPendingMessagesByconsumer :: [(ByteString, Integer)]
+    } deriving (Show, Eq)
+
+instance RedisResult XPendingSummaryResponse where
+    decode (MultiBulk (Just [
+        Integer numPendingMessages,
+        SingleLine smallestPendingMessageId,
+        SingleLine largestPendingMessageId,
+        MultiBulk (Just [MultiBulk (Just rawGroupsAndCounts)])])) = do
+            let groupsAndCounts = chunksOfTwo rawGroupsAndCounts
+            numPendingMessagesByconsumer <- decodeGroupsAndCounts groupsAndCounts
+            return XPendingSummaryResponse{..}
+            where
+                decodeGroupsAndCounts :: [(Reply, Reply)] -> Either Reply [(ByteString, Integer)]
+                decodeGroupsAndCounts bs = sequence $ map decodeGroupCount bs
+                decodeGroupCount :: (Reply, Reply) -> Either Reply (ByteString, Integer)
+                decodeGroupCount (x, y) = do
+                    decodedX <- decode x
+                    decodedY <- decode y
+                    return (decodedX, decodedY)
+                chunksOfTwo (x:y:rest) = (x,y):chunksOfTwo rest
+                chunksOfTwo _ = []
+    decode a = Left a
+
+xpendingSummary
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> Maybe ByteString -- ^ consumer
+    -> m (f XPendingSummaryResponse)
+xpendingSummary stream group consumer = sendRequest $ ["XPENDING", stream, group] ++ consumerArg
+    where consumerArg = maybe [] (\c -> [c]) consumer
+
+data XPendingDetailRecord = XPendingDetailRecord
+    { messageId :: ByteString
+    , consumer :: ByteString
+    , millisSinceLastDelivered :: Integer
+    , numTimesDelivered :: Integer
+    } deriving (Show, Eq)
+
+instance RedisResult XPendingDetailRecord where
+    decode (MultiBulk (Just [
+        SingleLine messageId ,
+        Bulk (Just consumer),
+        Integer millisSinceLastDelivered,
+        Integer numTimesDelivered])) = Right XPendingDetailRecord{..}
+    decode a = Left a
+
+xpendingDetail
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ startId
+    -> ByteString -- ^ endId
+    -> Integer -- ^ count
+    -> Maybe ByteString -- ^ consumer
+    -> m (f [XPendingDetailRecord])
+xpendingDetail stream group startId endId count consumer = sendRequest $
+    ["XPENDING", stream, group, startId, endId, encode count] ++ consumerArg
+    where consumerArg = maybe [] (\c -> [c]) consumer

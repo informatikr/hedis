@@ -226,10 +226,25 @@ strlen, -- |Get the length of the value stored in a key (<http://redis.io/comman
 
 -- ** Streams
 XReadOpts(..),
+defaultXreadOpts,
 XReadResponse(..),
 StreamsRecord(..),
+XAddOpts(..),
 xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
-xread, -- |Read values from a stream (<https://redis.io/commands/xread>). Since Redis 5.0.0
+xaddOpts, -- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
+xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
+xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
+xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
+xreadGroupOpts, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
+xack, -- |Acknowledge receipt of a message as part of a consumer group. Since Redis 5.0.0
+xgroupCreate, -- |Create a consumer group. Since Redis 5.0.0
+xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
+xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
+xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0
+XPendingSummaryResponse(..),
+xpendingSummary, -- |Get information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XPendingDetailRecord(..),
+xpendingDetail, -- |Get detailed information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
