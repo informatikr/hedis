@@ -910,6 +910,29 @@ xgroupCreate
     -> m (f Bool)
 xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
 
+xgroupSetId
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ id
+    -> m (f Status)
+xgroupSetId stream group messageId = sendRequest ["XGROUP", "SETID", stream, group, messageId]
+
+xgroupDelConsumer
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ consumer
+    -> m (f Integer)
+xgroupDelConsumer stream group consumer = sendRequest ["XGROUP", "DELCONSUMER", stream, group, consumer]
+
+xgroupDestroy
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> m (f Bool)
+xgroupDestroy stream group = sendRequest ["XGROUP", "DESTROY", stream, group]
+
 xack
     :: (RedisCtx m f)
     => ByteString -- ^ stream

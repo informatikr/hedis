@@ -623,8 +623,11 @@ testXReadGroup = testCase "xgroupCreate/xreadgroup/xack" $ do
             stream = "somestream",
             records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value")]}]
         }]
-    xack "somestream" "somegroup" "123-0"
+    xack "somestream" "somegroup" "123-0" >>=? 1
     xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Nothing
+    xgroupSetId "somestream" "somegroup" "0" >>=? Ok
+    xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
+    xgroupDestroy "somestream" "somegroup" >>=? True
 
 testXRange ::Test
 testXRange = testCase "xrange/xrevrange" $ do
