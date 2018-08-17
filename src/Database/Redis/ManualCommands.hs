@@ -1140,3 +1140,10 @@ xinfoStream
     => ByteString -- ^ stream
     -> m (f XInfoStreamResponse)
 xinfoStream stream = sendRequest ["XINFO", "STREAM", stream]
+
+xdel
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> [ByteString] -- ^ message IDs
+    -> m (f Integer)
+xdel stream messageIds = sendRequest $ ["XDEL", stream] ++ messageIds

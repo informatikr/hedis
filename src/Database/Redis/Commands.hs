@@ -255,6 +255,7 @@ XInfoGroupsResponse(..),
 xinfoGroups, -- |Get info about groups consuming from a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 XInfoStreamResponse(..),
 xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+xdel, -- |Delete messages from a stream. Since Redis 5.0.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
