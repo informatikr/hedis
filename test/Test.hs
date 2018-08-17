@@ -59,7 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel]
+    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -715,3 +715,12 @@ testXDel = testCase "xdel" $ do
     xadd "somestream" "122" [("key2", "value2")]
     xdel "somestream" ["122"] >>=? 1
     xlen "somestream" >>=? 1
+
+testXTrim ::Test
+testXTrim = testCase "xtrim" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xadd "somestream" "125" [("key5", "value5")]
+    xtrim "somestream" (Maxlen 2) >>=? 3

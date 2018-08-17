@@ -229,7 +229,7 @@ XReadOpts(..),
 defaultXreadOpts,
 XReadResponse(..),
 StreamsRecord(..),
-XAddOpts(..),
+TrimOpts(..),
 xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
 xaddOpts, -- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
 xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
@@ -256,6 +256,7 @@ xinfoGroups, -- |Get info about groups consuming from a stream. The Redis comman
 XInfoStreamResponse(..),
 xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 xdel, -- |Delete messages from a stream. Since Redis 5.0.0
+xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library

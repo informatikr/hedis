@@ -789,14 +789,14 @@ zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
 
-data XAddOpts = NoArgs | Maxlen Integer | ApproxMaxlen Integer
+data TrimOpts = NoArgs | Maxlen Integer | ApproxMaxlen Integer
 
 xaddOpts
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ id
     -> [(ByteString, ByteString)] -- ^ (field, value)
-    -> XAddOpts
+    -> TrimOpts
     -> m (f ByteString)
 xaddOpts key entryId fieldValues opts = sendRequest $
     ["XADD", key, entryId] ++ optArgs ++ fieldArgs
@@ -1147,3 +1147,15 @@ xdel
     -> [ByteString] -- ^ message IDs
     -> m (f Integer)
 xdel stream messageIds = sendRequest $ ["XDEL", stream] ++ messageIds
+
+xtrim
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> TrimOpts
+    -> m (f Integer)
+xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ optArgs
+    where
+        optArgs = case opts of
+            NoArgs -> []
+            Maxlen max -> ["MAXLEN", encode max]
+            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
