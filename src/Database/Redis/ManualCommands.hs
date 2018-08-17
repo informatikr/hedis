@@ -1066,3 +1066,77 @@ xclaimJustIds
     -> m (f [ByteString])
 xclaimJustIds stream group consumer minIdleTime opts messageIds = sendRequest $
     (xclaimRequest stream group consumer minIdleTime opts messageIds) ++ ["JUSTID"]
+
+data XInfoConsumersResponse = XInfoConsumersResponse
+    { xinfoConsumerName :: ByteString
+    , xinfoConsumerNumPendingMessages :: Integer
+    , xinfoConsumerIdleTime :: Integer
+    } deriving (Show, Eq)
+
+instance RedisResult XInfoConsumersResponse where
+    decode (MultiBulk (Just [
+        SingleLine "name",
+        Bulk (Just xinfoConsumerName),
+        SingleLine "pending",
+        Integer xinfoConsumerNumPendingMessages,
+        SingleLine "idle",
+        Integer xinfoConsumerIdleTime])) = Right XInfoConsumersResponse{..}
+    decode a = Left a
+
+xinfoConsumers
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> m (f [XInfoConsumersResponse])
+xinfoConsumers stream group = sendRequest $ ["XINFO", "CONSUMERS", stream, group]
+
+data XInfoGroupsResponse = XInfoGroupsResponse
+    { xinfoGroupsGroupName :: ByteString
+    , xinfoGroupsNumConsumers :: Integer
+    , xinfoGroupsNumPendingMessages :: Integer
+    , xinfoGroupsLastDeliveredMessageId :: ByteString
+    } deriving (Show, Eq)
+
+instance RedisResult XInfoGroupsResponse where
+    decode (MultiBulk (Just [
+        SingleLine "name",Bulk (Just xinfoGroupsGroupName),
+        SingleLine "consumers",Integer xinfoGroupsNumConsumers,
+        SingleLine "pending",Integer xinfoGroupsNumPendingMessages,
+        SingleLine "last-delivered-id",SingleLine xinfoGroupsLastDeliveredMessageId])) = Right XInfoGroupsResponse{..}
+    decode a = Left a
+
+xinfoGroups
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> m (f [XInfoGroupsResponse])
+xinfoGroups stream = sendRequest ["XINFO", "GROUPS", stream]
+
+data XInfoStreamResponse = XInfoStreamResponse
+    { xinfoStreamLength :: Integer
+    , xinfoStreamRadixTreeKeys :: Integer
+    , xinfoStreamRadixTreeNodes :: Integer
+    , xinfoStreamNumGroups :: Integer
+    , xinfoStreamLastEntryId :: ByteString
+    , xinfoStreamFirstEntry :: StreamsRecord
+    , xinfoStreamLastEntry :: StreamsRecord
+    } deriving (Show, Eq)
+
+instance RedisResult XInfoStreamResponse where
+    decode (MultiBulk (Just [
+        SingleLine "length",Integer xinfoStreamLength,
+        SingleLine "radix-tree-keys",Integer xinfoStreamRadixTreeKeys,
+        SingleLine "radix-tree-nodes",Integer xinfoStreamRadixTreeNodes,
+        SingleLine "groups",Integer xinfoStreamNumGroups,
+        SingleLine "last-generated-id",SingleLine xinfoStreamLastEntryId,
+        SingleLine "first-entry", rawFirstEntry ,
+        SingleLine "last-entry", rawLastEntry ])) = do
+            xinfoStreamFirstEntry <- decode rawFirstEntry
+            xinfoStreamLastEntry <- decode rawLastEntry
+            return XInfoStreamResponse{..}
+    decode a = Left a
+
+xinfoStream
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> m (f XInfoStreamResponse)
+xinfoStream stream = sendRequest ["XINFO", "STREAM", stream]

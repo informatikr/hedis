@@ -59,7 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim]
+    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -672,3 +672,39 @@ testXClaim = testCase "xclaim" $ do
         StreamsRecord{recordId = "121-0", keyValues = [("key1", "value1")]}
         ]
     xclaimJustIds "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["122-0"] >>=? ["122-0"]
+
+testXInfo ::Test
+testXInfo = testCase "xinfo" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
+    consumerInfos <- xinfoConsumers "somestream" "somegroup"
+    liftIO $ case consumerInfos of
+        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right [XInfoConsumersResponse{..}] -> do
+            xinfoConsumerName HUnit.@=? "consumer1"
+            xinfoConsumerNumPendingMessages HUnit.@=? 2
+        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    xinfoGroups "somestream" >>=? [
+        XInfoGroupsResponse{
+            xinfoGroupsGroupName = "somegroup",
+            xinfoGroupsNumConsumers = 1,
+            xinfoGroupsNumPendingMessages = 2,
+            xinfoGroupsLastDeliveredMessageId = "122-0"
+        }]
+    xinfoStream "somestream" >>=? XInfoStreamResponse
+        { xinfoStreamLength = 2
+        , xinfoStreamRadixTreeKeys = 1
+        , xinfoStreamRadixTreeNodes = 2
+        , xinfoStreamNumGroups = 1
+        , xinfoStreamLastEntryId = "122-0"
+        , xinfoStreamFirstEntry = StreamsRecord
+            { recordId = "121-0"
+            , keyValues = [("key1", "value1")]
+            }
+        , xinfoStreamLastEntry = StreamsRecord
+            { recordId = "122-0"
+            , keyValues = [("key2", "value2")]
+            }
+        }

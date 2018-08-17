@@ -249,6 +249,12 @@ XClaimOpts(..),
 defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+XInfoConsumersResponse(..),
+xinfoConsumers, -- |Get info about consumers in a group. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+XInfoGroupsResponse(..),
+xinfoGroups, -- |Get info about groups consuming from a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+XInfoStreamResponse(..),
+xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
