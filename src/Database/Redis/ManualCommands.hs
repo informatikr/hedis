@@ -1008,3 +1008,61 @@ xpendingDetail
 xpendingDetail stream group startId endId count consumer = sendRequest $
     ["XPENDING", stream, group, startId, endId, encode count] ++ consumerArg
     where consumerArg = maybe [] (\c -> [c]) consumer
+
+data XClaimOpts = XClaimOpts
+    { xclaimIdle :: Maybe Integer
+    , xclaimTime :: Maybe Integer
+    , xclaimRetryCount :: Maybe Integer
+    , xclaimForce :: Bool
+    } deriving (Show, Eq)
+
+defaultXClaimOpts :: XClaimOpts
+defaultXClaimOpts = XClaimOpts
+    { xclaimIdle = Nothing
+    , xclaimTime = Nothing
+    , xclaimRetryCount = Nothing
+    , xclaimForce = False
+    }
+
+
+-- |Format a request for XCLAIM.
+xclaimRequest
+    :: ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ consumer
+    -> Integer -- ^ min idle time
+    -> XClaimOpts -- ^ optional arguments
+    -> [ByteString] -- ^ message IDs
+    -> [ByteString]
+xclaimRequest stream group consumer minIdleTime XClaimOpts{..} messageIds =
+    ["XCLAIM", stream, group, consumer, encode minIdleTime] ++ ( map encode messageIds ) ++ optArgs
+    where optArgs = idleArg ++ timeArg ++ retryCountArg ++ forceArg
+          idleArg = optArg "IDLE" xclaimIdle
+          timeArg = optArg "TIME" xclaimTime
+          retryCountArg = optArg "RETRYCOUNT" xclaimRetryCount
+          forceArg = if xclaimForce then ["FORCE"] else []
+          optArg name maybeArg = maybe [] (\x -> [name, encode x]) maybeArg
+
+xclaim
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ consumer
+    -> Integer -- ^ min idle time
+    -> XClaimOpts -- ^ optional arguments
+    -> [ByteString] -- ^ message IDs
+    -> m (f [StreamsRecord])
+xclaim stream group consumer minIdleTime opts messageIds = sendRequest $
+    xclaimRequest stream group consumer minIdleTime opts messageIds
+
+xclaimJustIds
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group
+    -> ByteString -- ^ consumer
+    -> Integer -- ^ min idle time
+    -> XClaimOpts -- ^ optional arguments
+    -> [ByteString] -- ^ message IDs
+    -> m (f [ByteString])
+xclaimJustIds stream group consumer minIdleTime opts messageIds = sendRequest $
+    (xclaimRequest stream group consumer minIdleTime opts messageIds) ++ ["JUSTID"]

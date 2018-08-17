@@ -245,6 +245,10 @@ XPendingSummaryResponse(..),
 xpendingSummary, -- |Get information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
 XPendingDetailRecord(..),
 xpendingDetail, -- |Get detailed information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XClaimOpts(..),
+defaultXClaimOpts,
+xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library

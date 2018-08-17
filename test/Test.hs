@@ -59,7 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending]
+    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -661,3 +661,14 @@ testXpending = testCase "xpending" $ do
         Right [XPendingDetailRecord{..}] -> do
             messageId HUnit.@=? "121-0"
         Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+
+testXClaim ::Test
+testXClaim = testCase "xclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
+    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=? [
+        StreamsRecord{recordId = "121-0", keyValues = [("key1", "value1")]}
+        ]
+    xclaimJustIds "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["122-0"] >>=? ["122-0"]
