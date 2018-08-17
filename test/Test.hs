@@ -615,7 +615,7 @@ testXAddRead = testCase "xadd/xread" $ do
     xlen "somestream" >>=? 1
 
 testXReadGroup ::Test
-testXReadGroup = testCase "xgroupCreate/xreadgroup/xack" $ do
+testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
     xadd "somestream" "123" [("key", "value")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Just [
