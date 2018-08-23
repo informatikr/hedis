@@ -224,6 +224,43 @@ setnx, -- |Set the value of a key, only if the key does not exist (<http://redis
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
 
+-- ** Streams
+XReadOpts(..),
+defaultXreadOpts,
+XReadResponse(..),
+StreamsRecord(..),
+TrimOpts(..),
+xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
+xaddOpts, -- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
+xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
+xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
+xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
+xreadGroupOpts, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
+xack, -- |Acknowledge receipt of a message as part of a consumer group. Since Redis 5.0.0
+xgroupCreate, -- |Create a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupSetId, -- |Set the id for a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupDestroy, -- |Destroy a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupDelConsumer, -- |Delete a consumer. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
+xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
+xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0
+XPendingSummaryResponse(..),
+xpendingSummary, -- |Get information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XPendingDetailRecord(..),
+xpendingDetail, -- |Get detailed information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XClaimOpts(..),
+defaultXClaimOpts,
+xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+XInfoConsumersResponse(..),
+xinfoConsumers, -- |Get info about consumers in a group. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+XInfoGroupsResponse(..),
+xinfoGroups, -- |Get info about groups consuming from a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+XInfoStreamResponse(..),
+xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+xdel, -- |Delete messages from a stream. Since Redis 5.0.0
+xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
+
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from
@@ -1042,6 +1079,4 @@ sismember
     -> ByteString -- ^ member
     -> m (f Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
-
-
 

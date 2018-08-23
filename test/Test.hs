@@ -59,6 +59,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
+    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -595,3 +596,134 @@ testZrangelex = testCase "zrangebylex" $ do
     zrangebylex "zrangebylex" (Excl "aaa") (Excl "ddd") >>=? ["abb","ccc"]
     zrangebylex "zrangebylex" Minr Maxr                 >>=? ["aaa","abb","ccc","ddd"]
     zrangebylexLimit "zrangebylex" Minr Maxr 2 1        >>=? ["ccc"]
+
+testXAddRead ::Test
+testXAddRead = testCase "xadd/xread" $ do
+    xadd "somestream" "123" [("key", "value"), ("key2", "value2")]
+    xadd "otherstream" "456" [("key1", "value1")]
+    xaddOpts "thirdstream" "*" [("k", "v")] (Maxlen 1)
+    xaddOpts "thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
+    xread [("somestream", "0"), ("otherstream", "0")] >>=? Just [
+        XReadResponse {
+            stream = "somestream",
+            records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value"), ("key2", "value2")]}]
+        },
+        XReadResponse {
+            stream = "otherstream",
+            records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
+        }]
+    xlen "somestream" >>=? 1
+
+testXReadGroup ::Test
+testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
+    xadd "somestream" "123" [("key", "value")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Just [
+        XReadResponse {
+            stream = "somestream",
+            records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value")]}]
+        }]
+    xack "somestream" "somegroup" "123-0" >>=? 1
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Nothing
+    xgroupSetId "somestream" "somegroup" "0" >>=? Ok
+    xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
+    xgroupDestroy "somestream" "somegroup" >>=? True
+
+testXRange ::Test
+testXRange = testCase "xrange/xrevrange" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xrange "somestream" "122" "123" Nothing >>=? [
+        StreamsRecord{recordId = "122-0", keyValues = [("key2", "value2")]},
+        StreamsRecord{recordId = "123-0", keyValues = [("key3", "value3")]}
+        ]
+    xrevRange "somestream" "123" "122" Nothing >>=? [
+        StreamsRecord{recordId = "123-0", keyValues = [("key3", "value3")]},
+        StreamsRecord{recordId = "122-0", keyValues = [("key2", "value2")]}
+        ]
+
+testXpending ::Test
+testXpending = testCase "xpending" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    xpendingSummary "somestream" "somegroup" Nothing >>=? XPendingSummaryResponse {
+        numPendingMessages = 4,
+        smallestPendingMessageId = "121-0",
+        largestPendingMessageId = "124-0",
+        numPendingMessagesByconsumer = [("consumer1", 4)]
+    }
+    detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
+    liftIO $ case detail of
+        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right [XPendingDetailRecord{..}] -> do
+            messageId HUnit.@=? "121-0"
+        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+
+testXClaim ::Test
+testXClaim = testCase "xclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
+    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=? [
+        StreamsRecord{recordId = "121-0", keyValues = [("key1", "value1")]}
+        ]
+    xclaimJustIds "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["122-0"] >>=? ["122-0"]
+
+testXInfo ::Test
+testXInfo = testCase "xinfo" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
+    consumerInfos <- xinfoConsumers "somestream" "somegroup"
+    liftIO $ case consumerInfos of
+        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right [XInfoConsumersResponse{..}] -> do
+            xinfoConsumerName HUnit.@=? "consumer1"
+            xinfoConsumerNumPendingMessages HUnit.@=? 2
+        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    xinfoGroups "somestream" >>=? [
+        XInfoGroupsResponse{
+            xinfoGroupsGroupName = "somegroup",
+            xinfoGroupsNumConsumers = 1,
+            xinfoGroupsNumPendingMessages = 2,
+            xinfoGroupsLastDeliveredMessageId = "122-0"
+        }]
+    xinfoStream "somestream" >>=? XInfoStreamResponse
+        { xinfoStreamLength = 2
+        , xinfoStreamRadixTreeKeys = 1
+        , xinfoStreamRadixTreeNodes = 2
+        , xinfoStreamNumGroups = 1
+        , xinfoStreamLastEntryId = "122-0"
+        , xinfoStreamFirstEntry = StreamsRecord
+            { recordId = "121-0"
+            , keyValues = [("key1", "value1")]
+            }
+        , xinfoStreamLastEntry = StreamsRecord
+            { recordId = "122-0"
+            , keyValues = [("key2", "value2")]
+            }
+        }
+
+testXDel ::Test
+testXDel = testCase "xdel" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xdel "somestream" ["122"] >>=? 1
+    xlen "somestream" >>=? 1
+
+testXTrim ::Test
+testXTrim = testCase "xtrim" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xadd "somestream" "125" [("key5", "value5")]
+    xtrim "somestream" (Maxlen 2) >>=? 3
