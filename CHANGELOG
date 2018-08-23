@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.4
+
+* PR #112. Implement streams commands
+
 ## 0.10.3
 
 * PR #110. Add disconnect which destroys all (idle) resources in the pool
