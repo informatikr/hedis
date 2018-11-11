@@ -115,7 +115,7 @@ instance (RedisResult k, RedisResult v) => RedisResult [(k,v)] where
                 _                     -> Left r
       where
         pairs []         = Right []
-        pairs (_:[])     = Left r
+        pairs [_]     = Left r
         pairs (r1:r2:rs) = do
             k   <- decode r1
             v   <- decode r2

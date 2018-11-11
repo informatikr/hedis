@@ -224,6 +224,15 @@ setnx, -- |Set the value of a key, only if the key does not exist (<http://redis
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
 
+
+-- ** Geospatial
+geoadd,
+geohash,
+geodist,
+geopos,
+-- georadius,
+-- georadiusbymember,
+
 -- ** Streams
 XReadOpts(..),
 defaultXreadOpts,
