@@ -3,7 +3,8 @@
     DeriveDataTypeable #-}
 
 module Database.Redis.Core (
-    Connection(..), ConnectError(..), connect, checkedConnect, disconnect, 
+    Connection(..), ConnectError(..), connect, checkedConnect, disconnect,
+    withConnect, withCheckedConnect,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
@@ -257,6 +258,14 @@ checkedConnect connInfo = do
 -- |Destroy all idle resources in the pool.
 disconnect :: Connection -> IO ()
 disconnect (Conn pool) = destroyAllResources pool
+
+-- | Memory bracket around 'connect' and 'disconnect'. 
+withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
+withConnect connInfo = bracket (connect connInfo) disconnect
+
+-- | Memory bracket around 'checkedConnect' and 'disconnect'
+withCheckedConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
+withCheckedConnect connInfo = bracket (checkedConnect connInfo) disconnect
 
 -- The AUTH command. It has to be here because it is used in 'connect'.
 auth
