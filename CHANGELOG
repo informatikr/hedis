@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.6
+
+* PR #120. Add withConnect, withCheckedConnect
+
 ## 0.10.5
 
 * PR #XXX Fix CI builds with updated Redis version
