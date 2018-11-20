@@ -103,7 +103,7 @@ testPipelining = testCase "pipelining" $ do
     assert $ tNoPipe / tPipe > 2
   where
     deltaT redis = do
-        start <- liftIO $ getCurrentTime
+        start <- liftIO getCurrentTime
         _ <- redis
         liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
@@ -112,7 +112,7 @@ testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
         _ignored <- set "key" "value"
-        (liftIO $ do
+        liftIO (do
             threadDelay $ 10^(5::Int)
             mvar <- newEmptyMVar
             _ <- fork $ runRedis conn (get "key") >>= putMVar mvar
@@ -404,7 +404,7 @@ testPubSub conn = testCase "pubSub" go conn
             return ()
 
         -- consumer
-        pubSub (subscribe ["chan1"]) $ \msg -> do
+        pubSub (subscribe ["chan1"]) $ \msg ->
             -- ready for a message
             case msg of
                 Message{..} -> return
@@ -476,7 +476,7 @@ testConnectAuth = testCase "connect/auth" $ do
     configSet "requirepass" ""     >>=? Ok
 
 testConnectAuthUnexpected :: Test
-testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
+testConnectAuthUnexpected = testCase "connect/auth/unexpected" $
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         HUnit.assertEqual "" err res
@@ -493,7 +493,7 @@ testConnectDb = testCase "connect/db" $ do
         runRedis c (get "connect" >>=? Nothing)
 
 testConnectDbUnexisting :: Test
-testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
+testConnectDbUnexisting = testCase "connect/db/unexisting" $
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         case res of
@@ -661,7 +661,7 @@ testXpending = testCase "xpending" $ do
     detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
     liftIO $ case detail of
         Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XPendingDetailRecord{..}] -> do
+        Right [XPendingDetailRecord{..}] ->
             messageId HUnit.@=? "121-0"
         Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
