@@ -907,7 +907,7 @@ xgroupCreate
     => ByteString -- ^ stream
     -> ByteString -- ^ group name
     -> ByteString -- ^ start ID
-    -> m (f Bool)
+    -> m (f Status)
 xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
 
 xgroupSetId

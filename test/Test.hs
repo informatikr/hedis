@@ -670,15 +670,37 @@ testXpending = testCase "xpending" $ do
         Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
 testXClaim ::Test
-testXClaim = testCase "xclaim" $ do
+testXClaim =
+  testCase "xclaim" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
-    xgroupCreate "somestream" "somegroup" "0"
-    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
-    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=? [
-        StreamsRecord{recordId = "121-0", keyValues = [("key1", "value1")]}
+    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
+    xreadGroupOpts
+      "somegroup"
+      "consumer1"
+      [("somestream", "0")]
+      (defaultXreadOpts {recordCount = Just 2}) >>=?
+      Just
+        [ XReadResponse
+            { stream = "somestream"
+            , records =
+                [ StreamsRecord
+                    {recordId = "121-0", keyValues = [("key1", "value1")]}
+                , StreamsRecord
+                    {recordId = "122-0", keyValues = [("key2", "value2")]}
+                ]
+            }
         ]
-    xclaimJustIds "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["122-0"] >>=? ["122-0"]
+    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=?
+      [StreamsRecord {recordId = "121-0", keyValues = [("key1", "value1")]}]
+    xclaimJustIds
+      "somestream"
+      "somegroup"
+      "consumer2"
+      0
+      defaultXClaimOpts
+      ["122-0"] >>=?
+      ["122-0"]
 
 testXInfo ::Test
 testXInfo = testCase "xinfo" $ do
