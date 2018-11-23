@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.10.7
+
+* PR #121. Fix streaming on redis 5.0.2
+* PR #121. Get rid of slave-thread
+
 ## 0.10.6
 
 * PR #120. Add withConnect, withCheckedConnect
