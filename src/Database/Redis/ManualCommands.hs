@@ -821,7 +821,7 @@ data StreamsRecord = StreamsRecord
     } deriving (Show, Eq)
 
 instance RedisResult StreamsRecord where
-    decode (MultiBulk (Just [SingleLine recordId, MultiBulk (Just rawKeyValues)])) = do
+    decode (MultiBulk (Just [Bulk (Just recordId), MultiBulk (Just rawKeyValues)])) = do
         keyValuesList <- mapM decode rawKeyValues
         let keyValues = decodeKeyValues keyValuesList
         return StreamsRecord{..}
@@ -977,8 +977,8 @@ data XPendingSummaryResponse = XPendingSummaryResponse
 instance RedisResult XPendingSummaryResponse where
     decode (MultiBulk (Just [
         Integer numPendingMessages,
-        SingleLine smallestPendingMessageId,
-        SingleLine largestPendingMessageId,
+        Bulk (Just smallestPendingMessageId),
+        Bulk (Just largestPendingMessageId),
         MultiBulk (Just [MultiBulk (Just rawGroupsAndCounts)])])) = do
             let groupsAndCounts = chunksOfTwo rawGroupsAndCounts
             numPendingMessagesByconsumer <- decodeGroupsAndCounts groupsAndCounts
@@ -1013,7 +1013,7 @@ data XPendingDetailRecord = XPendingDetailRecord
 
 instance RedisResult XPendingDetailRecord where
     decode (MultiBulk (Just [
-        SingleLine messageId ,
+        Bulk (Just messageId) ,
         Bulk (Just consumer),
         Integer millisSinceLastDelivered,
         Integer numTimesDelivered])) = Right XPendingDetailRecord{..}
@@ -1098,11 +1098,11 @@ data XInfoConsumersResponse = XInfoConsumersResponse
 
 instance RedisResult XInfoConsumersResponse where
     decode (MultiBulk (Just [
-        SingleLine "name",
+        Bulk (Just "name"),
         Bulk (Just xinfoConsumerName),
-        SingleLine "pending",
+        Bulk (Just "pending"),
         Integer xinfoConsumerNumPendingMessages,
-        SingleLine "idle",
+        Bulk (Just "idle"),
         Integer xinfoConsumerIdleTime])) = Right XInfoConsumersResponse{..}
     decode a = Left a
 
@@ -1122,10 +1122,10 @@ data XInfoGroupsResponse = XInfoGroupsResponse
 
 instance RedisResult XInfoGroupsResponse where
     decode (MultiBulk (Just [
-        SingleLine "name",Bulk (Just xinfoGroupsGroupName),
-        SingleLine "consumers",Integer xinfoGroupsNumConsumers,
-        SingleLine "pending",Integer xinfoGroupsNumPendingMessages,
-        SingleLine "last-delivered-id",SingleLine xinfoGroupsLastDeliveredMessageId])) = Right XInfoGroupsResponse{..}
+        Bulk (Just "name"),Bulk (Just xinfoGroupsGroupName),
+        Bulk (Just "consumers"),Integer xinfoGroupsNumConsumers,
+        Bulk (Just "pending"),Integer xinfoGroupsNumPendingMessages,
+        Bulk (Just "last-delivered-id"),Bulk (Just xinfoGroupsLastDeliveredMessageId)])) = Right XInfoGroupsResponse{..}
     decode a = Left a
 
 xinfoGroups
@@ -1146,13 +1146,13 @@ data XInfoStreamResponse = XInfoStreamResponse
 
 instance RedisResult XInfoStreamResponse where
     decode (MultiBulk (Just [
-        SingleLine "length",Integer xinfoStreamLength,
-        SingleLine "radix-tree-keys",Integer xinfoStreamRadixTreeKeys,
-        SingleLine "radix-tree-nodes",Integer xinfoStreamRadixTreeNodes,
-        SingleLine "groups",Integer xinfoStreamNumGroups,
-        SingleLine "last-generated-id",SingleLine xinfoStreamLastEntryId,
-        SingleLine "first-entry", rawFirstEntry ,
-        SingleLine "last-entry", rawLastEntry ])) = do
+        Bulk (Just "length"),Integer xinfoStreamLength,
+        Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+        Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+        Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+        Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+        Bulk (Just "first-entry"), rawFirstEntry ,
+        Bulk (Just "last-entry"), rawLastEntry ])) = do
             xinfoStreamFirstEntry <- decode rawFirstEntry
             xinfoStreamLastEntry <- decode rawLastEntry
             return XInfoStreamResponse{..}
