@@ -672,8 +672,8 @@ testXpending = testCase "xpending" $ do
 testXClaim ::Test
 testXClaim =
   testCase "xclaim" $ do
-    xadd "somestream" "121" [("key1", "value1")]
-    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
+    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
     xgroupCreate "somestream" "somegroup" "0" >>=? Ok
     xreadGroupOpts
       "somegroup"
