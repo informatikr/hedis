@@ -125,7 +125,6 @@ test-suite hedis-test
         stm,
         text,
         mtl == 2.*,
-        slave-thread,
         test-framework,
         test-framework-hunit,
         time
