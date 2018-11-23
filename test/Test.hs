@@ -5,6 +5,7 @@ module Main (main) where
 import Control.Applicative
 import Data.Monoid (mappend)
 #endif
+import qualified Control.Concurrent.Async as Async
 import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
@@ -12,7 +13,6 @@ import Control.Monad.Trans
 import qualified Data.List as L
 import Data.Time
 import Data.Time.Clock.POSIX
-import SlaveThread (fork)
 import qualified Test.Framework as Test (Test, defaultMain)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
@@ -111,13 +111,14 @@ testEvalReplies :: Test
 testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
-        _ignored <- set "key" "value"
-        (liftIO $ do
-            threadDelay $ 10^(5::Int)
-            mvar <- newEmptyMVar
-            _ <- fork $ runRedis conn (get "key") >>= putMVar mvar
-            takeMVar mvar)
-          >>=? Just "value"
+      _ignored <- set "key" "value"
+      (liftIO $ do
+         threadDelay $ 10 ^ (5 :: Int)
+         mvar <- newEmptyMVar
+         _ <-
+           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
+         takeMVar mvar) >>=?
+        Just "value"
 
 ------------------------------------------------------------------------------
 -- Keys
@@ -394,7 +395,7 @@ testPubSub conn = testCase "pubSub" go conn
   where
     go = do
         -- producer
-        _ <- liftIO $ fork $ do
+        asyncProducer <- liftIO $ Async.async $ do
             runRedis conn $ do
                 let t = 10^(5 :: Int)
                 liftIO $ threadDelay t
@@ -414,6 +415,8 @@ testPubSub conn = testCase "pubSub" go conn
         pubSub (subscribe [] `mappend` psubscribe []) $ \_ -> do
             liftIO $ HUnit.assertFailure "no subs: should return immediately"
             undefined
+        liftIO $ Async.wait asyncProducer
+
 
 ------------------------------------------------------------------------------
 -- Transaction
@@ -448,7 +451,7 @@ testScripting conn = testCase "scripting" go conn
         -- start long running script from another client
         configSet "lua-time-limit" "100"        >>=? Ok
         evalFinished <- liftIO newEmptyMVar
-        void $ liftIO $ fork $ runRedis conn $ do
+        asyncScripting <- liftIO $ Async.async $ runRedis conn $ do
             -- we must pattern match to block the thread
             Left _ <- eval "while true do end" [] []
                 :: Redis (Either Reply Integer)
@@ -457,6 +460,7 @@ testScripting conn = testCase "scripting" go conn
         liftIO (threadDelay 500000) -- 0.5s
         scriptKill                              >>=? Ok
         () <- liftIO (takeMVar evalFinished)
+        liftIO $ Async.wait asyncScripting
         return ()
 
 ------------------------------------------------------------------------------
@@ -666,15 +670,37 @@ testXpending = testCase "xpending" $ do
         Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
 testXClaim ::Test
-testXClaim = testCase "xclaim" $ do
-    xadd "somestream" "121" [("key1", "value1")]
-    xadd "somestream" "122" [("key2", "value2")]
-    xgroupCreate "somestream" "somegroup" "0"
-    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
-    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=? [
-        StreamsRecord{recordId = "121-0", keyValues = [("key1", "value1")]}
+testXClaim =
+  testCase "xclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
+    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
+    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
+    xreadGroupOpts
+      "somegroup"
+      "consumer1"
+      [("somestream", "0")]
+      (defaultXreadOpts {recordCount = Just 2}) >>=?
+      Just
+        [ XReadResponse
+            { stream = "somestream"
+            , records =
+                [ StreamsRecord
+                    {recordId = "121-0", keyValues = [("key1", "value1")]}
+                , StreamsRecord
+                    {recordId = "122-0", keyValues = [("key2", "value2")]}
+                ]
+            }
         ]
-    xclaimJustIds "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["122-0"] >>=? ["122-0"]
+    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=?
+      [StreamsRecord {recordId = "121-0", keyValues = [("key1", "value1")]}]
+    xclaimJustIds
+      "somestream"
+      "somegroup"
+      "consumer2"
+      0
+      defaultXClaimOpts
+      ["122-0"] >>=?
+      ["122-0"]
 
 testXInfo ::Test
 testXInfo = testCase "xinfo" $ do

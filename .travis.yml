@@ -13,9 +13,9 @@ before_install:
   - export PATH=~/.local/bin:$PATH
   - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.6.5/stack-1.6.5-linux-x86_64.tar.gz | tar xz -C ~/tmp
   - mv ~/tmp/stack-1.6.5-linux-x86_64/stack ~/.local/bin/
-  - curl -L https://github.com/antirez/redis/archive/5.0-rc5.tar.gz | tar xz -C ~/tmp
-  - cd ~/tmp/redis-5.0-rc5 && make
-  - ~/tmp/redis-5.0-rc5/src/redis-server &
+  - curl -L https://github.com/antirez/redis/archive/5.0.2.tar.gz | tar xz -C ~/tmp
+  - cd ~/tmp/redis-5.0.2 && make
+  - ~/tmp/redis-5.0.2/src/redis-server &
   - cd ${TRAVIS_BUILD_DIR}
 
 matrix:

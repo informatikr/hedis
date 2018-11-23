@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.10.6
+version:            0.10.8
 synopsis:
     Client library for the Redis datastore: supports full command set,
     pipelining.
@@ -125,7 +125,6 @@ test-suite hedis-test
         stm,
         text,
         mtl == 2.*,
-        slave-thread,
         test-framework,
         test-framework-hunit,
         time
