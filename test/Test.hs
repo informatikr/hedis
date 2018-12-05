@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
 module Main (main) where
 
 #if __GLASGOW_HASKELL__ < 710
@@ -84,7 +84,9 @@ testConstantSpacePipelining = testCase "constant-space pipelining" $ do
 
 testForceErrorReply :: Test
 testForceErrorReply = testCase "force error reply" $ do
-    Right _ <- set "key" "value"
+    set "key" "value" >>= \case
+      Left _ -> error "impossible"
+      _ -> return ()
     -- key is not a hash -> wrong kind of value
     reply <- hkeys "key"
     assert $ case reply of
@@ -137,17 +139,23 @@ testKeys = testCase "keys" $ do
     select 13             >>=? Ok
     expire "key" 1        >>=? True
     pexpire "key" 1000    >>=? True
-    Right t <- ttl "key"
-    assert $ t `elem` [0..1]
-    Right pt <- pttl "key"
-    assert $ pt `elem` [990..1000]
-    persist "key"         >>=? True
-    Right s <- dump "key"
-    restore "key'" 0 s    >>=? Ok
-    rename "key" "key'"   >>=? Ok
-    renamenx "key'" "key" >>=? True
-    del ["key"]           >>=? 1
-    select 0              >>=? Ok
+    ttl "key" >>= \case
+      Left _ -> error "error"
+      Right t -> do
+        assert $ t `elem` [0..1]
+        pttl "key" >>= \case
+          Left _ -> error "error"
+          Right pt -> do
+            assert $ pt `elem` [990..1000]
+            persist "key"         >>=? True
+            dump "key" >>= \case
+              Left _ -> error "impossible"
+              Right s -> do
+                restore "key'" 0 s    >>=? Ok
+                rename "key" "key'"   >>=? Ok
+                renamenx "key'" "key" >>=? True
+                del ["key"]           >>=? 1
+                select 0              >>=? Ok
 
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
@@ -162,14 +170,16 @@ testSort = testCase "sort" $ do
     lpush "ids"     ["1","2","3"]                >>=? 3
     sort "ids" defaultSortOpts                   >>=? ["1","2","3"]
     sortStore "ids" "anotherKey" defaultSortOpts >>=? 3
-    Right _ <- mset
+    mset
          [("weight_1","1")
          ,("weight_2","2")
          ,("weight_3","3")
          ,("object_1","foo")
          ,("object_2","bar")
          ,("object_3","baz")
-         ]
+         ] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     let opts = defaultSortOpts { sortOrder = Desc, sortAlpha = True
                                , sortLimit = (1,2)
                                , sortBy    = Just "weight_*"
@@ -196,7 +206,9 @@ testObject :: Test
 testObject = testCase "object" $ do
     set "key" "value"    >>=? Ok
     objectRefcount "key" >>=? 1
-    Right _ <- objectEncoding "key"
+    objectEncoding "key" >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     objectIdletime "key" >>=? 0
 
 ------------------------------------------------------------------------------
@@ -358,8 +370,12 @@ testZSets = testCase "sorted sets" $ do
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
-    Right _ <- zadd "k1" [(1, "v1"), (2, "v2")]
-    Right _ <- zadd "k2" [(2, "v2"), (3, "v3")]
+    zadd "k1" [(1, "v1"), (2, "v2")] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
+    zadd "k2" [(2, "v2"), (3, "v3")] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
     zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
     zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
@@ -372,17 +388,29 @@ testZStore = testCase "zunionstore/zinterstore" $ do
 testHyperLogLog :: Test
 testHyperLogLog = testCase "hyperloglog" $ do
   -- test creation
-  Right _ <- pfadd "hll1" ["a"]
+  pfadd "hll1" ["a"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
   pfcount ["hll1"] >>=? 1
   -- test cardinality
-  Right _ <- pfadd "hll1" ["a"]
+  pfadd "hll1" ["a"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
   pfcount ["hll1"] >>=? 1
-  Right _ <- pfadd "hll1" ["b", "c", "foo", "bar"]
+  pfadd "hll1" ["b", "c", "foo", "bar"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
   pfcount ["hll1"] >>=? 5
   -- test merge
-  Right _ <- pfadd "hll2" ["1", "2", "3"]
-  Right _ <- pfadd "hll3" ["4", "5", "6"]
-  Right _ <- pfmerge "hll4" ["hll2", "hll3"]
+  pfadd "hll2" ["1", "2", "3"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
+  pfadd "hll3" ["4", "5", "6"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
+  pfmerge "hll4" ["hll2", "hll3"] >>= \case
+      Left _ -> error "error"
+      _ -> return ()
   pfcount ["hll4"] >>=? 6
   -- test union cardinality
   pfcount ["hll2", "hll3"] >>=? 6
@@ -425,8 +453,12 @@ testTransaction :: Test
 testTransaction = testCase "transaction" $ do
     watch ["k1", "k2"] >>=? Ok
     unwatch            >>=? Ok
-    Right _ <- set "foo" "foo"
-    Right _ <- set "bar" "bar"
+    set "foo" "foo" >>= \case
+      Left _ -> error "error"
+      _ -> return ()
+    set "bar" "bar" >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     foobar <- multiExec $ do
         foo <- get "foo"
         bar <- get "bar"
@@ -443,25 +475,29 @@ testScripting conn = testCase "scripting" go conn
     go = do
         let script    = "return {false, 42}"
             scriptRes = (False, 42 :: Integer)
-        Right scriptHash <- scriptLoad script
-        eval script [] []                       >>=? scriptRes
-        evalsha scriptHash [] []                >>=? scriptRes
-        scriptExists [scriptHash, "notAScript"] >>=? [True, False]
-        scriptFlush                             >>=? Ok
-        -- start long running script from another client
-        configSet "lua-time-limit" "100"        >>=? Ok
-        evalFinished <- liftIO newEmptyMVar
-        asyncScripting <- liftIO $ Async.async $ runRedis conn $ do
-            -- we must pattern match to block the thread
-            Left _ <- eval "while true do end" [] []
-                :: Redis (Either Reply Integer)
-            liftIO (putMVar evalFinished ())
+        scriptLoad script >>= \case
+          Left _ -> error "error"
+          Right scriptHash -> do
+            eval script [] []                       >>=? scriptRes
+            evalsha scriptHash [] []                >>=? scriptRes
+            scriptExists [scriptHash, "notAScript"] >>=? [True, False]
+            scriptFlush                             >>=? Ok
+            -- start long running script from another client
+            configSet "lua-time-limit" "100"        >>=? Ok
+            evalFinished <- liftIO newEmptyMVar
+            asyncScripting <- liftIO $ Async.async $ runRedis conn $ do
+                -- we must pattern match to block the thread
+                (eval "while true do end" [] []
+                    :: Redis (Either Reply Integer)) >>= \case
+                    Left _ -> return ()
+                    _ -> error "impossible"
+                liftIO (putMVar evalFinished ())
+                return ()
+            liftIO (threadDelay 500000) -- 0.5s
+            scriptKill                              >>=? Ok
+            () <- liftIO (takeMVar evalFinished)
+            liftIO $ Async.wait asyncScripting
             return ()
-        liftIO (threadDelay 500000) -- 0.5s
-        scriptKill                              >>=? Ok
-        () <- liftIO (takeMVar evalFinished)
-        liftIO $ Async.wait asyncScripting
-        return ()
 
 ------------------------------------------------------------------------------
 -- Connection
@@ -533,17 +569,23 @@ testsServer =
 
 testServer :: Test
 testServer = testCase "server" $ do
-    Right (_,_) <- time
+    time >>= \case
+      Right (_,_) -> return ()
+      Left _ -> error "error"
     slaveof "no" "one" >>=? Ok
     return ()
 
 testBgrewriteaof :: Test
 testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
     save >>=? Ok
-    Right (Status _) <- bgsave
+    bgsave >>= \case
+      Right (Status _) -> return ()
+      _ -> error "error"
     -- Redis needs time to finish the bgsave
     liftIO $ threadDelay (10^(5 :: Int))
-    Right (Status _) <- bgrewriteaof
+    bgrewriteaof >>= \case
+      Right (Status _) -> return ()
+      _ -> error "error"
     return ()
 
 testConfig :: Test
@@ -560,8 +602,12 @@ testFlushall = testCase "flushall/flushdb" $ do
 
 testInfo :: Test
 testInfo = testCase "info/lastsave/dbsize" $ do
-    Right _ <- info
-    Right _ <- lastsave
+    info >>= \case
+      Left _ -> error "error"
+      _ -> return ()
+    lastsave >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     dbsize          >>=? 0
     configResetstat >>=? Ok
 
@@ -574,7 +620,9 @@ testSlowlog = testCase "slowlog" $ do
 testDebugObject :: Test
 testDebugObject = testCase "debugObject/debugSegfault" $ do
     set "key" "value" >>=? Ok
-    Right _ <- debugObject "key"
+    debugObject "key" >>= \case
+      Left _ -> error "error"
+      _ -> return ()
     return ()
 
 testScans :: Test

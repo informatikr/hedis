@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.10
+
+* Only disable warnings for GHC 8.6, fix build
+
 ## 0.10.9
 
 * Remove deprecation warnings

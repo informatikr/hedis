@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 
 module Main where
 
@@ -22,8 +22,10 @@ main = do
     conn <- connect defaultConnectInfo
     runRedis conn $ do
         _ <- flushall
-        Right _ <- mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
-                        , ("k4","v4"), ("k5","v5") ]
+        mset [ ("k1","v1"), ("k2","v2"), ("k3","v3")
+                        , ("k4","v4"), ("k5","v5") ] >>= \case
+          Left _ -> error "error"
+          _ -> return ()
     
         return ()
     
@@ -55,38 +57,56 @@ main = do
     -- Benchmarks
     --
     timeAction "ping" 1 $ do
-        Right Pong <- ping
+        ping >>= \case
+          Right Pong -> return ()
+          _ -> error "error"
         return ()
         
     timeAction "get" 1 $ do
-        Right Nothing <- get "key"
+        get "key" >>= \case
+          Right Nothing -> return ()
+          _ -> error "error"
         return ()
     
     timeAction "mget" 1 $ do
-        Right vs <- mget ["k1","k2","k3","k4","k5"]
-        let expected = map Just ["v1","v2","v3","v4","v5"]
-        True <- return $ vs == expected
-        return ()
+        mget ["k1","k2","k3","k4","k5"] >>= \case
+          Right vs -> do
+            let expected = map Just ["v1","v2","v3","v4","v5"]
+            case vs == expected of
+              True -> return ()
+              _ -> error "error"
+            return ()
+          _ -> error "error"
     
     timeAction "ping (pipelined)" 100 $ do
         pongs <- replicateM 100 ping
         let expected = replicate 100 (Right Pong)
-        True <- return $ pongs == expected
+        case pongs == expected of
+              True -> return ()
+              _ -> error "error"
         return ()
 
     timeAction "multiExec get 1" 1 $ do
-        TxSuccess _ <- multiExec $ get "foo"
+        multiExec (get "foo") >>= \case
+          TxSuccess _ -> return ()
+          _ -> error "error"
         return ()
     
     timeAction "multiExec get 50" 50 $ do
-        TxSuccess 50 <- multiExec $ do
-                            rs <- replicateM 50 (get "foo")
-                            return $ fmap length (sequence rs)
+        res <- multiExec $ do
+          rs <- replicateM 50 (get "foo")
+          return $ fmap length (sequence rs)
+        case res of
+          TxSuccess 50 -> return ()
+          _ -> error "error"
         return ()
 
     timeAction "multiExec get 1000" 1000 $ do
-        TxSuccess 1000 <- multiExec $ do
+        res <- multiExec $ do
                             rs <- replicateM 1000 (get "foo")
                             return $ fmap length (sequence rs)
+        case res of
+          TxSuccess 1000 -> return ()
+          _ -> error "error"
         return ()
     
