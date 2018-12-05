@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.10.9
+
+* Remove deprecation warnings
+
 ## 0.10.8
 
 * PR #121. make xgroupCreate return Status
