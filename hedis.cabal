@@ -59,7 +59,7 @@ flag dev
 
 library
   hs-source-dirs:   src
-  ghc-options:      -Wall -fwarn-tabs
+  ghc-options:      -Wall -fwarn-tabs -Wno-warnings-deprecations
   if flag(dev)
     ghc-options:    -Werror
   if flag(dev)
