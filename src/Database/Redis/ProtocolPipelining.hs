@@ -17,7 +17,7 @@ module Database.Redis.ProtocolPipelining (
   Connection,
   connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush,
   ConnectionLostException(..),
-  HostName, PortID(..)
+  SockAddr(..)
 ) where
 
 import           Prelude
@@ -31,8 +31,7 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 import           Data.IORef
 import           Data.Typeable
-import           Network
-import qualified Network.BSD as BSD
+import           Network.Socket (SockAddr(..))
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
 import           System.IO
@@ -62,7 +61,6 @@ instance Exception ConnectionLostException
 
 data ConnectPhase
   = PhaseUnknown
-  | PhaseResolve
   | PhaseOpenSocket
   deriving (Show)
 
@@ -71,8 +69,8 @@ data ConnectTimeout = ConnectTimeout ConnectPhase
 
 instance Exception ConnectTimeout
 
-connect :: HostName -> PortID -> Maybe Int -> IO Connection
-connect hostName portID timeoutOpt =
+connect :: SockAddr -> Maybe Int -> IO Connection
+connect sockAddr timeoutOpt =
   bracketOnError hConnect hClose $ \h -> do
     hSetBinaryMode h True
     connReplies <- newIORef []
@@ -83,7 +81,7 @@ connect hostName portID timeoutOpt =
   where
         hConnect = do
           phaseMVar <- newMVar PhaseUnknown
-          let doConnect = hConnect' portID phaseMVar
+          let doConnect = hConnect' sockAddr phaseMVar
           case timeoutOpt of
             Nothing -> doConnect
             Just micros -> do
@@ -93,15 +91,13 @@ connect hostName portID timeoutOpt =
                 Right () -> do
                   phase <- readMVar phaseMVar
                   errConnectTimeout phase
-        hConnect' (PortNumber port) mvar =
+        hConnect' sa@(NS.SockAddrInet _ _) mvar =
           bracketOnError mkSocket NS.close $ \sock -> do
             NS.setSocketOption sock NS.KeepAlive 1
-            void $ swapMVar mvar PhaseResolve
-            host <- BSD.getHostByName hostName
             void $ swapMVar mvar PhaseOpenSocket
-            NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
+            NS.connect sock sa
             NS.socketToHandle sock ReadWriteMode
-        hConnect' _ _ = connectTo hostName portID
+        hConnect' _ _ = error "connect.hConnect': Not yet implemented" -- connectTo hostName portID
         mkSocket   = NS.socket NS.AF_INET NS.Stream 0
 
 enableTLS :: TLS.ClientParams -> Connection -> IO Connection

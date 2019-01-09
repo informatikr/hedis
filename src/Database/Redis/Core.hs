@@ -5,6 +5,7 @@
 module Database.Redis.Core (
     Connection(..), ConnectError(..), connect, checkedConnect, disconnect,
     withConnect, withCheckedConnect,
+    defaultRedisPort,
     ConnectInfo(..), defaultConnectInfo,
     Redis(), runRedis, unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
@@ -23,7 +24,7 @@ import Data.IORef
 import Data.Pool
 import Data.Time
 import Data.Typeable
-import Network
+import qualified Network.Socket as NS
 import Network.TLS (ClientParams)
 
 import Database.Redis.Protocol
@@ -155,8 +156,7 @@ newtype Connection = Conn (Pool PP.Connection)
 -- @
 --
 data ConnectInfo = ConnInfo
-    { connectHost           :: HostName
-    , connectPort           :: PortID
+    { connectSockAddr       :: NS.SockAddr
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
@@ -185,11 +185,14 @@ data ConnectError = ConnectAuthError Reply
 
 instance Exception ConnectError
 
+defaultRedisPort :: NS.PortNumber
+defaultRedisPort = 6379
+
 -- |Default information for connecting:
 --
 -- @
---  connectHost           = \"localhost\"
---  connectPort           = PortNumber 6379 -- Redis default port
+--  connectSockAddr       = SockAddrInet 6379 (tupleToHostAddress (127, 0, 0, 1))
+                                            -- 6379 is the default Redis port
 --  connectAuth           = Nothing         -- No password
 --  connectDatabase       = 0               -- SELECT database 0
 --  connectMaxConnections = 50              -- Up to 50 connections
@@ -200,8 +203,7 @@ instance Exception ConnectError
 --
 defaultConnectInfo :: ConnectInfo
 defaultConnectInfo = ConnInfo
-    { connectHost           = "localhost"
-    , connectPort           = PortNumber 6379
+    { connectSockAddr       = NS.SockAddrInet defaultRedisPort (NS.tupleToHostAddress (127, 0, 0, 1))
     , connectAuth           = Nothing
     , connectDatabase       = 0
     , connectMaxConnections = 50
@@ -220,7 +222,7 @@ connect ConnInfo{..} = Conn <$>
     create = do
         let timeoutOptUs =
               round . (1000000 *) <$> connectTimeout
-        conn <- PP.connect connectHost connectPort timeoutOptUs
+        conn <- PP.connect connectSockAddr timeoutOptUs
         conn' <- case connectTLSParams of
                    Nothing -> return conn
                    Just tlsParams -> PP.enableTLS tlsParams conn

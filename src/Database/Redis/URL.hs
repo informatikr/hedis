@@ -9,10 +9,11 @@ import Control.Applicative ((<$>))
 import Control.Error.Util (note)
 import Control.Monad (guard)
 import Data.Monoid ((<>))
-import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo)
-import Database.Redis.ProtocolPipelining (PortID(..))
+import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo, defaultRedisPort)
 import Network.HTTP.Base
 import Network.URI (parseURI, uriPath, uriScheme)
+import qualified Network.Socket as NS
+import System.IO.Unsafe (unsafePerformIO)
 import Text.Read (readMaybe)
 
 import qualified Data.ByteString.Char8 as C8
@@ -47,18 +48,20 @@ parseConnectInfo url = do
         $ uriToAuthorityString uri
 
     let h = host uriAuth
+        p = show . maybe defaultRedisPort fromIntegral $ port uriAuth
+        hp = h ++ ":" ++ p
         dbNumPart = dropWhile (== '/') (uriPath uri)
+        infos = unsafePerformIO $ NS.getAddrInfo Nothing (Just hp) Nothing
+        sa = case infos of
+          [] -> connectSockAddr defaultConnectInfo
+          (info:_) -> NS.addrAddress info
 
     db <- if null dbNumPart
       then return $ connectDatabase defaultConnectInfo
       else note ("Invalid port: " <> dbNumPart) $ readMaybe dbNumPart
 
     return defaultConnectInfo
-        { connectHost = if null h
-            then connectHost defaultConnectInfo
-            else h
-        , connectPort = maybe (connectPort defaultConnectInfo)
-            (PortNumber . fromIntegral) $ port uriAuth
+        { connectSockAddr = sa
         , connectAuth = C8.pack <$> password uriAuth
         , connectDatabase = db
         }
