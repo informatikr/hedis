@@ -18,7 +18,7 @@ module Database.Redis (
     -- import Data.Default.Class (def)
     -- (Just certStore) <- readCertificateStore "azure-redis.crt"
     -- let tlsParams = (defaultParamsClient "foobar.redis.cache.windows.net" "") { clientSupported = def { supportedCiphers = ciphersuite_strong }, clientShared = def { sharedCAStore = certStore } }
-    -- let redisConnInfo = defaultConnectInfo { connectHost = "foobar.redis.cache.windows.net", connectPort = PortNumber 6380, connectTLSParams = Just tlsParams, connectAuth = Just "Foobar!" }
+    -- let redisConnInfo = defaultConnectInfo { connectHost = "foobar.redis.cache.windows.net", connectPort = fromIntegral 6380, connectTLSParams = Just tlsParams, connectAuth = Just "Foobar!" }
     -- conn <- checkedConnect redisConnInfo
     -- @
     --
@@ -164,7 +164,7 @@ module Database.Redis (
     -- * Connection
     Connection, ConnectError(..), connect, checkedConnect, disconnect, 
     ConnectInfo(..), defaultConnectInfo, parseConnectInfo,
-    HostName, PortID(..),
+    HostName, PortNumber,
     
     -- * Commands
     module Database.Redis.Commands,
@@ -195,7 +195,7 @@ import Database.Redis.Core
 import Database.Redis.PubSub
 import Database.Redis.Protocol
 import Database.Redis.ProtocolPipelining
-    (HostName, PortID(..), ConnectionLostException(..))
+    (HostName, PortNumber, ConnectionLostException(..))
 import Database.Redis.Transactions
 import Database.Redis.Types
 import Database.Redis.URL
