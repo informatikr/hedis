@@ -23,7 +23,7 @@ import Data.IORef
 import Data.Pool
 import Data.Time
 import Data.Typeable
-import Network
+import qualified Network.Socket as NS
 import Network.TLS (ClientParams)
 
 import Database.Redis.Protocol
@@ -155,8 +155,8 @@ newtype Connection = Conn (Pool PP.Connection)
 -- @
 --
 data ConnectInfo = ConnInfo
-    { connectHost           :: HostName
-    , connectPort           :: PortID
+    { connectHost           :: NS.HostName
+    , connectPort           :: NS.PortNumber
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
@@ -201,7 +201,7 @@ instance Exception ConnectError
 defaultConnectInfo :: ConnectInfo
 defaultConnectInfo = ConnInfo
     { connectHost           = "localhost"
-    , connectPort           = PortNumber 6379
+    , connectPort           = 6379
     , connectAuth           = Nothing
     , connectDatabase       = 0
     , connectMaxConnections = 50

@@ -17,7 +17,7 @@ module Database.Redis.ProtocolPipelining (
   Connection,
   connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush,
   ConnectionLostException(..),
-  HostName, PortID(..)
+  HostName, PortNumber
 ) where
 
 import           Prelude
@@ -31,8 +31,6 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 import           Data.IORef
 import           Data.Typeable
-import           Network
-import qualified Network.BSD as BSD
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
 import           System.IO
@@ -40,6 +38,9 @@ import           System.IO.Error
 import           System.IO.Unsafe
 
 import           Database.Redis.Protocol
+
+type HostName = NS.HostName
+type PortNumber = NS.PortNumber
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
@@ -71,8 +72,30 @@ data ConnectTimeout = ConnectTimeout ConnectPhase
 
 instance Exception ConnectTimeout
 
-connect :: HostName -> PortID -> Maybe Int -> IO Connection
-connect hostName portID timeoutOpt =
+getHostAddrInfo :: NS.HostName -> NS.PortNumber -> IO [NS.AddrInfo]
+getHostAddrInfo hostname port = do
+  addresses <- NS.getAddrInfo
+    (Just NS.defaultHints)
+    (Just hostname)
+    (Just (show port))
+  return addresses
+
+connectSocket :: [NS.AddrInfo] -> IO NS.Socket
+connectSocket addresses = do
+  let addrInfo = head addresses
+  socket <- NS.socket (NS.addrFamily addrInfo) NS.Stream NS.defaultProtocol
+  catch
+    (do
+      _ <- NS.connect socket (NS.addrAddress addrInfo)
+      return socket)
+    (\(SomeException e) -> do
+      _ <- NS.close socket
+      case (tail addresses) of
+        [] -> throwIO e
+        others -> connectSocket others)
+
+connect :: NS.HostName -> NS.PortNumber -> Maybe Int -> IO Connection
+connect hostName portNumber timeoutOpt =
   bracketOnError hConnect hClose $ \h -> do
     hSetBinaryMode h True
     connReplies <- newIORef []
@@ -83,7 +106,7 @@ connect hostName portID timeoutOpt =
   where
         hConnect = do
           phaseMVar <- newMVar PhaseUnknown
-          let doConnect = hConnect' portID phaseMVar
+          let doConnect = hConnect' phaseMVar
           case timeoutOpt of
             Nothing -> doConnect
             Just micros -> do
@@ -93,16 +116,14 @@ connect hostName portID timeoutOpt =
                 Right () -> do
                   phase <- readMVar phaseMVar
                   errConnectTimeout phase
-        hConnect' (PortNumber port) mvar =
-          bracketOnError mkSocket NS.close $ \sock -> do
+        hConnect' mvar =
+          do
+            addrInfo <- getHostAddrInfo hostName portNumber
+            sock <- connectSocket addrInfo
             NS.setSocketOption sock NS.KeepAlive 1
             void $ swapMVar mvar PhaseResolve
-            host <- BSD.getHostByName hostName
             void $ swapMVar mvar PhaseOpenSocket
-            NS.connect sock $ NS.SockAddrInet port (BSD.hostAddress host)
             NS.socketToHandle sock ReadWriteMode
-        hConnect' _ _ = connectTo hostName portID
-        mkSocket   = NS.socket NS.AF_INET NS.Stream 0
 
 enableTLS :: TLS.ClientParams -> Connection -> IO Connection
 enableTLS tlsParams conn@Conn{..} = do
