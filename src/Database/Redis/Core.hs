@@ -156,7 +156,7 @@ newtype Connection = Conn (Pool PP.Connection)
 --
 data ConnectInfo = ConnInfo
     { connectHost           :: NS.HostName
-    , connectPort           :: NS.PortNumber
+    , connectPort           :: PP.PortID
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
@@ -201,7 +201,7 @@ instance Exception ConnectError
 defaultConnectInfo :: ConnectInfo
 defaultConnectInfo = ConnInfo
     { connectHost           = "localhost"
-    , connectPort           = 6379
+    , connectPort           = PP.PortNumber 6379
     , connectAuth           = Nothing
     , connectDatabase       = 0
     , connectMaxConnections = 50

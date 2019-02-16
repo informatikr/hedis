@@ -17,7 +17,7 @@ module Database.Redis.ProtocolPipelining (
   Connection,
   connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush,
   ConnectionLostException(..),
-  HostName, PortNumber
+  PortID(..)
 ) where
 
 import           Prelude
@@ -39,8 +39,9 @@ import           System.IO.Unsafe
 
 import           Database.Redis.Protocol
 
-type HostName = NS.HostName
-type PortNumber = NS.PortNumber
+data PortID = PortNumber NS.PortNumber
+            | UnixSocket String
+            deriving Show
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
@@ -94,8 +95,8 @@ connectSocket addresses = do
         [] -> throwIO e
         others -> connectSocket others)
 
-connect :: NS.HostName -> NS.PortNumber -> Maybe Int -> IO Connection
-connect hostName portNumber timeoutOpt =
+connect :: NS.HostName -> PortID -> Maybe Int -> IO Connection
+connect hostName portId timeoutOpt =
   bracketOnError hConnect hClose $ \h -> do
     hSetBinaryMode h True
     connReplies <- newIORef []
@@ -118,8 +119,14 @@ connect hostName portNumber timeoutOpt =
                   errConnectTimeout phase
         hConnect' mvar =
           do
-            addrInfo <- getHostAddrInfo hostName portNumber
-            sock <- connectSocket addrInfo
+            sock <- case portId of
+              PortNumber portNumber -> do
+                addrInfo <- getHostAddrInfo hostName portNumber
+                connectSocket addrInfo
+              UnixSocket addr -> do
+                socket <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
+                NS.connect socket (NS.SockAddrUnix addr)
+                return socket
             NS.setSocketOption sock NS.KeepAlive 1
             void $ swapMVar mvar PhaseResolve
             void $ swapMVar mvar PhaseOpenSocket
