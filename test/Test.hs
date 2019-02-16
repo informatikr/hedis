@@ -726,7 +726,7 @@ testXClaim =
     xreadGroupOpts
       "somegroup"
       "consumer1"
-      [("somestream", "0")]
+      [("somestream", ">")]
       (defaultXreadOpts {recordCount = Just 2}) >>=?
       Just
         [ XReadResponse
@@ -755,7 +755,7 @@ testXInfo = testCase "xinfo" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
     xgroupCreate "somestream" "somegroup" "0"
-    xreadGroupOpts "somegroup" "consumer1" [("somestream", "0")] (defaultXreadOpts { recordCount = Just 2})
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
     consumerInfos <- xinfoConsumers "somestream" "somegroup"
     liftIO $ case consumerInfos of
         Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
