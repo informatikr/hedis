@@ -1,4 +1,7 @@
-{-# LANGUAGE RecordWildCards, DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- |A module for automatic, optimal protocol pipelining.
 --
@@ -75,25 +78,28 @@ instance Exception ConnectTimeout
 
 getHostAddrInfo :: NS.HostName -> NS.PortNumber -> IO [NS.AddrInfo]
 getHostAddrInfo hostname port = do
-  addresses <- NS.getAddrInfo
-    (Just NS.defaultHints)
-    (Just hostname)
-    (Just (show port))
-  return addresses
+  NS.getAddrInfo (Just hints) (Just hostname) (Just $ show port)
+  where
+    hints = NS.defaultHints
+      { NS.addrSocketType = NS.Stream }
 
 connectSocket :: [NS.AddrInfo] -> IO NS.Socket
-connectSocket addresses = do
-  let addrInfo = head addresses
-  socket <- NS.socket (NS.addrFamily addrInfo) NS.Stream NS.defaultProtocol
-  catch
-    (do
-      _ <- NS.connect socket (NS.addrAddress addrInfo)
-      return socket)
-    (\(SomeException e) -> do
-      _ <- NS.close socket
-      case (tail addresses) of
-        [] -> throwIO e
-        others -> connectSocket others)
+connectSocket [] = error "connectSocket: unexpected empty list"
+connectSocket (addr:rest) = tryConnect >>= \case
+  Right sock -> return sock
+  Left err   -> if null rest
+                then throwIO err
+                else connectSocket rest
+  where
+    tryConnect :: IO (Either IOError NS.Socket)
+    tryConnect = mask $ \release -> do
+      sock <- NS.socket (NS.addrFamily addr)
+                        (NS.addrSocketType addr)
+                        (NS.addrProtocol addr)
+      (`onException` NS.close sock) . release $ do
+        try (NS.connect sock $ NS.addrAddress addr) >>= \case
+          Right () -> return (Right sock)
+          Left err -> return (Left err)
 
 connect :: NS.HostName -> PortID -> Maybe Int -> IO Connection
 connect hostName portId timeoutOpt =
