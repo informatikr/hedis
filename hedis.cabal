@@ -11,7 +11,7 @@ Description:
     advantages:
     .
     [Compatibility with Latest Stable Redis:] Hedis is intended
-        to be used with the latest stable version of Redis (currently 3.2).
+        to be used with the latest stable version of Redis (currently 5.0).
     Most redis commands (<http://redis.io/commands>) are available as
     haskell functions, although MONITOR and SYNC are intentionally
     omitted. Additionally, a low-level API is
