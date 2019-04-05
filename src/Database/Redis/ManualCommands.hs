@@ -937,9 +937,9 @@ xack
     :: (RedisCtx m f)
     => ByteString -- ^ stream
     -> ByteString -- ^ group name
-    -> ByteString -- ^ message ID
+    -> [ByteString] -- ^ message IDs
     -> m (f Integer)
-xack stream groupName messageId = sendRequest ["XACK", stream, groupName, messageId]
+xack stream groupName messageIds = sendRequest $ ["XACK", stream, groupName] ++ messageIds
 
 xrange
     :: (RedisCtx m f)
