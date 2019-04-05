@@ -799,7 +799,7 @@ xaddOpts
     -> TrimOpts
     -> m (f ByteString)
 xaddOpts key entryId fieldValues opts = sendRequest $
-    ["XADD", key, entryId] ++ optArgs ++ fieldArgs
+    ["XADD", key] ++ optArgs ++ [entryId] ++ fieldArgs
     where
         fieldArgs = concatMap (\(x,y) -> [x,y]) fieldValues
         optArgs = case opts of
