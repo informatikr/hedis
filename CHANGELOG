@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.1
+
+* PR #133. Fixes to stream commands
+
 ## 0.12.0
 
 * PR #130. Bring back ability to connect via a Unix Socket
