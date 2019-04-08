@@ -799,7 +799,7 @@ xaddOpts
     -> TrimOpts
     -> m (f ByteString)
 xaddOpts key entryId fieldValues opts = sendRequest $
-    ["XADD", key, entryId] ++ optArgs ++ fieldArgs
+    ["XADD", key] ++ optArgs ++ [entryId] ++ fieldArgs
     where
         fieldArgs = concatMap (\(x,y) -> [x,y]) fieldValues
         optArgs = case opts of
@@ -937,9 +937,9 @@ xack
     :: (RedisCtx m f)
     => ByteString -- ^ stream
     -> ByteString -- ^ group name
-    -> ByteString -- ^ message ID
+    -> [ByteString] -- ^ message IDs
     -> m (f Integer)
-xack stream groupName messageId = sendRequest ["XACK", stream, groupName, messageId]
+xack stream groupName messageIds = sendRequest $ ["XACK", stream, groupName] ++ messageIds
 
 xrange
     :: (RedisCtx m f)
