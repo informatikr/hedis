@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.2
+
+* PR #134. Fix some asynchronous exception safety problems
+
 ## 0.12.1
 
 * PR #133. Fixes to stream commands
