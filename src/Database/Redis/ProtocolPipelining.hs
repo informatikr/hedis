@@ -92,14 +92,14 @@ connectSocket (addr:rest) = tryConnect >>= \case
                 else connectSocket rest
   where
     tryConnect :: IO (Either IOError NS.Socket)
-    tryConnect = mask $ \release -> do
-      sock <- NS.socket (NS.addrFamily addr)
-                        (NS.addrSocketType addr)
-                        (NS.addrProtocol addr)
-      (`onException` NS.close sock) . release $ do
-        try (NS.connect sock $ NS.addrAddress addr) >>= \case
-          Right () -> return (Right sock)
-          Left err -> return (Left err)
+    tryConnect = bracketOnError createSock NS.close $ \sock -> do
+      try (NS.connect sock $ NS.addrAddress addr) >>= \case
+        Right () -> return (Right sock)
+        Left err -> return (Left err)
+      where
+        createSock = NS.socket (NS.addrFamily addr)
+                               (NS.addrSocketType addr)
+                               (NS.addrProtocol addr)
 
 connect :: NS.HostName -> PortID -> Maybe Int -> IO Connection
 connect hostName portId timeoutOpt =
@@ -123,20 +123,20 @@ connect hostName portId timeoutOpt =
                 Right () -> do
                   phase <- readMVar phaseMVar
                   errConnectTimeout phase
-        hConnect' mvar =
-          do
-            sock <- case portId of
+        hConnect' mvar = bracketOnError createSock NS.close $ \sock -> do
+          NS.setSocketOption sock NS.KeepAlive 1
+          void $ swapMVar mvar PhaseResolve
+          void $ swapMVar mvar PhaseOpenSocket
+          NS.socketToHandle sock ReadWriteMode
+          where
+            createSock = case portId of
               PortNumber portNumber -> do
                 addrInfo <- getHostAddrInfo hostName portNumber
                 connectSocket addrInfo
-              UnixSocket addr -> do
-                socket <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
-                NS.connect socket (NS.SockAddrUnix addr)
-                return socket
-            NS.setSocketOption sock NS.KeepAlive 1
-            void $ swapMVar mvar PhaseResolve
-            void $ swapMVar mvar PhaseOpenSocket
-            NS.socketToHandle sock ReadWriteMode
+              UnixSocket addr -> bracketOnError
+                (NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol)
+                NS.close
+                (\sock -> NS.connect sock (NS.SockAddrUnix addr) >> return sock)
 
 enableTLS :: TLS.ClientParams -> Connection -> IO Connection
 enableTLS tlsParams conn@Conn{..} = do
