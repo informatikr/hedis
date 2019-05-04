@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.4
+
+* Add upper bound on network package
+
 ## 0.12.3
 
 * Issue #135. Upper the base bound
