@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.5
+
+Issue #136 fix slowlog parsing
+
 ## 0.12.4
 
 * Add upper bound on network package

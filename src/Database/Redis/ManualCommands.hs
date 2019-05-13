@@ -62,6 +62,8 @@ data Slowlog = Slowlog
       -- ^ The amount of time needed for its execution, in microseconds.
     , slowlogCmd       :: [ByteString]
       -- ^ The command and it's arguments.
+    , slowlogClientIpAndPort :: Maybe ByteString
+    , slowlogClientName :: Maybe ByteString
     } deriving (Show, Eq)
 
 instance RedisResult Slowlog where
@@ -70,6 +72,16 @@ instance RedisResult Slowlog where
         slowlogTimestamp <- decode timestamp
         slowlogMicros    <- decode micros
         slowlogCmd       <- decode cmd
+        let slowlogClientIpAndPort = Nothing
+            slowlogClientName = Nothing
+        return Slowlog{..}
+    decode (MultiBulk (Just [logId,timestamp,micros,cmd,ip,cname])) = do
+        slowlogId        <- decode logId
+        slowlogTimestamp <- decode timestamp
+        slowlogMicros    <- decode micros
+        slowlogCmd       <- decode cmd
+        slowlogClientIpAndPort <- Just <$> decode ip
+        slowlogClientName <- Just <$> decode cname
         return Slowlog{..}
     decode r = Left r
 
