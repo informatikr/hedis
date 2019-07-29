@@ -17,6 +17,9 @@ import Prelude
 import Control.Applicative
 #endif
 import Control.Exception
+#if __GLASGOW_HASKELL__ >= 860
+import Control.Monad.Fail (MonadFail)
+#endif
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.IORef
@@ -42,6 +45,10 @@ import Database.Redis.Types
 --  possibility of Redis returning an 'Error' reply.
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
+
+#if __GLASGOW_HASKELL__ >= 860
+deriving instance MonadFail Redis
+#endif
 
 data RedisEnv = Env { envConn :: PP.Connection, envLastReply :: IORef Reply }
 
