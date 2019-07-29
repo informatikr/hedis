@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.6
+
+* PR #138, Issue #137. Derive MonadFail for the Redis monad
+
 ## 0.12.5
 
 Issue #136 fix slowlog parsing
