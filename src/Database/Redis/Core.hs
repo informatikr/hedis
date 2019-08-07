@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RecordWildCards,
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP,
-    DeriveDataTypeable #-}
+    DeriveDataTypeable, StandaloneDeriving #-}
 
 module Database.Redis.Core (
     Connection(..), ConnectError(..), connect, checkedConnect, disconnect,
@@ -17,7 +17,7 @@ import Prelude
 import Control.Applicative
 #endif
 import Control.Exception
-#if __GLASGOW_HASKELL__ >= 860
+#if __GLASGOW_HASKELL__ > 711
 import Control.Monad.Fail (MonadFail)
 #endif
 import Control.Monad.Reader
@@ -46,7 +46,7 @@ import Database.Redis.Types
 newtype Redis a = Redis (ReaderT RedisEnv IO a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
-#if __GLASGOW_HASKELL__ >= 860
+#if __GLASGOW_HASKELL__ > 711
 deriving instance MonadFail Redis
 #endif
 
