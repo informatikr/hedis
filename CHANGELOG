@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.7
+
+* PR #139.  fix MonadFail instance
+
 ## 0.12.6
 
 * PR #138, Issue #137. Derive MonadFail for the Redis monad
