@@ -1194,3 +1194,6 @@ xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ optArgs
             NoArgs -> []
             Maxlen max -> ["MAXLEN", encode max]
             ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+
+inf :: RealFloat a => a
+inf = 1 / 0

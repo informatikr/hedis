@@ -357,6 +357,7 @@ testZSets = testCase "sorted sets" $ do
     zrevrangeWithscores "key" 0 1                     >>=? [("v3",42),("v2",2)]
     zrangebyscore "key" 0.5 1.5                       >>=? ["v1"]
     zrangebyscoreWithscores "key" 0.5 1.5             >>=? [("v1",1)]
+    zrangebyscoreWithscores "key" (-inf) inf          >>=? [("v1",1.0),("v2",2.0),("v3",42.0)]
     zrangebyscoreLimit "key" 0.5 2.5 0 1              >>=? ["v1"]
     zrangebyscoreWithscoresLimit "key" 0.5 2.5 0 1    >>=? [("v1",1)]
     zrevrangebyscore "key" 1.5 0.5                    >>=? ["v1"]
