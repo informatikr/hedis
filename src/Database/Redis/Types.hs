@@ -39,7 +39,10 @@ instance RedisArg Integer where
     encode = pack . show
 
 instance RedisArg Double where
-    encode = pack . show
+    encode a
+        | isInfinite a && a > 0 = "+inf"
+        | isInfinite a && a < 0 = "-inf"
+        | otherwise = pack . show $ a
 
 ------------------------------------------------------------------------------
 -- RedisResult instances

@@ -260,6 +260,7 @@ XInfoStreamResponse(..),
 xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 xdel, -- |Delete messages from a stream. Since Redis 5.0.0
 xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
+inf, -- |Constructor for `inf` Redis argument values
 
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
