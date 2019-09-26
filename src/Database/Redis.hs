@@ -163,7 +163,7 @@ module Database.Redis (
 
     -- * Connection
     Connection, ConnectError(..), connect, checkedConnect, disconnect,
-    ConnectInfo(..), defaultConnectInfo, parseConnectInfo,
+    ConnectInfo(..), defaultConnectInfo, parseConnectInfo, connectCluster,
     PortID(..),
 
     -- * Commands
@@ -189,15 +189,26 @@ module Database.Redis (
     --
     --  > lindex :: ByteString -> Integer -> Redis (Either Reply ByteString)
     --
+    HashSlot, keyToSlot
 ) where
 
 import Database.Redis.Core
+import Database.Redis.Connection
+    ( runRedis
+    , connectCluster
+    , defaultConnectInfo
+    , ConnectInfo(..)
+    , disconnect
+    , checkedConnect
+    , connect
+    , ConnectError(..)
+    , Connection(..))
+import Database.Redis.ConnectionContext(PortID(..), ConnectionLostException(..))
 import Database.Redis.PubSub
 import Database.Redis.Protocol
-import Database.Redis.ProtocolPipelining
-    (PortID(..), ConnectionLostException(..))
 import Database.Redis.Transactions
 import Database.Redis.Types
 import Database.Redis.URL
 
 import Database.Redis.Commands
+import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)

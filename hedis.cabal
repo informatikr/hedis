@@ -69,10 +69,12 @@ library
   exposed-modules:  Database.Redis
   build-depends:    scanner >= 0.2,
                     async >= 2.1,
+                    array >= 0.5.3,
                     base >= 4.8 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
                     unordered-containers,
+                    containers,
                     text,
                     deepseq,
                     mtl >= 2,
@@ -84,12 +86,16 @@ library
                     vector >= 0.9,
                     HTTP,
                     errors,
-                    network-uri
+                    network-uri,
+                    crc16 == 0.1.0
   if !impl(ghc >= 8.0)
     build-depends:
       semigroups >= 0.11 && < 0.19
 
   other-modules:    Database.Redis.Core,
+                    Database.Redis.Connection,
+                    Database.Redis.Cluster,
+                    Database.Redis.Cluster.HashSlot,
                     Database.Redis.ProtocolPipelining,
                     Database.Redis.Protocol,
                     Database.Redis.PubSub,
@@ -97,7 +103,8 @@ library
                     Database.Redis.Types
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands,
-                    Database.Redis.URL
+                    Database.Redis.URL,
+                    Database.Redis.ConnectionContext
 
 benchmark hedis-benchmark
     type: exitcode-stdio-1.0

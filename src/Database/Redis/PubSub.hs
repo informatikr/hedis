@@ -36,6 +36,7 @@ import Data.Pool
 import Data.Semigroup (Semigroup(..))
 import qualified Data.HashMap.Strict as HM
 import qualified Database.Redis.Core as Core
+import qualified Database.Redis.Connection as Connection
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Protocol (Reply(..), renderRequest)
 import Database.Redis.Types
@@ -558,13 +559,13 @@ sendThread ctrl rawConn = forever $ do
 -- and then create a Haskell thread bound to each capability each calling 'pubSubForever' in a loop.
 -- This will create one network connection per controller/capability and allow you to
 -- register separate channels and callbacks for each controller, spreading the load across the capabilities.
-pubSubForever :: Core.Connection -- ^ The connection pool
+pubSubForever :: Connection.Connection -- ^ The connection pool
               -> PubSubController -- ^ The controller which keeps track of all subscriptions and handlers
               -> IO () -- ^ This action is executed once Redis acknowledges that all the subscriptions in
                        -- the controller are now subscribed.  You can use this after an exception (such as
                        -- 'ConnectionLost') to signal that all subscriptions are now reactivated.
               -> IO ()
-pubSubForever (Core.Conn pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
+pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
     -- get initial subscriptions and write them into the queue.
     atomically $ do
       let loop = tryReadTBQueue (sendChanges ctrl) >>=
@@ -595,6 +596,7 @@ pubSubForever (Core.Conn pool) ctrl onInitialLoad = withResource pool $ \rawConn
           (Right (Left err)) -> throwIO err
           (Left (Left err)) -> throwIO err
           _ -> return ()  -- should never happen, since threads exit only with an error
+pubSubForever (Connection.ClusteredConnection _) _ _ = undefined
 
 
 ------------------------------------------------------------------------------

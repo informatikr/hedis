@@ -261,7 +261,19 @@ xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split int
 xdel, -- |Delete messages from a stream. Since Redis 5.0.0
 xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 inf, -- |Constructor for `inf` Redis argument values
-
+ClusterNodesResponse(..),
+ClusterNodesResponseEntry(..),
+ClusterNodesResponseSlotSpec(..),
+clusterNodes,
+ClusterSlotsResponse(..),
+ClusterSlotsResponseEntry(..),
+ClusterSlotsNode(..),
+clusterSlots,
+clusterSetSlotNode,
+clusterSetSlotStable,
+clusterSetSlotImporting,
+clusterSetSlotMigrating,
+clusterGetKeysInSlot
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from
@@ -306,7 +318,7 @@ import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
 import Database.Redis.ManualCommands
 import Database.Redis.Types
-import Database.Redis.Core
+import Database.Redis.Core(sendRequest, RedisCtx)
 
 ttl
     :: (RedisCtx m f)
@@ -1080,4 +1092,3 @@ sismember
     -> ByteString -- ^ member
     -> m (f Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
-
