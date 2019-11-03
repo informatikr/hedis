@@ -17,9 +17,6 @@ import Prelude
 import Control.Applicative
 #endif
 import Control.Exception
-#if __GLASGOW_HASKELL__ > 711
-import Control.Monad.Fail (MonadFail)
-#endif
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.IORef
@@ -28,7 +25,7 @@ import Data.Time
 import Data.Typeable
 import qualified Network.Socket as NS
 import Network.TLS (ClientParams)
-
+import Database.Redis.Core.Internal
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Types
@@ -37,20 +34,6 @@ import Database.Redis.Types
 --------------------------------------------------------------------------------
 -- The Redis Monad
 --
-
--- |Context for normal command execution, outside of transactions. Use
---  'runRedis' to run actions of this type.
---
---  In this context, each result is wrapped in an 'Either' to account for the
---  possibility of Redis returning an 'Error' reply.
-newtype Redis a = Redis (ReaderT RedisEnv IO a)
-    deriving (Monad, MonadIO, Functor, Applicative)
-
-#if __GLASGOW_HASKELL__ > 711
-deriving instance MonadFail Redis
-#endif
-
-data RedisEnv = Env { envConn :: PP.Connection, envLastReply :: IORef Reply }
 
 -- |This class captures the following behaviour: In a context @m@, a command
 --  will return its result wrapped in a \"container\" of type @f@.
