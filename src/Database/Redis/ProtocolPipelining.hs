@@ -44,7 +44,7 @@ import           Database.Redis.Protocol
 
 data PortID = PortNumber NS.PortNumber
             | UnixSocket String
-            deriving Show
+            deriving (Eq, Show)
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
