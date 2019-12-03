@@ -1,6 +1,6 @@
 language: c
 # sudo: false
-dist: xenial
+dist: bionic
 
 cache:
   directories:
@@ -12,11 +12,14 @@ before_install:
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
   - export PATH=~/.local/bin:$PATH
-  - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar xz -C ~/tmp
-  - mv ~/tmp/stack-1.9.3-linux-x86_64/stack ~/.local/bin/
-  - curl -L https://github.com/antirez/redis/archive/5.0.2.tar.gz | tar xz -C ~/tmp
-  - cd ~/tmp/redis-5.0.2 && make
-  - ~/tmp/redis-5.0.2/src/redis-server &
+  - curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar xz -C ~/tmp
+  - mv ~/tmp/stack-2.1.3-linux-x86_64/stack ~/.local/bin/
+  # - curl -L https://github.com/antirez/redis/archive/5.0.2.tar.gz | tar xz -C ~/tmp
+  # - cd ~/tmp/redis-5.0.2 && make
+  # - ~/tmp/redis-5.0.2/src/redis-server &
+  - sudo add-apt-repository -y ppa:chris-lea/redis-server
+  - sudo apt-get update
+  - sudo apt-get -y install redis-server
   - cd ${TRAVIS_BUILD_DIR}
 
 matrix:
@@ -25,7 +28,7 @@ matrix:
     - env: GHCVER=8.0.1 STACK_YAML=stack-8.0.yaml
     - env: GHCVER=8.2.2 STACK_YAML=stack-8.2.yaml
     - env: GHCVER=8.4.1 STACK_YAML=stack-8.4.yaml
-    - env: GHCVER=8.6.3 STACK_YAML=stack-8.6.yaml
+    - env: GHCVER=8.6.5 STACK_YAML=stack-8.6.yaml
 
   allow_failures:
    - env: GHCVER=head STACK_YAML=stack-head.yaml
