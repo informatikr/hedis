@@ -33,7 +33,9 @@ import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
 import Data.Maybe (isJust)
 import Data.Pool
+#if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup (Semigroup(..))
+#endif
 import qualified Data.HashMap.Strict as HM
 import qualified Database.Redis.Core as Core
 import qualified Database.Redis.ProtocolPipelining as PP

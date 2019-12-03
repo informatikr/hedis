@@ -8,7 +8,9 @@ import Control.Applicative ((<$>))
 #endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
+#if __GLASGOW_HASKELL__ < 808
 import Data.Monoid ((<>))
+#endif
 import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo)
 import Database.Redis.ProtocolPipelining
 import Network.HTTP.Base

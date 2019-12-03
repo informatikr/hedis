@@ -3,7 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Database.Redis.Core.Internal where
-#if __GLASGOW_HASKELL__ > 711
+#if __GLASGOW_HASKELL__ > 711 && __GLASGOW_HASKELL__ < 808
 import Control.Monad.Fail (MonadFail)
 #endif
 import Control.Monad.Reader
