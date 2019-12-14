@@ -177,8 +177,8 @@ withCheckedConnect connInfo = bracket (checkedConnect connInfo) disconnect
 runRedis :: Connection -> Redis a -> IO a
 runRedis (NonClusteredConnection pool) redis =
   withResource pool $ \conn -> runRedisInternal conn redis
-runRedis (ClusteredConnection shardMapRef pool) redis = 
-    withResource pool $ \conn -> runRedisClusteredInternal conn shardMapRef (refreshShardMap conn) redis
+runRedis (ClusteredConnection _ pool) redis = 
+    withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
     deriving (Eq, Show, Typeable)
@@ -195,9 +195,9 @@ connectCluster bootstrapConnInfo = do
         Left e -> throwIO $ ClusterConnectError e
         Right slots -> do
             shardMap <- shardMapFromClusterSlotsResponse slots
-            shardMapRef <- newMVar shardMap
-            pool <- createPool (Cluster.connect shardMap Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
-            return $ ClusteredConnection shardMapRef pool
+            shardMapVar <- newMVar shardMap
+            pool <- createPool (Cluster.connect shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+            return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
 shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr mkShardMap (pure IntMap.empty)  clusterSlotsResponseEntries where
@@ -217,7 +217,7 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _) = do
+refreshShardMap (Cluster.Connection nodeConns _ _) = do
     let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
     pipelineConn <- PP.fromCtx ctx
     _ <- PP.beginReceiving pipelineConn

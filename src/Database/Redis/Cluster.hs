@@ -38,7 +38,20 @@ import Say(sayString)
 
 import Database.Redis.Protocol(Reply(Error), renderRequest, reply)
 
+-- This modules implements a clustered connection whilst maintaining
+-- compatibility with the original Hedis codebase. In particular it still
+-- performs implicit pipelining using `unsafeInterleaveIO` as the single node
+-- codebase does. To achieve this each connection carries around with it a 
+-- pipeline of commands. Every time `sendRequest` is called the command is
+-- added to the pipeline and an IO action is returned which will, upon being
+-- evaluated, execute the entire pipeline. If the pipeline is already executed
+-- then it just looks up it's response in the executed pipeline.
 
+-- | A connection to a redis cluster, it is compoesed of a map from Node IDs to
+-- | 'NodeConnection's, a 'Pipeline', and a 'ShardMap'
+data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap)
+
+-- | A connection to a single node in the cluster, similar to 'ProtocolPipelining.Connection'
 data NodeConnection = NodeConnection CC.ConnectionContext (IOR.IORef (Maybe B.ByteString)) NodeID
 
 instance Eq NodeConnection where
@@ -47,9 +60,8 @@ instance Eq NodeConnection where
 instance Ord NodeConnection where
     compare (NodeConnection _ _ id1) (NodeConnection _ _ id2) = compare id1 id2
 
-data PipelineState = Pending [[B.ByteString]] | Evaluated [Reply]
+data PipelineState = Pending [[B.ByteString]] | Executed [Reply]
 newtype Pipeline = Pipeline (MVar PipelineState)
-data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline)
 
 data NodeRole = Master | Slave deriving (Show, Eq, Ord)
 
@@ -69,14 +81,15 @@ newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Sho
 instance Exception MissingNodeException
 
 
-connect :: ShardMap -> Maybe Int -> IO Connection
-connect shardMap timeoutOpt = do
+connect :: MVar ShardMap -> Maybe Int -> IO Connection
+connect shardMapVar timeoutOpt = do
+        shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
-        nodeConns <- nodeConnections
-        return $ Connection nodeConns pipelineVar where
-    nodeConnections :: IO (HM.HashMap NodeID NodeConnection)
-    nodeConnections = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
+        nodeConns <- nodeConnections shardMap
+        return $ Connection nodeConns pipelineVar shardMapVar where
+    nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
+    nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
     connectNode :: Node -> IO (NodeID, NodeConnection)
     connectNode (Node n _ host port) = do
         ctx <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
@@ -84,23 +97,25 @@ connect shardMap timeoutOpt = do
         return (n, NodeConnection ctx ref n)
 
 disconnect :: Connection -> IO ()
-disconnect (Connection nodeConnMap _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
+disconnect (Connection nodeConnMap _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
     disconnectNode (NodeConnection nodeCtx _ _) = CC.disconnect nodeCtx
 
-
-requestPipelined :: MVar ShardMap -> IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
-requestPipelined shardMapVar refreshAction conn@(Connection _ pipelineVar) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
+-- Add a request to the current pipeline for this connection. The pipeline will
+-- be executed implicitly as soon as any result returned from this function is
+-- evaluated. 
+requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
+requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
     (newStateVar, repliesIndex) <- hasLocked "locked adding to pipeline" $ modifyMVar stateVar $ \case
         Pending requests -> return (Pending (nextRequest:requests), (stateVar, length requests))
-        e@(Evaluated _) -> do
+        e@(Executed _) -> do
             s' <- newMVar $ Pending [nextRequest]
             return (e, (s', 0))
     evaluateAction <- unsafeInterleaveIO $ do
         replies <- hasLocked "locked evaluating replies" $ modifyMVar newStateVar $ \case
-            Evaluated replies -> return (Evaluated replies, replies)
+            Executed replies -> return (Executed replies, replies)
             Pending requests-> do
                 replies <- evaluatePipeline shardMapVar refreshAction conn requests
-                return (Evaluated replies, replies)
+                return (Executed replies, replies)
         return $ replies !! repliesIndex
     return (Pipeline newStateVar, evaluateAction)
 
@@ -182,12 +197,12 @@ moved _ = False
 
 
 nodeConnWithHostAndPort :: ShardMap -> Connection -> Host -> Port -> Maybe NodeConnection
-nodeConnWithHostAndPort shardMap (Connection nodeConns _) host port = do
+nodeConnWithHostAndPort shardMap (Connection nodeConns _ _) host port = do
     node <- nodeWithHostAndPort shardMap host port
     HM.lookup (nodeId node) nodeConns
 
 nodeConnectionForCommandOrThrow :: ShardMap -> Connection -> [B.ByteString] -> IO NodeConnection
-nodeConnectionForCommandOrThrow shardMap (Connection nodeConns _) command = maybe (throwIO $ MissingNodeException command) return maybeNode where
+nodeConnectionForCommandOrThrow shardMap (Connection nodeConns _ _) command = maybe (throwIO $ MissingNodeException command) return maybeNode where
     maybeNode = do
         node <- nodeForCommand shardMap command
         HM.lookup (nodeId node) nodeConns

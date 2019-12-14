@@ -19,7 +19,6 @@ import Control.Applicative
 #endif
 import Control.Monad.Reader
 import Control.Monad.Fail(MonadFail)
-import Control.Concurrent.MVar(MVar)
 import qualified Data.ByteString as B
 import Data.IORef
 
@@ -48,8 +47,7 @@ deriving instance MonadFail Redis
 data RedisEnv
     = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
     | ClusteredEnv 
-        { currentShardMap :: MVar ShardMap
-        , refreshAction :: IO ShardMap 
+        { refreshAction :: IO ShardMap 
         , connection :: Cluster.Connection
         }
 
@@ -96,9 +94,9 @@ runRedisInternal conn (Redis redis) = do
   readIORef ref >>= (`seq` return ())
   return r
 
-runRedisClusteredInternal :: Cluster.Connection -> MVar ShardMap ->  IO ShardMap -> Redis a -> IO a
-runRedisClusteredInternal connection shardMapRef refreshShardmapAction (Redis redis) = do
-    r <- runReaderT redis (ClusteredEnv shardMapRef refreshShardmapAction connection) 
+runRedisClusteredInternal :: Cluster.Connection -> IO ShardMap -> Redis a -> IO a
+runRedisClusteredInternal connection refreshShardmapAction (Redis redis) = do
+    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection) 
     r `seq` return ()
     return r
 
@@ -139,5 +137,5 @@ sendRequest req = do
                 r <- liftIO $ PP.request envConn (renderRequest req)
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined currentShardMap refreshAction connection req
+            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined refreshAction connection req
     returnDecode r'
