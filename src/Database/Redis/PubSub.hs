@@ -596,7 +596,7 @@ pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = with
           (Right (Left err)) -> throwIO err
           (Left (Left err)) -> throwIO err
           _ -> return ()  -- should never happen, since threads exit only with an error
-pubSubForever (Connection.ClusteredConnection _) _ _ = undefined
+pubSubForever (Connection.ClusteredConnection _ _) _ _ = undefined
 
 
 ------------------------------------------------------------------------------

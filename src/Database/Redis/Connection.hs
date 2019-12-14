@@ -6,16 +6,17 @@ module Database.Redis.Connection where
 import Control.Exception
 import Control.Monad.IO.Class(liftIO)
 import Control.Monad(when)
+import Control.Concurrent.MVar(MVar, newMVar)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import Data.Functor(void)
 import qualified Data.IntMap.Strict as IntMap
 import Data.Pool(Pool, withResource, createPool, destroyAllResources)
 import Data.Typeable
-import qualified Data.IORef as IOR
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
 import qualified Network.Socket as NS
+import qualified Data.HashMap.Strict as HM
 
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Core(Redis, runRedisInternal, runRedisClusteredInternal)
@@ -23,6 +24,7 @@ import Database.Redis.Protocol(Reply(..))
 import Database.Redis.Cluster(ShardMap(..), Node, Shard(..))
 import qualified Database.Redis.Cluster as Cluster
 import qualified Database.Redis.ConnectionContext as CC
+--import qualified Database.Redis.Cluster.Pipeline as ClusterPipeline
 import Database.Redis.Commands
     ( ping
     , select
@@ -40,7 +42,7 @@ import Database.Redis.Commands
 --  'connect' function to create one.
 data Connection
     = NonClusteredConnection (Pool PP.Connection)
-    | ClusteredConnection (IOR.IORef ShardMap)
+    | ClusteredConnection (MVar ShardMap) (Pool Cluster.Connection)
 
 -- |Information for connnecting to a Redis server.
 --
@@ -157,7 +159,7 @@ checkedConnect connInfo = do
 -- |Destroy all idle resources in the pool.
 disconnect :: Connection -> IO ()
 disconnect (NonClusteredConnection pool) = destroyAllResources pool
-disconnect (ClusteredConnection _) = return ()
+disconnect (ClusteredConnection _ pool) = destroyAllResources pool
 
 -- | Memory bracket around 'connect' and 'disconnect'. 
 withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
@@ -175,7 +177,8 @@ withCheckedConnect connInfo = bracket (checkedConnect connInfo) disconnect
 runRedis :: Connection -> Redis a -> IO a
 runRedis (NonClusteredConnection pool) redis =
   withResource pool $ \conn -> runRedisInternal conn redis
-runRedis c@(ClusteredConnection shardMapRef) redis = runRedisClusteredInternal shardMapRef (\() -> refreshShardMap c) redis
+runRedis (ClusteredConnection shardMapRef pool) redis = 
+    withResource pool $ \conn -> runRedisClusteredInternal conn shardMapRef (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
     deriving (Eq, Show, Typeable)
@@ -192,29 +195,33 @@ connectCluster bootstrapConnInfo = do
         Left e -> throwIO $ ClusterConnectError e
         Right slots -> do
             shardMap <- shardMapFromClusterSlotsResponse slots
-            shardMapRef <- IOR.newIORef shardMap
-            return $ ClusteredConnection shardMapRef
+            shardMapRef <- newMVar shardMap
+            pool <- createPool (Cluster.connect shardMap Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+            return $ ClusteredConnection shardMapRef pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
 shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr mkShardMap (pure IntMap.empty)  clusterSlotsResponseEntries where
     mkShardMap :: ClusterSlotsResponseEntry -> IO (IntMap.IntMap Shard) -> IO (IntMap.IntMap Shard)
     mkShardMap ClusterSlotsResponseEntry{..} accumulator = do
         accumulated <- accumulator
-        master <- nodeFromClusterSlotNode True clusterSlotsResponseEntryMaster
-        replicas <- mapM (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
+        let master = nodeFromClusterSlotNode True clusterSlotsResponseEntryMaster
+        let replicas = map (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
         let shard = Shard master replicas
         let slotMap = IntMap.fromList $ map (, shard) [clusterSlotsResponseEntryStartSlot..clusterSlotsResponseEntryEndSlot]
         return $ IntMap.union slotMap accumulated
-    nodeFromClusterSlotNode :: Bool -> ClusterSlotsNode -> IO Node
-    nodeFromClusterSlotNode isMaster ClusterSlotsNode{..} = do
+    nodeFromClusterSlotNode :: Bool -> ClusterSlotsNode -> Node
+    nodeFromClusterSlotNode isMaster ClusterSlotsNode{..} =
         let hostname = Char8.unpack clusterSlotsNodeIP
-        conn <- Cluster.connect hostname (toEnum clusterSlotsNodePort) Nothing
-        let role = if isMaster then Cluster.Master else Cluster.Slave
-        return $ Cluster.Node clusterSlotsNodeID role conn hostname (toEnum clusterSlotsNodePort)
+            role = if isMaster then Cluster.Master else Cluster.Slave
+        in 
+            Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
-refreshShardMap :: Connection -> IO ShardMap
-refreshShardMap conn = do
-    slotsResponse <- runRedis conn clusterSlots
+refreshShardMap :: Cluster.Connection -> IO ShardMap
+refreshShardMap (Cluster.Connection nodeConns _) = do
+    let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
+    pipelineConn <- PP.fromCtx ctx
+    _ <- PP.beginReceiving pipelineConn
+    slotsResponse <- runRedisInternal pipelineConn clusterSlots
     case slotsResponse of
         Left e -> throwIO $ ClusterConnectError e
         Right slots -> shardMapFromClusterSlotsResponse slots

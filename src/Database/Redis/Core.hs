@@ -19,6 +19,7 @@ import Control.Applicative
 #endif
 import Control.Monad.Reader
 import Control.Monad.Fail(MonadFail)
+import Control.Concurrent.MVar(MVar)
 import qualified Data.ByteString as B
 import Data.IORef
 
@@ -46,7 +47,11 @@ deriving instance MonadFail Redis
 
 data RedisEnv
     = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
-    | ClusteredEnv { currentShardMap :: IORef ShardMap, refreshAction :: () -> IO ShardMap }
+    | ClusteredEnv 
+        { currentShardMap :: MVar ShardMap
+        , refreshAction :: IO ShardMap 
+        , connection :: Cluster.Connection
+        }
 
 -- |This class captures the following behaviour: In a context @m@, a command
 --  will return its result wrapped in a \"container\" of type @f@.
@@ -91,8 +96,11 @@ runRedisInternal conn (Redis redis) = do
   readIORef ref >>= (`seq` return ())
   return r
 
-runRedisClusteredInternal :: IORef ShardMap -> (() -> IO ShardMap) -> Redis a -> IO a
-runRedisClusteredInternal shardMapRef refreshShardmapAction (Redis redis) = runReaderT redis (ClusteredEnv shardMapRef refreshShardmapAction) 
+runRedisClusteredInternal :: Cluster.Connection -> MVar ShardMap ->  IO ShardMap -> Redis a -> IO a
+runRedisClusteredInternal connection shardMapRef refreshShardmapAction (Redis redis) = do
+    r <- runReaderT redis (ClusteredEnv shardMapRef refreshShardmapAction connection) 
+    r `seq` return ()
+    return r
 
 setLastReply :: Reply -> ReaderT RedisEnv IO ()
 setLastReply r = do
@@ -131,5 +139,5 @@ sendRequest req = do
                 r <- liftIO $ PP.request envConn (renderRequest req)
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ Cluster.request currentShardMap refreshAction req
+            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined currentShardMap refreshAction connection req
     returnDecode r'

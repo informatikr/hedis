@@ -16,7 +16,7 @@
 --
 module Database.Redis.ProtocolPipelining (
   Connection,
-  connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush,
+  connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush, fromCtx
 ) where
 
 import           Prelude
@@ -42,6 +42,10 @@ data Connection = Conn
     --   'connReplies' and 'connPending'.
     --   length connPending  - pendingCount = length connReplies
   }
+
+
+fromCtx :: CC.ConnectionContext -> IO Connection
+fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0
 
 
 connect :: NS.HostName -> CC.PortID -> Maybe Int -> IO Connection
