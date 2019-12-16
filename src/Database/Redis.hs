@@ -163,6 +163,7 @@ module Database.Redis (
 
     -- * Connection
     Connection, ConnectError(..), connect, checkedConnect, disconnect,
+    withConnect, withCheckedConnect,
     ConnectInfo(..), defaultConnectInfo, parseConnectInfo,
     PortID(..),
 
