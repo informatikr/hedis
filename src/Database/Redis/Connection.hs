@@ -30,6 +30,7 @@ import Database.Redis.Commands
     , select
     , auth
     , clusterSlots
+    , command
     , ClusterSlotsResponse(..)
     , ClusterSlotsResponseEntry(..)
     , ClusterSlotsNode(..))
@@ -191,12 +192,16 @@ connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
     conn <- createConnection bootstrapConnInfo
     slotsResponse <- runRedisInternal conn clusterSlots
-    case slotsResponse of
+    shardMapVar <- case slotsResponse of
         Left e -> throwIO $ ClusterConnectError e
         Right slots -> do
             shardMap <- shardMapFromClusterSlotsResponse slots
-            shardMapVar <- newMVar shardMap
-            pool <- createPool (Cluster.connect shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+            newMVar shardMap
+    commandInfos <- runRedisInternal conn command
+    case commandInfos of 
+        Left e -> throwIO $ ClusterConnectError e
+        Right infos -> do
+            pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
@@ -217,7 +222,7 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _ _) = do
+refreshShardMap (Cluster.Connection nodeConns _ _ _) = do
     let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
     pipelineConn <- PP.fromCtx ctx
     _ <- PP.beginReceiving pipelineConn

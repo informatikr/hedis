@@ -97,6 +97,7 @@ library
                     Database.Redis.Connection,
                     Database.Redis.Cluster,
                     Database.Redis.Cluster.HashSlot,
+                    Database.Redis.Cluster.Command,
                     Database.Redis.ProtocolPipelining,
                     Database.Redis.Protocol,
                     Database.Redis.PubSub,

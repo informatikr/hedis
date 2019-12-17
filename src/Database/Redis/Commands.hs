@@ -273,7 +273,8 @@ clusterSetSlotNode,
 clusterSetSlotStable,
 clusterSetSlotImporting,
 clusterSetSlotMigrating,
-clusterGetKeysInSlot
+clusterGetKeysInSlot,
+command
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from

@@ -10,6 +10,7 @@ import Data.Maybe (maybeToList, catMaybes)
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
+import qualified Database.Redis.Cluster.Command as CMD
 
 
 objectRefcount
@@ -1374,3 +1375,6 @@ clusterGetKeysInSlot
     -> Integer
     -> m (f [ByteString])
 clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (encode slot), (encode count)]
+
+command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
+command = sendRequest ["COMMAND"]
