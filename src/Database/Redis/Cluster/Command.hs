@@ -95,7 +95,7 @@ newInfoMap = InfoMap . HM.fromList . map (\c -> (Char8.unpack $ name c, c))
 keysForRequest :: InfoMap -> [BS.ByteString] -> Maybe [BS.ByteString]
 keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
-    if isMovable info then return $ parseMovable request else do
+    if isMovable info then parseMovable request else do
         let possibleKeys = case lastKeyPosition info of
                 LastKeyPosition end -> take (fromEnum $ 1 + end - firstKeyPosition info) $ drop (fromEnum $ firstKeyPosition info) request
                 UnlimitedKeys -> drop (fromEnum $ firstKeyPosition info) request
@@ -105,20 +105,20 @@ keysForRequest _ [] = Nothing
 isMovable :: CommandInfo -> Bool
 isMovable CommandInfo{..} = MovableKeys `elem` flags
 
-parseMovable :: [BS.ByteString] -> [BS.ByteString]
-parseMovable ("SORT":key:_) = [key]
+parseMovable :: [BS.ByteString] -> Maybe [BS.ByteString]
+parseMovable ("SORT":key:_) = Just [key]
 parseMovable ("EVAL":_:rest) = readNumKeys rest
 parseMovable ("EVALSH":_:rest) = readNumKeys rest
 parseMovable ("ZUNIONSTORE":_:rest) = readNumKeys rest
 parseMovable ("ZINTERSTORE":_:rest) = readNumKeys rest
-parseMovable _ = []
+parseMovable _ = Nothing
 
 
-readNumKeys :: [BS.ByteString] -> [BS.ByteString]
-readNumKeys (rawNumKeys:rest) = case readMaybe (Char8.unpack rawNumKeys) of
-    Just numKeys -> take numKeys rest
-    Nothing -> []
-readNumKeys _ = []
+readNumKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
+readNumKeys (rawNumKeys:rest) = do
+    numKeys <- readMaybe (Char8.unpack rawNumKeys)
+    return $ take numKeys rest
+readNumKeys _ = Nothing
 
 takeEvery :: Int -> [a] -> [a]
 takeEvery n xs = case drop (n-1) xs of
