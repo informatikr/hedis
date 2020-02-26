@@ -16,6 +16,7 @@ import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test, defaultMain)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
+import qualified Data.ByteString as BS
 
 import Database.Redis
 import PubSubTest
@@ -25,15 +26,37 @@ import PubSubTest
 --
 main :: IO ()
 main = do
-    conn <- connect defaultConnectInfo
-    Test.defaultMain (tests conn)
+    singleNodeConn <- connect defaultConnectInfo
+    let singleNodeTests = tests singleNodeConn
+    clusterConn <- connectCluster $ defaultConnectInfo { connectPort = PortNumber 7001 }
+    let clusterTestCases = clusterTests clusterConn
+    Test.defaultMain $ clusterTestCases ++ singleNodeTests
 
-type Test = Connection -> Test.Test
+
+data TestType = Cluster | SingleNode
+
+instance Show TestType where
+    show Cluster = "Cluster"
+    show SingleNode = "SingleNode"
+
+type Test = TestType -> Connection -> Test.Test
+
+
+resetDb :: Connection -> IO ()
+resetDb conn = do
+    resps <- runRedis conn $ sendToAllMasterNodes ["FLUSHDB"]
+    let combined = sequence resps
+    case combined of
+        Left reply -> HUnit.assertFailure $ "Redis error when flushing: " ++ show reply
+        Right replies -> if  all (\r -> r == Ok) replies
+                         then return ()
+                         else HUnit.assertFailure "Redis error when flushing, non OK reply received"
 
 testCase :: String -> Redis () -> Test
-testCase name r conn = Test.testCase name $ do
-    withTimeLimit 0.5 $ runRedis conn $ flushdb >>=? Ok >> r
+testCase name r testType conn = Test.testCase nameWithTestType $
+    withTimeLimit 0.5 $ resetDb conn >> runRedis conn r
   where
+    nameWithTestType = show testType ++ ": " ++ name
     withTimeLimit limit act = do
         start <- getCurrentTime
         _ <- act
@@ -55,15 +78,20 @@ assert = liftIO . HUnit.assert
 -- Tests
 --
 tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
+tests conn = map (\t -> t SingleNode conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsServer, [testScans], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
-    , testPubSubThreaded
+    , (map (\f -> (\_ c -> f c)) testPubSubThreaded)
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
+
+clusterTests :: Connection -> [Test.Test]
+clusterTests conn = map (\t -> t Cluster conn)
+    [ testPipelining , testConstantSpacePipelining, testForceErrorReply
+    , testEvalReplies ]
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
@@ -78,7 +106,7 @@ testConstantSpacePipelining :: Test
 testConstantSpacePipelining = testCase "constant-space pipelining" $ do
     -- This testcase should not exceed the maximum heap size, as set in
     -- the run-test.sh script.
-    replicateM_ 100000 ping
+    replicateM_ 100000 (set "key" "val")
     -- If the program didn't crash, pipelining takes constant memory.
     assert True
 
@@ -95,13 +123,15 @@ testForceErrorReply = testCase "force error reply" $ do
 
 testPipelining :: Test
 testPipelining = testCase "pipelining" $ do
-    let n = 100
+    let n = 200
     tPipe <- deltaT $ do
-        pongs <- replicateM n ping
-        assert $ pongs == replicate n (Right Pong)
+        oks <- replicateM n (set "pipelinekey" "pipelineval")
+        assert $ oks == replicate n (Right Ok)
 
-    tNoPipe <- deltaT $ replicateM_ n (ping >>=? Pong)
+    tNoPipe <- deltaT $ replicateM_ n ((set "pipelinekey" "pipelineval") >>=? Ok)
     -- pipelining should at least be twice as fast.
+    liftIO $ putStrLn $ "tPipe: " ++ show tPipe
+    liftIO $ putStrLn $ "tNoPipe: " ++ show tNoPipe
     assert $ tNoPipe / tPipe > 2
   where
     deltaT redis = do
@@ -110,17 +140,23 @@ testPipelining = testCase "pipelining" $ do
         liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
 testEvalReplies :: Test
-testEvalReplies conn = testCase "eval unused replies" go conn
+testEvalReplies testType conn = testCase "eval unused replies" go testType conn
   where
     go = do
-      _ignored <- set "key" "value"
-      (liftIO $ do
+      _ <- set "key" "value"
+      liftIO $ putStrLn "SET sent"
+      result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
-         _ <-
-           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
-         takeMVar mvar) >>=?
-        Just "value"
+         _ <- asyncGet mvar >>= Async.wait
+         takeMVar mvar
+      pure result >>=? Just "value"
+    --asyncGet :: MVar (Either Reply (Maybe BS.ByteString)) -> IO (Async.Async (Either Reply (Maybe BS.ByteString)))
+    asyncGet :: MVar (Either Reply (Maybe BS.ByteString)) -> IO (Async.Async ())
+    asyncGet mvar = Async.async $ do
+        result <- runRedis conn $ get "key"
+        _ <- putMVar mvar result
+        return ()
 
 ------------------------------------------------------------------------------
 -- Keys
@@ -420,7 +456,7 @@ testHyperLogLog = testCase "hyperloglog" $ do
 -- Pub/Sub
 --
 testPubSub :: Test
-testPubSub conn = testCase "pubSub" go conn
+testPubSub testType conn = testCase "pubSub" go testType conn
   where
     go = do
         -- producer
@@ -471,7 +507,7 @@ testTransaction = testCase "transaction" $ do
 -- Scripting
 --
 testScripting :: Test
-testScripting conn = testCase "scripting" go conn
+testScripting testType conn = testCase "scripting" go testType conn
   where
     go = do
         let script    = "return {false, 42}"

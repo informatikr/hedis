@@ -13,6 +13,7 @@ module Database.Redis.Cluster
   , connect
   , disconnect
   , requestPipelined
+  , requestMasterNodes
   , nodes
 ) where
 
@@ -25,6 +26,7 @@ import Data.Map(fromListWith, assocs)
 import Data.Function(on)
 import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..))
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
+import Control.DeepSeq(deepseq)
 import Control.Monad(zipWithM, when)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
@@ -47,7 +49,7 @@ import qualified Database.Redis.Cluster.Command as CMD
 -- evaluated, execute the entire pipeline. If the pipeline is already executed
 -- then it just looks up it's response in the executed pipeline.
 
--- | A connection to a redis cluster, it is compoesed of a map from Node IDs to
+-- | A connection to a redis cluster, it is composed of a map from Node IDs to
 -- | 'NodeConnection's, a 'Pipeline', and a 'ShardMap'
 data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap
 
@@ -60,7 +62,17 @@ instance Eq NodeConnection where
 instance Ord NodeConnection where
     compare (NodeConnection _ _ id1) (NodeConnection _ _ id2) = compare id1 id2
 
-data PipelineState = Pending [[B.ByteString]] | Executed [Reply]
+data PipelineState = 
+      -- Nothing in the pipeline has been evaluated yet so nothing has been 
+      -- sent
+      Pending [[B.ByteString]] 
+      -- This pipeline has been executed, the replies are contained within it
+    | Executed [Reply]
+-- A pipeline has an MVar for the current state, this state is actually always
+-- `Pending` because the first thing the implementation does when executing a
+-- pipeline is to take the current pipeline state out of the MVar and replace
+-- it with a new `Pending` state. The executed state is held on to by the
+-- replies within it.
 newtype Pipeline = Pipeline (MVar PipelineState)
 
 data NodeRole = Master | Slave deriving (Show, Eq, Ord)
@@ -68,12 +80,20 @@ data NodeRole = Master | Slave deriving (Show, Eq, Ord)
 type Host = String
 type Port = Int
 type NodeID = B.ByteString
+-- Represents a single node, note that this type does not include the 
+-- connection to the node because the shard map can be shared amongst multiple
+-- connections
 data Node = Node NodeID NodeRole Host Port deriving (Show, Eq, Ord)
 
 type MasterNode = Node
 type SlaveNode = Node
+
+-- A 'shard' is a master node and 0 or more slaves, (the 'master', 'slave'
+-- terminology is unfortunate but I felt it better to follow the documentation
+-- until it changes).
 data Shard = Shard MasterNode [SlaveNode] deriving (Show, Eq, Ord)
 
+-- A map from hashslot to shards
 newtype ShardMap = ShardMap (IntMap.IntMap Shard) deriving (Show)
 
 newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show, Typeable)
@@ -110,17 +130,29 @@ disconnect (Connection nodeConnMap _ _ _) = mapM_ disconnectNode (HM.elems nodeC
 -- evaluated. 
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
 requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
+    putStrLn $ "requestPipeline: " ++ show nextRequest
     (newStateVar, repliesIndex) <- hasLocked "locked adding to pipeline" $ modifyMVar stateVar $ \case
-        Pending requests -> return (Pending (nextRequest:requests), (stateVar, length requests))
+        Pending requests | length requests > 1000 -> do
+            putStrLn "Forcing pipeline as there are over 1000 requests pending"
+            replies <- evaluatePipeline shardMapVar refreshAction conn (nextRequest:requests)
+            return (Executed replies, (stateVar, length requests))
+        Pending requests -> do
+            putStrLn $ "Adding to pending requests, pipeline is now: " ++ show (nextRequest:requests)
+            return (Pending (nextRequest:requests), (stateVar, length requests))
         e@(Executed _) -> do
+            putStrLn $ "Pipeline already executed, creating new pipeline, new pipeline is " ++ show [nextRequest]
             s' <- newMVar $ Pending [nextRequest]
             return (e, (s', 0))
     evaluateAction <- unsafeInterleaveIO $ do
+        putStrLn $ "Executing request: " ++ show nextRequest
         replies <- hasLocked "locked evaluating replies" $ modifyMVar newStateVar $ \case
-            Executed replies -> return (Executed replies, replies)
-            Pending requests-> do
-                replies <- evaluatePipeline shardMapVar refreshAction conn requests
+            Executed replies -> do
+                putStrLn $ "Pipeline already executed, responses are: " ++ show replies
                 return (Executed replies, replies)
+            Pending requests-> do
+                putStrLn $ "Total pipeline is: " ++ show requests
+                replies <- evaluatePipeline shardMapVar refreshAction conn requests
+                replies `deepseq` return (Executed replies, replies)
         return $ replies !! repliesIndex
     return (Pipeline newStateVar, evaluateAction)
 
@@ -221,9 +253,10 @@ nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO NodeC
 nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) request = do
     keys <- case CMD.keysForRequest infoMap request of
         Nothing -> throwIO $ UnsupportedClusterCommandException request
+        Just [] -> throwIO $ UnsupportedClusterCommandException request
         Just k -> return k
     let shards = nub $ mapMaybe ((flip IntMap.lookup shardMap) . fromEnum . keyToSlot) keys
-    node <- case shards of 
+    node <- case shards of
         [] -> throwIO $ MissingNodeException request
         [Shard master _] -> return master
         _ -> throwIO $ CrossSlotException request
@@ -272,3 +305,17 @@ hasLocked msg action =
   action `catches`
   [ Handler $ \exc@BlockedIndefinitelyOnMVar -> sayString ("[MVar]: " ++ msg) >> throwIO exc
   ]
+
+
+requestMasterNodes :: Connection -> [B.ByteString] -> IO [Reply]
+requestMasterNodes conn req = do
+    masterNodeConns <- masterNodes conn
+    concat <$> mapM (`requestNode` [req]) masterNodeConns
+
+masterNodes :: Connection -> IO [NodeConnection]
+masterNodes (Connection nodeConns _ shardMapVar _) = do
+    (ShardMap shardMap) <- readMVar shardMapVar
+    let masters = map ((\(Shard m _) -> m) . snd) $ IntMap.toList shardMap
+    let masterNodeIds = map nodeId masters
+    return $ mapMaybe (`HM.lookup` nodeConns) masterNodeIds
+
