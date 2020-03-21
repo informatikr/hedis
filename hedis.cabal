@@ -142,6 +142,7 @@ test-suite hedis-test
 test-suite doctest
     type: exitcode-stdio-1.0
     main-is: DocTest.hs
+    ghc-options: -O0 -rtsopts
     build-depends:
         base == 4.*,
         doctest
