@@ -18,6 +18,7 @@ import Control.Applicative
 #endif
 import Control.Exception
 import Control.Monad.Reader
+import qualified Control.Monad.Catch as Catch
 import qualified Data.ByteString as B
 import Data.IORef
 import Data.Pool
@@ -250,12 +251,12 @@ disconnect :: Connection -> IO ()
 disconnect (Conn pool) = destroyAllResources pool
 
 -- | Memory bracket around 'connect' and 'disconnect'. 
-withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
-withConnect connInfo = bracket (connect connInfo) disconnect
+withConnect :: (Catch.MonadMask m, MonadIO m) => ConnectInfo -> (Connection -> m c) -> m c
+withConnect connInfo = Catch.bracket (liftIO $ connect connInfo) (liftIO . disconnect)
 
 -- | Memory bracket around 'checkedConnect' and 'disconnect'
-withCheckedConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
-withCheckedConnect connInfo = bracket (checkedConnect connInfo) disconnect
+withCheckedConnect :: (Catch.MonadMask m, MonadIO m) => ConnectInfo -> (Connection -> m c) -> m c
+withCheckedConnect connInfo = Catch.bracket (liftIO $ checkedConnect connInfo) (liftIO . disconnect)
 
 -- The AUTH command. It has to be here because it is used in 'connect'.
 auth

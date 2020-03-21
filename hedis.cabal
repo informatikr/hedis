@@ -73,6 +73,7 @@ library
                     base >= 4.8 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
+                    exceptions,
                     unordered-containers,
                     text,
                     deepseq,
