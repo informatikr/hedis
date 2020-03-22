@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.12
+
+* PR #149. Make withConnect friendly to transformer stack
+
 ## 0.12.11
 
 * Expose `withCheckedConnect`, `withConnect`
