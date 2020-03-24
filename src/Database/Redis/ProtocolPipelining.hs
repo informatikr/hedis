@@ -95,7 +95,7 @@ connectSocket (addr:rest) = tryConnect >>= \case
     tryConnect = bracketOnError createSock NS.close $ \sock -> do
       try (NS.connect sock $ NS.addrAddress addr) >>= \case
         Right () -> return (Right sock)
-        Left err -> return (Left err)
+        Left err -> NS.close sock >> return (Left err)
       where
         createSock = NS.socket (NS.addrFamily addr)
                                (NS.addrSocketType addr)
