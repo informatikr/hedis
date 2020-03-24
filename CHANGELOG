@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.13
+
+* PR #150, Issue #143. Leaking sockets when connection fails
+
 ## 0.12.12
 
 * PR #149. Make withConnect friendly to transformer stack
