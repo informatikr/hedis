@@ -18,7 +18,11 @@ import Control.Applicative
 #if __GLASGOW_HASKELL__ > 711
 #endif
 import Control.Monad.Reader
+#if MIN_VERSION_base(4,13,0)
+
+#else
 import Control.Monad.Fail(MonadFail)
+#endif
 import qualified Data.ByteString as B
 import Data.IORef
 
