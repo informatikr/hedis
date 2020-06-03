@@ -8,7 +8,10 @@ import Control.Applicative ((<$>))
 #endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
+#if MIN_VERSION_base(4,13,0)
+#else
 import Data.Monoid ((<>))
+#endif
 import Database.Redis.Connection (ConnectInfo(..), defaultConnectInfo)
 import qualified Database.Redis.ConnectionContext as CC
 import Network.HTTP.Base

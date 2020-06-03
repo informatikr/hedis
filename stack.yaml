@@ -1,8 +1,6 @@
-resolver: lts-13.21
+resolver: lts-15.15
 packages:
-- '.'
-extra-deps:
-  - crc16-0.1.0
+  - '.'
 flags:
   hedis:
     dev: true
