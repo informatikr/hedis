@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.14
+
+* PR #153. Publicly expose ConnectTimeout exception
+
 ## 0.12.13
 
 * PR #150, Issue #143. Leaking sockets when connection fails
