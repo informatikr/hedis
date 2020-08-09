@@ -20,6 +20,7 @@ module Database.Redis.ProtocolPipelining (
   Connection,
   connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush,
   ConnectionLostException(..),
+  ConnectTimeout(..),
   PortID(..)
 ) where
 

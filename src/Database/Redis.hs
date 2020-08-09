@@ -178,7 +178,8 @@ module Database.Redis (
 
     -- * Low-Level Command API
     sendRequest,
-    Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
+    Reply(..), Status(..), RedisResult(..), ConnectionLostException(..),
+    ConnectTimeout(..)
     
     -- |[Solution to Exercise]
     --
@@ -196,7 +197,7 @@ import Database.Redis.Core
 import Database.Redis.PubSub
 import Database.Redis.Protocol
 import Database.Redis.ProtocolPipelining
-    (PortID(..), ConnectionLostException(..))
+    (PortID(..), ConnectionLostException(..), ConnectTimeout(..))
 import Database.Redis.Transactions
 import Database.Redis.Types
 import Database.Redis.URL
