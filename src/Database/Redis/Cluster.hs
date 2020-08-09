@@ -20,14 +20,14 @@ module Database.Redis.Cluster
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.IORef as IOR
-import Data.Maybe(listToMaybe, mapMaybe)
-import Data.List(nub, sortBy)
+import Data.Maybe(mapMaybe)
+import Data.List(nub, sortBy, find)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
 import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..))
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
 import Control.DeepSeq(deepseq)
-import Control.Monad(zipWithM, when)
+import Control.Monad(zipWithM, when, replicateM)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
@@ -62,10 +62,10 @@ instance Eq NodeConnection where
 instance Ord NodeConnection where
     compare (NodeConnection _ _ id1) (NodeConnection _ _ id2) = compare id1 id2
 
-data PipelineState = 
+data PipelineState =
       -- Nothing in the pipeline has been evaluated yet so nothing has been 
       -- sent
-      Pending [[B.ByteString]] 
+      Pending [[B.ByteString]]
       -- This pipeline has been executed, the replies are contained within it
     | Executed [Reply]
 -- A pipeline has an MVar for the current state, this state is actually always
@@ -130,27 +130,20 @@ disconnect (Connection nodeConnMap _ _ _) = mapM_ disconnectNode (HM.elems nodeC
 -- evaluated. 
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
 requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
-    putStrLn $ "requestPipeline: " ++ show nextRequest
     (newStateVar, repliesIndex) <- hasLocked "locked adding to pipeline" $ modifyMVar stateVar $ \case
         Pending requests | length requests > 1000 -> do
-            putStrLn "Forcing pipeline as there are over 1000 requests pending"
             replies <- evaluatePipeline shardMapVar refreshAction conn (nextRequest:requests)
             return (Executed replies, (stateVar, length requests))
-        Pending requests -> do
-            putStrLn $ "Adding to pending requests, pipeline is now: " ++ show (nextRequest:requests)
+        Pending requests ->
             return (Pending (nextRequest:requests), (stateVar, length requests))
         e@(Executed _) -> do
-            putStrLn $ "Pipeline already executed, creating new pipeline, new pipeline is " ++ show [nextRequest]
             s' <- newMVar $ Pending [nextRequest]
             return (e, (s', 0))
     evaluateAction <- unsafeInterleaveIO $ do
-        putStrLn $ "Executing request: " ++ show nextRequest
         replies <- hasLocked "locked evaluating replies" $ modifyMVar newStateVar $ \case
-            Executed replies -> do
-                putStrLn $ "Pipeline already executed, responses are: " ++ show replies
+            Executed replies ->
                 return (Executed replies, replies)
             Pending requests-> do
-                putStrLn $ "Total pipeline is: " ++ show requests
                 replies <- evaluatePipeline shardMapVar refreshAction conn requests
                 replies `deepseq` return (Executed replies, replies)
         return $ replies !! repliesIndex
@@ -189,7 +182,7 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         shardMap <- hasLocked "reading shardmap in evaluatePipeline" $ readMVar shardMapVar
         requestsByNode <- getRequestsByNode shardMap
         resps <- concat <$> mapM (uncurry executeRequests) requestsByNode
-        _ <- when (any (moved . rawResponse) resps) (refreshShardMapVar "locked refreshing due to moved responses")
+        when (any (moved . rawResponse) resps) (refreshShardMapVar "locked refreshing due to moved responses")
         retriedResps <- mapM (retry 0) resps
         return $ map rawResponse $ sortBy (on compare responseIndex) retriedResps where
     getRequestsByNode :: ShardMap -> IO [(NodeConnection, [PendingRequest])]
@@ -203,7 +196,7 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
     executeRequests :: NodeConnection -> [PendingRequest] -> IO [CompletedRequest]
     executeRequests nodeConn nodeRequests = do
         replies <- requestNode nodeConn $ map rawRequest nodeRequests
-        return $ map (\(PendingRequest i r, rep) -> CompletedRequest i r rep) (zip nodeRequests replies)
+        return $ zipWith (curry (\(PendingRequest i r, rep) -> CompletedRequest i r rep)) nodeRequests replies
     retry :: Int -> CompletedRequest -> IO CompletedRequest
     retry retryCount resp@(CompletedRequest index request thisReply) = do
         retryReply <- case thisReply of
@@ -255,7 +248,7 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) 
         Nothing -> throwIO $ UnsupportedClusterCommandException request
         Just [] -> throwIO $ UnsupportedClusterCommandException request
         Just k -> return k
-    let shards = nub $ mapMaybe ((flip IntMap.lookup shardMap) . fromEnum . keyToSlot) keys
+    let shards = nub $ mapMaybe (flip IntMap.lookup shardMap . fromEnum . keyToSlot) keys
     node <- case shards of
         [] -> throwIO $ MissingNodeException request
         [Shard master _] -> return master
@@ -266,9 +259,9 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) 
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode (NodeConnection ctx lastRecvRef _) requests = do
-    _ <- mapM_ (sendNode . renderRequest) requests
+    mapM_ (sendNode . renderRequest) requests
     _ <- CC.flush ctx
-    sequence $ take (length requests) (repeat recvNode)
+    replicateM (length requests) recvNode
 
     where
 
@@ -295,7 +288,7 @@ nodes (ShardMap shardMap) = concatMap snd $ IntMap.toList $ fmap shardNodes shar
 
 
 nodeWithHostAndPort :: ShardMap -> Host -> Port -> Maybe Node
-nodeWithHostAndPort shardMap host port = listToMaybe $ filter (\(Node _ _ nodeHost nodePort) -> port == nodePort && host == nodeHost) $ nodes shardMap
+nodeWithHostAndPort shardMap host port = find (\(Node _ _ nodeHost nodePort) -> port == nodePort && host == nodeHost) (nodes shardMap)
 
 nodeId :: Node -> NodeID
 nodeId (Node theId _ _ _) = theId

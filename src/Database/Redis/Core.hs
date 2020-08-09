@@ -145,10 +145,8 @@ sendRequest req = do
                 setLastReply r
                 return r
             ClusteredEnv{..} -> do
-                liftIO $ putStrLn $ "sendRequest: " ++ show req
                 r <- liftIO $ Cluster.requestPipelined refreshAction connection req
                 lift (writeIORef clusteredLastReply r)
-                --setLastReply r
                 return r
     returnDecode r'
 

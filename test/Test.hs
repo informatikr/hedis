@@ -143,15 +143,13 @@ testEvalReplies :: Test
 testEvalReplies testType conn = testCase "eval unused replies" go testType conn
   where
     go = do
-      _ <- set "key" "value"
-      liftIO $ putStrLn "SET sent"
+      _ <- liftIO $ runRedis conn $ set "key" "value"
       result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
          _ <- asyncGet mvar >>= Async.wait
          takeMVar mvar
       pure result >>=? Just "value"
-    --asyncGet :: MVar (Either Reply (Maybe BS.ByteString)) -> IO (Async.Async (Either Reply (Maybe BS.ByteString)))
     asyncGet :: MVar (Either Reply (Maybe BS.ByteString)) -> IO (Async.Async ())
     asyncGet mvar = Async.async $ do
         result <- runRedis conn $ get "key"
