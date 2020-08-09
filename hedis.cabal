@@ -43,7 +43,7 @@ maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>
 copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
 build-type:         Simple
-cabal-version:      >=1.8
+cabal-version:      >=1.10
 homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
 extra-source-files: CHANGELOG
@@ -58,6 +58,7 @@ flag dev
   manual: True
 
 library
+  default-language: Haskell2010
   hs-source-dirs:   src
   ghc-options:      -Wall -fwarn-tabs
   if impl(ghc >= 8.6.0)
@@ -102,6 +103,7 @@ library
                     Database.Redis.URL
 
 benchmark hedis-benchmark
+    default-language: Haskell2010
     type: exitcode-stdio-1.0
     main-is: benchmark/Benchmark.hs
     build-depends:
@@ -116,6 +118,7 @@ benchmark hedis-benchmark
       ghc-prof-options: -auto-all
 
 test-suite hedis-test
+    default-language: Haskell2010
     type: exitcode-stdio-1.0
     hs-source-dirs: test
     main-is: Test.hs
@@ -140,6 +143,7 @@ test-suite hedis-test
       ghc-prof-options: -auto-all
 
 test-suite doctest
+    default-language: Haskell2010
     type: exitcode-stdio-1.0
     main-is: DocTest.hs
     ghc-options: -O0 -rtsopts
