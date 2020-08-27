@@ -50,8 +50,8 @@ deriving instance MonadFail Redis
 
 data RedisEnv
     = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
-    | ClusteredEnv 
-        { refreshAction :: IO ShardMap 
+    | ClusteredEnv
+        { refreshAction :: IO ShardMap
         , connection :: Cluster.Connection
         }
 
@@ -77,7 +77,7 @@ instance MonadRedis Redis where
 --
 --  'unRedis' and 'reRedis' can be used to define instances for
 --  arbitrary typeclasses.
--- 
+--
 --  WARNING! These functions are considered internal and no guarantee
 --  is given at this point that they will not break in future.
 unRedis :: Redis a -> ReaderT RedisEnv IO a
@@ -100,7 +100,7 @@ runRedisInternal conn (Redis redis) = do
 
 runRedisClusteredInternal :: Cluster.Connection -> IO ShardMap -> Redis a -> IO a
 runRedisClusteredInternal connection refreshShardmapAction (Redis redis) = do
-    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection) 
+    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection)
     r `seq` return ()
     return r
 
@@ -136,7 +136,7 @@ sendRequest :: (RedisCtx m f, RedisResult a)
 sendRequest req = do
     r' <- liftRedis $ Redis $ do
         env <- ask
-        case env of 
+        case env of
             NonClusteredEnv{..} -> do
                 r <- liftIO $ PP.request envConn (renderRequest req)
                 setLastReply r
