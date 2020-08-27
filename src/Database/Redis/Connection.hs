@@ -140,7 +140,7 @@ createConnection ConnInfo{..} = do
               _      -> return ()
     return conn'
 
--- |Constructs a 'Connection' pool to a Redis server designated by the 
+-- |Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo'. The first connection is not actually established
 --  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
@@ -148,7 +148,7 @@ connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
     createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
---  given 'ConnectInfo', then tests if the server is actually there. 
+--  given 'ConnectInfo', then tests if the server is actually there.
 --  Throws an exception if the connection to the Redis server can't be
 --  established.
 checkedConnect :: ConnectInfo -> IO Connection
@@ -162,7 +162,7 @@ disconnect :: Connection -> IO ()
 disconnect (NonClusteredConnection pool) = destroyAllResources pool
 disconnect (ClusteredConnection _ pool) = destroyAllResources pool
 
--- | Memory bracket around 'connect' and 'disconnect'. 
+-- | Memory bracket around 'connect' and 'disconnect'.
 withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
 withConnect connInfo = bracket (connect connInfo) disconnect
 
@@ -178,7 +178,7 @@ withCheckedConnect connInfo = bracket (checkedConnect connInfo) disconnect
 runRedis :: Connection -> Redis a -> IO a
 runRedis (NonClusteredConnection pool) redis =
   withResource pool $ \conn -> runRedisInternal conn redis
-runRedis (ClusteredConnection _ pool) redis = 
+runRedis (ClusteredConnection _ pool) redis =
     withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
@@ -198,7 +198,7 @@ connectCluster bootstrapConnInfo = do
             shardMap <- shardMapFromClusterSlotsResponse slots
             newMVar shardMap
     commandInfos <- runRedisInternal conn command
-    case commandInfos of 
+    case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
             pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
@@ -218,7 +218,7 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
     nodeFromClusterSlotNode isMaster ClusterSlotsNode{..} =
         let hostname = Char8.unpack clusterSlotsNodeIP
             role = if isMaster then Cluster.Master else Cluster.Slave
-        in 
+        in
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
