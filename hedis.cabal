@@ -68,6 +68,7 @@ library
   if flag(dev)
     ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
+                  , Database.Redis.Sentinel
                   , Database.Redis.Core.Internal
   build-depends:    scanner >= 0.2,
                     async >= 2.1,
