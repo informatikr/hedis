@@ -119,7 +119,9 @@ readNumKeys (rawNumKeys:rest) = do
     numKeys <- readMaybe (Char8.unpack rawNumKeys)
     return $ take numKeys rest
 readNumKeys _ = Nothing
-
+-- takeEvery 1 [1,2,3,4,5] ->[1,2,3,4,5]
+-- takeEvery 2 [1,2,3,4,5] ->[1,3,5]
+-- takeEvery 3 [1,2,3,4,5] ->[1,4]
 takeEvery :: Int -> [a] -> [a]
 takeEvery _ [] = []
 takeEvery n (x:xs) = x : takeEvery n (drop (n-1) xs)
