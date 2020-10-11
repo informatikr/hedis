@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.12.15
+
+* PR #154. Implement Redis Sentinel support
+
 ## 0.12.14
 
 * PR #153. Publicly expose ConnectTimeout exception
