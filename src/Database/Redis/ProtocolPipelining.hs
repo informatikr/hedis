@@ -47,7 +47,6 @@ data Connection = Conn
 fromCtx :: CC.ConnectionContext -> IO Connection
 fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0
 
-
 connect :: NS.HostName -> CC.PortID -> Maybe Int -> IO Connection
 connect hostName portId timeoutOpt = do
     connCtx <- CC.connect hostName portId timeoutOpt

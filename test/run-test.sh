@@ -1,7 +1,11 @@
 #!/usr/bin/env sh
+set -e
+
+echo "**These tests assume there is a redis server running on port 6379**"
 
 # The -M argument limits heap size for 'testConstantSpacePipelining'.
-cabal-dev test --test-options="+RTS -M3m"
+cabal exec cabal test doctest
+cabal test hedis-test --test-options="+RTS -M10m"
 
 echo "------------------"
 echo "hlint suggestions:"

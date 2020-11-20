@@ -8,8 +8,7 @@ import Control.Applicative ((<$>))
 #endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
-#if MIN_VERSION_base(4,13,0)
-#else
+#if __GLASGOW_HASKELL__ < 808
 import Data.Monoid ((<>))
 #endif
 import Database.Redis.Connection (ConnectInfo(..), defaultConnectInfo)

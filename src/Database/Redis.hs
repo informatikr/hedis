@@ -23,7 +23,7 @@ module Database.Redis (
     -- @
     --
     -- Send commands to the server:
-    -- 
+    --
     -- @
     -- {-\# LANGUAGE OverloadedStrings \#-}
     -- ...
@@ -114,7 +114,7 @@ module Database.Redis (
     --  The Redis Scripting website (<http://redis.io/commands/eval>)
     --  documents the exact semantics of the scripting commands and value
     --  conversion.
-    
+
     -- ** Automatic Pipelining
     -- |Commands are automatically pipelined as much as possible. For example,
     --  in the above \"hello world\" example, all four commands are pipelined.
@@ -130,7 +130,7 @@ module Database.Redis (
     --  sent only when at least one reply has been received. That means, command
     --  functions may block until there are less than 1000 outstanding replies.
     --
-    
+
     -- ** Error Behavior
     -- |
     --  [Operations against keys holding the wrong kind of value:] Outside of a
@@ -155,7 +155,7 @@ module Database.Redis (
     --    sure it is not left in an unusable state, e.g. closed or inside a
     --    transaction.
     --
-    
+
     -- * The Redis Monad
     Redis(), runRedis,
     unRedis, reRedis,
@@ -163,22 +163,24 @@ module Database.Redis (
 
     -- * Connection
     Connection, ConnectError(..), connect, checkedConnect, disconnect,
+    withConnect, withCheckedConnect,
     ConnectInfo(..), defaultConnectInfo, parseConnectInfo, connectCluster,
     PortID(..),
 
     -- * Commands
     module Database.Redis.Commands,
-    
+
     -- * Transactions
     module Database.Redis.Transactions,
-    
+
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
     -- * Low-Level Command API
     sendRequest,
-    Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
-    
+    Reply(..), Status(..), RedisResult(..), ConnectionLostException(..),
+    ConnectTimeout(..),
+
     -- |[Solution to Exercise]
     --
     --  Type of 'expire' inside a transaction:
@@ -202,8 +204,10 @@ import Database.Redis.Connection
     , checkedConnect
     , connect
     , ConnectError(..)
-    , Connection(..))
-import Database.Redis.ConnectionContext(PortID(..), ConnectionLostException(..))
+    , Connection(..)
+    , withConnect
+    , withCheckedConnect)
+import Database.Redis.ConnectionContext(PortID(..), ConnectionLostException(..), ConnectTimeout(..))
 import Database.Redis.PubSub
 import Database.Redis.Protocol
 import Database.Redis.Transactions

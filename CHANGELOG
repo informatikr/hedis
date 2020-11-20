@@ -1,5 +1,29 @@
 # Changelog for Hedis
 
+## 0.12.15
+
+* PR #154. Implement Redis Sentinel support
+
+## 0.12.14
+
+* PR #153. Publicly expose ConnectTimeout exception
+
+## 0.12.13
+
+* PR #150, Issue #143. Leaking sockets when connection fails
+
+## 0.12.12
+
+* PR #149. Make withConnect friendly to transformer stack
+
+## 0.12.11
+
+* Expose `withCheckedConnect`, `withConnect`
+
+## 0.12.9
+
+* Expose the `Database.Redis.Core.Internal` module (see https://github.com/informatikr/hedis/issues/144 )
+
 ## 0.12.8
 
 * PR #140. Added support of +/- inf redis argument

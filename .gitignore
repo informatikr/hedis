@@ -10,5 +10,4 @@ appendonly.aof
 Main.hs
 .stack-work
 TAGS
-stack.yaml.lock
-.nvimrc
+stack*.yaml.lock

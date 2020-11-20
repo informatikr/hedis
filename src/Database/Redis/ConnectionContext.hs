@@ -10,7 +10,7 @@ module Database.Redis.ConnectionContext (
   , connect
   , disconnect
   , send
-  , recv 
+  , recv
   , errConnClosed
   , enableTLS
   , flush
@@ -61,7 +61,7 @@ instance Exception ConnectionLostException
 
 data PortID = PortNumber NS.PortNumber
             | UnixSocket String
-            deriving Show
+            deriving (Eq, Show)
 
 connect :: NS.HostName -> PortID -> Maybe Int -> IO ConnectionContext
 connect hostName portId timeoutOpt =
@@ -118,7 +118,7 @@ connectSocket (addr:rest) = tryConnect >>= \case
     tryConnect = bracketOnError createSock NS.close $ \sock ->
       try (NS.connect sock $ NS.addrAddress addr) >>= \case
       Right () -> return (Right sock)
-      Left err -> return (Left err)
+      Left err -> NS.close sock >> return (Left err)
       where
         createSock = NS.socket (NS.addrFamily addr)
                                (NS.addrSocketType addr)
@@ -126,9 +126,9 @@ connectSocket (addr:rest) = tryConnect >>= \case
 
 send :: ConnectionContext -> B.ByteString -> IO ()
 send (NormalHandle h) requestData =
-      ioErrorToConnLost (B.hPut h requestData) 
+      ioErrorToConnLost (B.hPut h requestData)
 send (TLSContext ctx) requestData =
-        ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData)) 
+        ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData))
 
 recv :: ConnectionContext -> IO B.ByteString
 recv (NormalHandle h) = ioErrorToConnLost $ B.hGetSome h 4096
