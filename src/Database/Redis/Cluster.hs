@@ -19,7 +19,6 @@ module Database.Redis.Cluster
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.IORef as IOR
-import Data.Maybe(mapMaybe, fromMaybe)
 import Data.List(nub, sortBy, find)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
@@ -101,6 +100,8 @@ instance Exception UnsupportedClusterCommandException
 newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, Typeable)
 instance Exception CrossSlotException
 
+newtype MultiExecCrossSlotException = MultiExecCrossSlotException (String, [[B.ByteString]]) deriving (Show, Typeable)
+instance Exception MultiExecCrossSlotException
 
 connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> IO Connection
 connect commandInfos shardMapVar timeoutOpt = do
@@ -242,7 +243,50 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
 -- Like `evaluateOnPipeline`, except we expect to be able to run all commands
 -- on a single shard. Failing to meet this expectation is an error.
 evaluateTransactionPipeline :: MVar ShardMap -> IO ShardMap -> Connection -> [[B.ByteString]] -> IO [Reply]
-evaluateTransactionPipeline = undefined
+evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = do
+    let requests = reverse requests'
+    (ShardMap shardMap) <- hasLocked "reading shardmap in evaluatePipeline" $ readMVar shardMapVar
+    let (Connection nodeConns _ _ infoMap) = conn
+    keys <- mconcat <$> mapM (requestKeys infoMap) requests
+    -- In cluster mode Redis expects commands in transactions to all work on the
+    -- same hashslot. We find that hashslot here.
+    -- We could be more permissive and allow transactions that touch multiple
+    -- hashslots, as long as those hashslots are on the same node. This allows
+    -- a new failure case though: if some of the transactions hashslots are
+    -- moved to a different node we could end up in a situation where some of
+    -- the commands in a transaction are applied and some are not. Better to
+    -- fail early.
+    hashSlot <- hashSlotForKeys (MultiExecCrossSlotException (show keys, requests)) keys
+    node <-
+        case IntMap.lookup (fromEnum hashSlot) shardMap of
+            Nothing -> throwIO $ MissingNodeException (head requests)
+            Just (Shard master _) -> return master
+    nodeConn <-
+        case HM.lookup (nodeId node) nodeConns of
+            Nothing -> throwIO $ MissingNodeException (head requests)
+            Just nodeConn' -> return nodeConn'
+    resps <- requestNode nodeConn requests
+    -- It's unclear what to do if one of the commands in a transaction asks us
+    -- to redirect. Run only the redirected commands in another transaction?
+    -- That doesn't seem very transactional.
+    when (any moved resps)
+      (hasLocked "locked refreshing due to moved responses" $ modifyMVar_ shardMapVar (const refreshShardmapAction))
+    return resps
+
+hashSlotForKeys :: Exception e => e -> [B.ByteString] -> IO HashSlot
+hashSlotForKeys exception keys =
+    case nub (keyToSlot <$> keys) of
+        -- If none of the commands contain a key we can send them to any
+        -- node. Let's pick the first one.
+        [] -> return 0
+        [hashSlot] -> return hashSlot
+        _ -> throwIO $ exception
+
+requestKeys :: CMD.InfoMap -> [B.ByteString] -> IO [B.ByteString]
+requestKeys infoMap request =
+    case CMD.keysForRequest infoMap request of
+        Nothing -> throwIO $ UnsupportedClusterCommandException request
+        Just k -> return k
 
 askingRedirection :: Reply -> Maybe (Host, Port)
 askingRedirection (Error errString) = case Char8.words errString of
@@ -268,30 +312,16 @@ nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _) host port = do
 
 nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO NodeConnection
 nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) request = do
-    let mek = case request of
-          ("MULTI" : key : _) -> Just [key]
-          ("EXEC" : key : _) -> Just [key]
-          _ -> Nothing
-    keys <- case CMD.keysForRequest infoMap request of
-        Nothing -> throwIO $ UnsupportedClusterCommandException request
-        Just k -> return k
-    let shards = nub $ mapMaybe (flip IntMap.lookup shardMap . fromEnum . keyToSlot) (fromMaybe keys mek)
-    node <- case shards of
-        [] -> throwIO $ MissingNodeException request
-        [Shard master _] -> return master
-        _ -> throwIO $ CrossSlotException request
+    keys <- requestKeys infoMap request
+    hashSlot <- hashSlotForKeys (CrossSlotException request) keys
+    node <- case IntMap.lookup (fromEnum hashSlot) shardMap of
+        Nothing -> throwIO $ MissingNodeException request
+        Just (Shard master _) -> return master
     maybe (throwIO $ MissingNodeException request) return (HM.lookup (nodeId node) nodeConns)
-
-cleanRequest :: [B.ByteString] -> [B.ByteString]
-cleanRequest ("MULTI" : _) = ["MULTI"]
-cleanRequest ("EXEC" : _) = ["EXEC"]
-cleanRequest req = req
-
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode (NodeConnection ctx lastRecvRef _) requests = do
-    let reqs = map cleanRequest requests
-    mapM_ (sendNode . renderRequest) reqs
+    mapM_ (sendNode . renderRequest) requests
     _ <- CC.flush ctx
     replicateM (length requests) recvNode
 
