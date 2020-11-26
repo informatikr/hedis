@@ -66,6 +66,11 @@ data PipelineState =
       Pending [[B.ByteString]]
       -- This pipeline has been executed, the replies are contained within it
     | Executed [Reply]
+      -- We're in a MULTI-EXEC transaction. All commands in the transaction
+      -- should go to the same node, but we won't know what node that is until
+      -- we see a command with a key. We're storing these transactions and will
+      -- send them all together when we see an EXEC.
+    | TransactionPending [[B.ByteString]]
 -- A pipeline has an MVar for the current state, this state is actually always
 -- `Pending` because the first thing the implementation does when executing a
 -- pipeline is to take the current pipeline state out of the MVar and replace
@@ -122,13 +127,27 @@ disconnect (Connection nodeConnMap _ _ _) = mapM_ disconnectNode (HM.elems nodeC
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
 requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
     (newStateVar, repliesIndex) <- hasLocked "locked adding to pipeline" $ modifyMVar stateVar $ \case
+        Pending requests | isMulti nextRequest -> do
+            replies <- evaluatePipeline shardMapVar refreshAction conn requests
+            s' <- newMVar $ TransactionPending [nextRequest]
+            return (Executed replies, (s', 0))
         Pending requests | length requests > 1000 -> do
             replies <- evaluatePipeline shardMapVar refreshAction conn (nextRequest:requests)
             return (Executed replies, (stateVar, length requests))
         Pending requests ->
             return (Pending (nextRequest:requests), (stateVar, length requests))
+        TransactionPending requests ->
+            if isExec nextRequest then do
+              replies <- evaluateTransactionPipeline shardMapVar refreshAction conn (nextRequest:requests)
+              return (Executed replies, (stateVar, length requests))
+            else
+              return (TransactionPending (nextRequest:requests), (stateVar, length requests))
         e@(Executed _) -> do
-            s' <- newMVar $ Pending [nextRequest]
+            s' <- newMVar $
+                    if isMulti nextRequest then
+                        TransactionPending [nextRequest]
+                    else
+                        Pending [nextRequest]
             return (e, (s', 0))
     evaluateAction <- unsafeInterleaveIO $ do
         replies <- hasLocked "locked evaluating replies" $ modifyMVar newStateVar $ \case
@@ -137,10 +156,19 @@ requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nex
             Pending requests-> do
                 replies <- evaluatePipeline shardMapVar refreshAction conn requests
                 return (Executed replies, replies)
+            TransactionPending requests-> do
+                replies <- evaluateTransactionPipeline shardMapVar refreshAction conn requests
+                return (Executed replies, replies)
         return $ replies !! repliesIndex
     return (Pipeline newStateVar, evaluateAction)
 
+isMulti :: [B.ByteString] -> Bool
+isMulti ("MULTI" : _) = True
+isMulti _ = False
 
+isExec :: [B.ByteString] -> Bool
+isExec ("EXEC" : _) = True
+isExec _ = False
 
 data PendingRequest = PendingRequest Int [B.ByteString]
 data CompletedRequest = CompletedRequest Int [B.ByteString] Reply
@@ -211,6 +239,10 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
     refreshShardMapVar :: String -> IO ()
     refreshShardMapVar msg = hasLocked msg $ modifyMVar_ shardMapVar (const refreshShardmapAction)
 
+-- Like `evaluateOnPipeline`, except we expect to be able to run all commands
+-- on a single shard. Failing to meet this expectation is an error.
+evaluateTransactionPipeline :: MVar ShardMap -> IO ShardMap -> Connection -> [[B.ByteString]] -> IO [Reply]
+evaluateTransactionPipeline = undefined
 
 askingRedirection :: Reply -> Maybe (Host, Port)
 askingRedirection (Error errString) = case Char8.words errString of
