@@ -28,7 +28,7 @@ data Flag
 
 data AritySpec = Required Integer | MinimumRequired Integer deriving (Show)
 
-data LastKeyPositionSpec = LastKeyPosition Integer | UnlimitedKeys deriving (Show)
+data LastKeyPositionSpec = LastKeyPosition Integer | UnlimitedKeys Integer deriving (Show)
 
 newtype InfoMap = InfoMap (HM.HashMap String CommandInfo)
 
@@ -84,7 +84,7 @@ instance RedisResult CommandInfo where
         parseFlag bad = Left bad
         parseLastKeyPos :: Either Reply LastKeyPositionSpec
         parseLastKeyPos = return $ case lastKeyPos of
-            i | i == -1 -> UnlimitedKeys
+            i | i < 0 -> UnlimitedKeys (-i - 1)
             i -> LastKeyPosition i
 
     decode e = Left e
@@ -98,7 +98,9 @@ keysForRequest (InfoMap infoMap) request@(command:_) = do
     if isMovable info then parseMovable request else do
         let possibleKeys = case lastKeyPosition info of
                 LastKeyPosition end -> take (fromEnum $ 1 + end - firstKeyPosition info) $ drop (fromEnum $ firstKeyPosition info) request
-                UnlimitedKeys -> drop (fromEnum $ firstKeyPosition info) request
+                UnlimitedKeys end ->
+                    drop (fromEnum $ firstKeyPosition info) $
+                       take (length request - fromEnum end) request
         return $ takeEvery (fromEnum $ stepCount info) possibleKeys
 keysForRequest _ [] = Nothing
 
