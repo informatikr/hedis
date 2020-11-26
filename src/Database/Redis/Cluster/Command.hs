@@ -110,7 +110,7 @@ isMovable CommandInfo{..} = MovableKeys `elem` flags
 parseMovable :: [BS.ByteString] -> Maybe [BS.ByteString]
 parseMovable ("SORT":key:_) = Just [key]
 parseMovable ("EVAL":_:rest) = readNumKeys rest
-parseMovable ("EVALSH":_:rest) = readNumKeys rest
+parseMovable ("EVALSHA":_:rest) = readNumKeys rest
 parseMovable ("ZUNIONSTORE":_:rest) = readNumKeys rest
 parseMovable ("ZINTERSTORE":_:rest) = readNumKeys rest
 parseMovable _ = Nothing
