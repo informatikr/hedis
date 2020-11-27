@@ -6,7 +6,6 @@ module Main (main) where
 import qualified Test.Framework as Test
 import Database.Redis
 import Tests
-import PubSubTest
 
 main :: IO ()
 main = do
@@ -21,20 +20,20 @@ main = do
 tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
-    , testsZSets, [testPubSub], [testTransaction], [testScripting]
+    , testsZSets, [testTransaction], [testScripting]
     , testsConnection, testsServer, [testZrangelex]
-    , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
 
 testsServer :: [Test]
 testsServer =
-    [testServer, testBgrewriteaof, testFlushall, testSlowlog, testDebugObject]
+    [testBgrewriteaof, testFlushall, testSlowlog, testDebugObject]
 
 testsConnection :: [Test]
 testsConnection = [ testConnectAuthUnexpected, testConnectDb
-                  , testConnectDbUnexisting, testEcho, testPing, testSelect ]
+                  , testConnectDbUnexisting, testEcho, testPing
+                  ]
 
 testsKeys :: [Test]
 testsKeys = [ testKeys, testExpireAt, testSortCluster, testGetType, testObject ]
