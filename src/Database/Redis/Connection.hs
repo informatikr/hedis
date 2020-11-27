@@ -189,6 +189,12 @@ instance Exception ClusterConnectError
 
 -- |Constructs a 'ShardMap' of connections to clustered nodes. The argument is
 -- a 'ConnectInfo' for any node in the cluster
+--
+-- Some Redis commands are currently not supported in cluster mode
+-- - CONFIG, AUTH
+-- - SCAN
+-- - MOVE, SELECT
+-- - PUBLISH, SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE, PUNSUBSCRIBE, RESET
 connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
     conn <- createConnection bootstrapConnInfo
