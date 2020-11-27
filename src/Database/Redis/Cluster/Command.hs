@@ -95,14 +95,22 @@ newInfoMap = InfoMap . HM.fromList . map (\c -> (Char8.unpack $ name c, c))
 keysForRequest :: InfoMap -> [BS.ByteString] -> Maybe [BS.ByteString]
 keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
-    if isMovable info then parseMovable request else if stepCount info == 0 then Just [] else do
+    keysForRequest' info request
+keysForRequest _ [] = Nothing
+
+keysForRequest' :: CommandInfo -> [BS.ByteString] -> Maybe [BS.ByteString]
+keysForRequest' info request
+    | isMovable info =
+        parseMovable request
+    | stepCount info == 0 =
+        Just []
+    | otherwise = do
         let possibleKeys = case lastKeyPosition info of
                 LastKeyPosition end -> take (fromEnum $ 1 + end - firstKeyPosition info) $ drop (fromEnum $ firstKeyPosition info) request
                 UnlimitedKeys end ->
                     drop (fromEnum $ firstKeyPosition info) $
                        take (length request - fromEnum end) request
         return $ takeEvery (fromEnum $ stepCount info) possibleKeys
-keysForRequest _ [] = Nothing
 
 isMovable :: CommandInfo -> Bool
 isMovable CommandInfo{..} = MovableKeys `elem` flags
