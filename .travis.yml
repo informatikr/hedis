@@ -8,6 +8,9 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
+services:
+  - docker
+
 before_install:
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
@@ -21,6 +24,7 @@ before_install:
   - sudo apt-get update
   - sudo apt-get -y install redis-server
   - cd ${TRAVIS_BUILD_DIR}
+  - docker run -d -p 7000-7010:7000-7010 grokzen/redis-cluster:5.0.6
 
 matrix:
   include:
