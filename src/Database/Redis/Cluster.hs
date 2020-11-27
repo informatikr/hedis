@@ -314,12 +314,9 @@ nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _) host port = do
 nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO [NodeConnection]
 nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shardMap) request =
     case request of
-        ["UNWATCH"] ->
-            -- Per Redis documentation UNWATCH discards all previously watched
-            -- keys. That requires us to send it to every master node.
-            case allMasterNodes conn (ShardMap shardMap) of
-                Nothing -> throwIO $ MissingNodeException request
-                Just masterNodes -> return masterNodes
+        ("FLUSHALL" : _) -> allNodes
+        ("FLUSHDB" : _) -> allNodes
+        ("UNWATCH" : _) -> allNodes
         _ -> do
             keys <- requestKeys infoMap request
             hashSlot <- hashSlotForKeys (CrossSlotException request) keys
@@ -327,6 +324,11 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shard
                 Nothing -> throwIO $ MissingNodeException request
                 Just (Shard master _) -> return master
             maybe (throwIO $ MissingNodeException request) (return . return) (HM.lookup (nodeId node) nodeConns)
+    where
+        allNodes =
+            case allMasterNodes conn (ShardMap shardMap) of
+                Nothing -> throwIO $ MissingNodeException request
+                Just allNodes' -> return allNodes'
 
 allMasterNodes :: Connection -> ShardMap -> Maybe [NodeConnection]
 allMasterNodes (Connection nodeConns _ _ _) (ShardMap shardMap) =
