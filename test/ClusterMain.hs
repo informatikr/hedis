@@ -1,3 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
 
 import qualified Test.Framework as Test
@@ -32,3 +35,17 @@ testsServer =
 testsConnection :: [Test]
 testsConnection = [ testConnectAuthUnexpected, testConnectDb
                   , testConnectDbUnexisting, testEcho, testPing, testSelect ]
+
+testsKeys :: [Test]
+testsKeys = [ testKeys, testExpireAt, testSortCluster, testGetType, testObject ]
+
+testSortCluster :: Test
+testSortCluster = testCase "sort" $ do
+    lpush "{same}ids"     ["1","2","3"]                      >>=? 3
+    sort "{same}ids" defaultSortOpts                         >>=? ["1","2","3"]
+    sortStore "{same}ids" "{same}anotherKey" defaultSortOpts >>=? 3
+    let opts = defaultSortOpts { sortOrder = Desc, sortAlpha = True
+                               , sortLimit = (1,2)
+                               , sortBy    = Nothing
+                               , sortGet   = [] }
+    sort "{same}ids" opts >>=? ["2", "1"]

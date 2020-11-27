@@ -105,37 +105,39 @@ testEvalReplies conn = testCase "eval unused replies" go conn
 ------------------------------------------------------------------------------
 -- Keys
 --
-testsKeys :: [Test]
-testsKeys = [ testKeys, testExpireAt, testSort, testGetType, testObject ]
-
 testKeys :: Test
 testKeys = testCase "keys" $ do
+    set "{same}key" "value"     >>=? Ok
+    get "{same}key"             >>=? Just "value"
+    exists "{same}key"          >>=? True
+    expire "{same}key" 1        >>=? True
+    pexpire "{same}key" 1000    >>=? True
+    ttl "{same}key" >>= \case
+      Left _ -> error "error"
+      Right t -> do
+        assert $ t `elem` [0..1]
+        pttl "{same}key" >>= \case
+          Left _ -> error "error"
+          Right pt -> do
+            assert $ pt `elem` [990..1000]
+            persist "{same}key"         >>=? True
+            dump "{same}key" >>= \case
+              Left _ -> error "impossible"
+              Right s -> do
+                restore "{same}key'" 0 s          >>=? Ok
+                rename "{same}key" "{same}key'"   >>=? Ok
+                renamenx "{same}key'" "{same}key" >>=? True
+                del ["{same}key"]                 >>=? 1
+
+testKeysNoncluster :: Test
+testKeysNoncluster = testCase "keysNoncluster" $ do
     set "key" "value"     >>=? Ok
-    get "key"             >>=? Just "value"
-    exists "key"          >>=? True
     keys "*"              >>=? ["key"]
     randomkey             >>=? Just "key"
     move "key" 13         >>=? True
     select 13             >>=? Ok
-    expire "key" 1        >>=? True
-    pexpire "key" 1000    >>=? True
-    ttl "key" >>= \case
-      Left _ -> error "error"
-      Right t -> do
-        assert $ t `elem` [0..1]
-        pttl "key" >>= \case
-          Left _ -> error "error"
-          Right pt -> do
-            assert $ pt `elem` [990..1000]
-            persist "key"         >>=? True
-            dump "key" >>= \case
-              Left _ -> error "impossible"
-              Right s -> do
-                restore "key'" 0 s    >>=? Ok
-                rename "key" "key'"   >>=? Ok
-                renamenx "key'" "key" >>=? True
-                del ["key"]           >>=? 1
-                select 0              >>=? Ok
+    get "key"             >>=? Just "value"
+    select 0              >>=? Ok
 
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
@@ -199,36 +201,36 @@ testsStrings = [testStrings, testBitops]
 
 testStrings :: Test
 testStrings = testCase "strings" $ do
-    setnx "key" "value"               >>=? True
-    getset "key" "hello"              >>=? Just "value"
-    append "key" "world"              >>=? 10
-    strlen "key"                      >>=? 10
-    setrange "key" 0 "hello"          >>=? 10
-    getrange "key" 0 4                >>=? "hello"
-    mset [("k1","v1"), ("k2","v2")]   >>=? Ok
-    msetnx [("k1","v1"), ("k2","v2")] >>=? False
-    mget ["key"]                      >>=? [Just "helloworld"]
-    setex "key" 1 "42"                >>=? Ok
-    psetex "key" 1000 "42"            >>=? Ok
-    decr "key"                        >>=? 41
-    decrby "key" 1                    >>=? 40
-    incr "key"                        >>=? 41
-    incrby "key" 1                    >>=? 42
-    incrbyfloat "key" 1               >>=? 43
-    del ["key"]                       >>=? 1
-    setbit "key" 42 "1"               >>=? 0
-    getbit "key" 42                   >>=? 1
-    bitcount "key"                    >>=? 1
-    bitcountRange "key" 0 (-1)        >>=? 1
+    setnx "key" "value"                           >>=? True
+    getset "key" "hello"                          >>=? Just "value"
+    append "key" "world"                          >>=? 10
+    strlen "key"                                  >>=? 10
+    setrange "key" 0 "hello"                      >>=? 10
+    getrange "key" 0 4                            >>=? "hello"
+    mset [("{same}k1","v1"), ("{same}k2","v2")]   >>=? Ok
+    msetnx [("{same}k1","v1"), ("{same}k2","v2")] >>=? False
+    mget ["key"]                                  >>=? [Just "helloworld"]
+    setex "key" 1 "42"                            >>=? Ok
+    psetex "key" 1000 "42"                        >>=? Ok
+    decr "key"                                    >>=? 41
+    decrby "key" 1                                >>=? 40
+    incr "key"                                    >>=? 41
+    incrby "key" 1                                >>=? 42
+    incrbyfloat "key" 1                           >>=? 43
+    del ["key"]                                   >>=? 1
+    setbit "key" 42 "1"                           >>=? 0
+    getbit "key" 42                               >>=? 1
+    bitcount "key"                                >>=? 1
+    bitcountRange "key" 0 (-1)                    >>=? 1
 
 testBitops :: Test
 testBitops = testCase "bitops" $ do
-    set "k1" "a"               >>=? Ok
-    set "k2" "b"               >>=? Ok
-    bitopAnd "k3" ["k1", "k2"] >>=? 1
-    bitopOr "k3" ["k1", "k2"]  >>=? 1
-    bitopXor "k3" ["k1", "k2"] >>=? 1
-    bitopNot "k3" "k1"         >>=? 1
+    set "{same}k1" "a"                           >>=? Ok
+    set "{same}k2" "b"                           >>=? Ok
+    bitopAnd "{same}k3" ["{same}k1", "{same}k2"] >>=? 1
+    bitopOr "{same}k3" ["{same}k1", "{same}k2"]  >>=? 1
+    bitopXor "{same}k3" ["{same}k1", "{same}k2"] >>=? 1
+    bitopNot "{same}k3" "{same}k1"               >>=? 1
 
 ------------------------------------------------------------------------------
 -- Hashes
@@ -276,12 +278,12 @@ testLists = testCase "lists" $ do
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
-    lpush "key" ["v3","v2","v1"] >>=? 3
-    blpop ["key"] 1              >>=? Just ("key","v1")
-    brpop ["key"] 1              >>=? Just ("key","v3")
-    rpush "k1" ["v1","v2"]       >>=? 2
-    brpoplpush "k1" "k2" 1       >>=? Just "v2"
-    rpoplpush "k1" "k2"          >>=? Just "v1"
+    lpush "{same}key" ["v3","v2","v1"] >>=? 3
+    blpop ["{same}key"] 1              >>=? Just ("{same}key","v1")
+    brpop ["{same}key"] 1              >>=? Just ("{same}key","v3")
+    rpush "{same}k1" ["v1","v2"]       >>=? 2
+    brpoplpush "{same}k1" "{same}k2" 1 >>=? Just "v2"
+    rpoplpush "{same}k1" "{same}k2"    >>=? Just "v1"
 
 ------------------------------------------------------------------------------
 -- Sets
@@ -298,7 +300,7 @@ testSets = testCase "sets" $ do
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
     srem "set" ["member"]       >>=? 0
-    smove "set" "set'" "member" >>=? False
+    smove "{same}set" "{same}set'" "member" >>=? False
     _ <- sadd "set" ["member1", "member2"]
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
     _ <- sadd "set" ["member1", "member2"]
@@ -306,13 +308,13 @@ testSets = testCase "sets" $ do
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
-    sdiffstore "s3" ["s1", "s2"]  >>=? 1
-    sunionstore "s3" ["s1", "s2"] >>=? 1
-    sinterstore "s3" ["s1", "s2"] >>=? 0
+    sadd "{same}s1" ["member"]                      >>=? 1
+    sdiff ["{same}s1", "{same}s2"]                  >>=? ["member"]
+    sunion ["{same}s1", "{same}s2"]                 >>=? ["member"]
+    sinter ["{same}s1", "{same}s2"]                 >>=? []
+    sdiffstore "{same}s3" ["{same}s1", "{same}s2"]  >>=? 1
+    sunionstore "{same}s3" ["{same}s1", "{same}s2"] >>=? 1
+    sinterstore "{same}s3" ["{same}s1", "{same}s2"] >>=? 0
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
@@ -351,16 +353,16 @@ testZSets = testCase "sorted sets" $ do
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
-    zadd "k1" [(1, "v1"), (2, "v2")] >>= \case
+    zadd "{same}k1" [(1, "v1"), (2, "v2")] >>= \case
       Left _ -> error "error"
       _ -> return ()
-    zadd "k2" [(2, "v2"), (3, "v3")] >>= \case
+    zadd "{same}k2" [(2, "v2"), (3, "v3")] >>= \case
       Left _ -> error "error"
       _ -> return ()
-    zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
-    zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
-    zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
-    zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
+    zinterstore "{same}newkey" ["{same}k1","{same}k2"] Sum                >>=? 1
+    zinterstoreWeights "{same}newkey" [("{same}k1",1),("{same}k2",2)] Max >>=? 1
+    zunionstore "{same}newkey" ["{same}k1","{same}k2"] Sum                >>=? 3
+    zunionstoreWeights "{same}newkey" [("{same}k1",1),("{same}k2",2)] Min >>=? 3
 
 ------------------------------------------------------------------------------
 -- HyperLogLog
@@ -383,18 +385,18 @@ testHyperLogLog = testCase "hyperloglog" $ do
       _ -> return ()
   pfcount ["hll1"] >>=? 5
   -- test merge
-  pfadd "hll2" ["1", "2", "3"] >>= \case
+  pfadd "{same}hll2" ["1", "2", "3"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfadd "hll3" ["4", "5", "6"] >>= \case
+  pfadd "{same}hll3" ["4", "5", "6"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfmerge "hll4" ["hll2", "hll3"] >>= \case
+  pfmerge "{same}hll4" ["{same}hll2", "{same}hll3"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfcount ["hll4"] >>=? 6
+  pfcount ["{same}hll4"] >>=? 6
   -- test union cardinality
-  pfcount ["hll2", "hll3"] >>=? 6
+  pfcount ["{same}hll2", "{same}hll3"] >>=? 6
 
 ------------------------------------------------------------------------------
 -- Pub/Sub
@@ -432,17 +434,17 @@ testPubSub conn = testCase "pubSub" go conn
 --
 testTransaction :: Test
 testTransaction = testCase "transaction" $ do
-    watch ["k1", "k2"] >>=? Ok
+    watch ["{same}k1", "{same}k2"] >>=? Ok
     unwatch            >>=? Ok
-    set "foo" "foo" >>= \case
+    set "{same}foo" "foo" >>= \case
       Left _ -> error "error"
       _ -> return ()
-    set "bar" "bar" >>= \case
+    set "{same}bar" "bar" >>= \case
       Left _ -> error "error"
       _ -> return ()
     foobar <- multiExec $ do
-        foo <- get "foo"
-        bar <- get "bar"
+        foo <- get "{same}foo"
+        bar <- get "{same}bar"
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
