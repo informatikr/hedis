@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
-module Tests (tests) where
+module Tests where
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
@@ -18,7 +18,6 @@ import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
 
 import Database.Redis
-import PubSubTest
 
 ------------------------------------------------------------------------------
 -- helpers
@@ -45,20 +44,6 @@ redis >>=? expected = do
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
-
-------------------------------------------------------------------------------
--- Tests
---
-tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
-    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
-    , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
-    , testPubSubThreaded
-      -- should always be run last as connection gets closed after it
-    , [testQuit]
-    ]
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
@@ -498,10 +483,6 @@ testScripting conn = testCase "scripting" go conn
 ------------------------------------------------------------------------------
 -- Connection
 --
-testsConnection :: [Test]
-testsConnection = [ testConnectAuth, testConnectAuthUnexpected, testConnectDb
-                  , testConnectDbUnexisting, testEcho, testPing, testSelect ]
-
 testConnectAuth :: Test
 testConnectAuth = testCase "connect/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
@@ -558,11 +539,6 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
-testsServer :: [Test]
-testsServer =
-    [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
-    ,testSlowlog, testDebugObject]
-
 testServer :: Test
 testServer = testCase "server" $ do
     time >>= \case
