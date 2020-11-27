@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
-module Main (main) where
+module Tests (tests) where
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
@@ -13,7 +13,7 @@ import Control.Monad.Trans
 import qualified Data.List as L
 import Data.Time
 import Data.Time.Clock.POSIX
-import qualified Test.Framework as Test (Test, defaultMain)
+import qualified Test.Framework as Test (Test)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
 
@@ -21,13 +21,8 @@ import Database.Redis
 import PubSubTest
 
 ------------------------------------------------------------------------------
--- Main and helpers
+-- helpers
 --
-main :: IO ()
-main = do
-    conn <- connect defaultConnectInfo
-    Test.defaultMain (tests conn)
-
 type Test = Connection -> Test.Test
 
 testCase :: String -> Redis () -> Test
