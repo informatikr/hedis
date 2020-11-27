@@ -634,20 +634,20 @@ testZrangelex = testCase "zrangebylex" $ do
 
 testXAddRead ::Test
 testXAddRead = testCase "xadd/xread" $ do
-    xadd "somestream" "123" [("key", "value"), ("key2", "value2")]
-    xadd "otherstream" "456" [("key1", "value1")]
-    xaddOpts "thirdstream" "*" [("k", "v")] (Maxlen 1)
-    xaddOpts "thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
-    xread [("somestream", "0"), ("otherstream", "0")] >>=? Just [
+    xadd "{same}somestream" "123" [("key", "value"), ("key2", "value2")]
+    xadd "{same}otherstream" "456" [("key1", "value1")]
+    xaddOpts "{same}thirdstream" "*" [("k", "v")] (Maxlen 1)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
+    xread [("{same}somestream", "0"), ("{same}otherstream", "0")] >>=? Just [
         XReadResponse {
-            stream = "somestream",
+            stream = "{same}somestream",
             records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value"), ("key2", "value2")]}]
         },
         XReadResponse {
-            stream = "otherstream",
+            stream = "{same}otherstream",
             records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
         }]
-    xlen "somestream" >>=? 1
+    xlen "{same}somestream" >>=? 1
 
 testXReadGroup ::Test
 testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
