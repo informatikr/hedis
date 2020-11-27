@@ -99,6 +99,10 @@ keysForRequest (InfoMap infoMap) request@(command:_) = do
 keysForRequest _ [] = Nothing
 
 keysForRequest' :: CommandInfo -> [BS.ByteString] -> Maybe [BS.ByteString]
+keysForRequest' _ ["DEBUG", "OBJECT", key] =
+    -- `COMMAND` output for `DEBUG` would let us believe it doesn't have any
+    -- keys, but the `DEBUG OBJECT` subcommand does.
+    Just [key]
 keysForRequest' info request
     | isMovable info =
         parseMovable request
