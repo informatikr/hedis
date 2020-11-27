@@ -605,14 +605,23 @@ testScans = testCase "scans" $ do
     scan cursor0            >>=? (cursor0, ["key"])
     scanOpts cursor0 sOpts1 >>=? (cursor0, ["key"])
     scanOpts cursor0 sOpts2 >>=? (cursor0, [])
-    sadd "set" ["1"]        >>=? 1
-    sscan "set" cursor0     >>=? (cursor0, ["1"])
-    hset "hash" "k" "v"     >>=? True
-    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
-    zadd "zset" [(42, "2")] >>=? 1
-    zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
     where sOpts1 = defaultScanOpts { scanMatch = Just "k*" }
           sOpts2 = defaultScanOpts { scanMatch = Just "not*"}
+
+testSScan :: Test
+testSScan = testCase "sscan" $ do
+    sadd "set" ["1"]        >>=? 1
+    sscan "set" cursor0     >>=? (cursor0, ["1"])
+
+testHScan :: Test
+testHScan = testCase "hscan" $ do
+    hset "hash" "k" "v"     >>=? True
+    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+
+testZScan :: Test
+testZScan = testCase "zscan" $ do
+    zadd "zset" [(42, "2")] >>=? 1
+    zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
 
 testZrangelex ::Test
 testZrangelex = testCase "zrangebylex" $ do

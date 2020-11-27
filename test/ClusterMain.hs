@@ -21,7 +21,7 @@ tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testZrangelex]
+    , testsConnection, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
