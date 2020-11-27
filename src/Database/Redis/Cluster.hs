@@ -316,6 +316,7 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shard
     case request of
         ("FLUSHALL" : _) -> allNodes
         ("FLUSHDB" : _) -> allNodes
+        ("QUIT" : _) -> allNodes
         ("UNWATCH" : _) -> allNodes
         _ -> do
             keys <- requestKeys infoMap request

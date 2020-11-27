@@ -93,16 +93,19 @@ newInfoMap :: [CommandInfo] -> InfoMap
 newInfoMap = InfoMap . HM.fromList . map (\c -> (Char8.unpack $ name c, c))
 
 keysForRequest :: InfoMap -> [BS.ByteString] -> Maybe [BS.ByteString]
+keysForRequest _ ["DEBUG", "OBJECT", key] =
+    -- `COMMAND` output for `DEBUG` would let us believe it doesn't have any
+    -- keys, but the `DEBUG OBJECT` subcommand does.
+    Just [key]
+keysForRequest _ ["QUIT"] =
+    -- The `QUIT` command is not listed in the `COMMAND` output.
+    Just []
 keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
     keysForRequest' info request
 keysForRequest _ [] = Nothing
 
 keysForRequest' :: CommandInfo -> [BS.ByteString] -> Maybe [BS.ByteString]
-keysForRequest' _ ["DEBUG", "OBJECT", key] =
-    -- `COMMAND` output for `DEBUG` would let us believe it doesn't have any
-    -- keys, but the `DEBUG OBJECT` subcommand does.
-    Just [key]
 keysForRequest' info request
     | isMovable info =
         parseMovable request
