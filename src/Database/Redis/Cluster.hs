@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 module Database.Redis.Cluster
   ( Connection(..)
@@ -208,12 +209,12 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
   where
     getRequestsByNode :: ShardMap -> IO [(NodeConnection, [PendingRequest])]
     getRequestsByNode shardMap = do
-        commandsWithNodes <- zipWithM (requestWithNode shardMap) (reverse [0..(length requests - 1)]) requests
-        return $ assocs $ fromListWith (++) commandsWithNodes
-    requestWithNode :: ShardMap -> Int -> [B.ByteString] -> IO (NodeConnection, [PendingRequest])
-    requestWithNode shardMap index request = do
-        nodeConn <- nodeConnectionForCommand conn shardMap request
-        return (nodeConn, [PendingRequest index request])
+        commandsWithNodes <- zipWithM (requestWithNodes shardMap) (reverse [0..(length requests - 1)]) requests
+        return $ assocs $ fromListWith (++) (mconcat commandsWithNodes)
+    requestWithNodes :: ShardMap -> Int -> [B.ByteString] -> IO [(NodeConnection, [PendingRequest])]
+    requestWithNodes shardMap index request = do
+        nodeConns <- nodeConnectionForCommand conn shardMap request
+        return $ (, [PendingRequest index request]) <$> nodeConns
     executeRequests :: NodeConnection -> [PendingRequest] -> IO [CompletedRequest]
     executeRequests nodeConn nodeRequests = do
         replies <- requestNode nodeConn $ map rawRequest nodeRequests
@@ -223,7 +224,7 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         retryReply <- case thisReply of
             (Error errString) | B.isPrefixOf "MOVED" errString -> do
                 shardMap <- hasLocked "reading shard map in retry MOVED" $ readMVar shardMapVar
-                nodeConn <- nodeConnectionForCommand conn shardMap (requestForResponse resp)
+                nodeConn <- head <$> nodeConnectionForCommand conn shardMap (requestForResponse resp)
                 head <$> requestNode nodeConn [request]
             (askingRedirection -> Just (host, port)) -> do
                 shardMap <- hasLocked "reading shardmap in retry ASK" $ readMVar shardMapVar
@@ -310,14 +311,28 @@ nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _) host port = do
     node <- nodeWithHostAndPort shardMap host port
     HM.lookup (nodeId node) nodeConns
 
-nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO NodeConnection
-nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) request = do
-    keys <- requestKeys infoMap request
-    hashSlot <- hashSlotForKeys (CrossSlotException request) keys
-    node <- case IntMap.lookup (fromEnum hashSlot) shardMap of
-        Nothing -> throwIO $ MissingNodeException request
-        Just (Shard master _) -> return master
-    maybe (throwIO $ MissingNodeException request) return (HM.lookup (nodeId node) nodeConns)
+nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO [NodeConnection]
+nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shardMap) request =
+    case request of
+        ["UNWATCH"] ->
+            -- Per Redis documentation UNWATCH discards all previously watched
+            -- keys. That requires us to send it to every master node.
+            case allMasterNodes conn (ShardMap shardMap) of
+                Nothing -> throwIO $ MissingNodeException request
+                Just masterNodes -> return masterNodes
+        _ -> do
+            keys <- requestKeys infoMap request
+            hashSlot <- hashSlotForKeys (CrossSlotException request) keys
+            node <- case IntMap.lookup (fromEnum hashSlot) shardMap of
+                Nothing -> throwIO $ MissingNodeException request
+                Just (Shard master _) -> return master
+            maybe (throwIO $ MissingNodeException request) (return . return) (HM.lookup (nodeId node) nodeConns)
+
+allMasterNodes :: Connection -> ShardMap -> Maybe [NodeConnection]
+allMasterNodes (Connection nodeConns _ _ _) (ShardMap shardMap) =
+    mapM (flip HM.lookup nodeConns . nodeId) masterNodes
+  where
+    masterNodes = (\(Shard master _) -> master) <$> nub (IntMap.elems shardMap)
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode (NodeConnection ctx lastRecvRef _) requests = do
