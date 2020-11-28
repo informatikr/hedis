@@ -1203,7 +1203,7 @@
     ],
     "since": "2.0.0",
     "group": "hash",
-    "returns": "bool"
+    "returns": "integer"
   },
   "HSETNX": {
     "summary": "Set the value of a hash field, only if the field does not exist",

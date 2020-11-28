@@ -830,7 +830,7 @@ hset
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> ByteString -- ^ value
-    -> m (f Bool)
+    -> m (f Integer)
 hset key field value = sendRequest (["HSET"] ++ [encode key] ++ [encode field] ++ [encode value] )
 
 brpoplpush
