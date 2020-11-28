@@ -196,7 +196,7 @@ testGetType = testCase "getType" $ do
         del ["key"]   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
-         , (hset "key" "field" "value"                >>=? True, Hash)
+         , (hset "key" "field" "value"                >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
          , (sadd "key" ["member"]                     >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
@@ -255,7 +255,9 @@ testBitops = testCase "bitops" $ do
 --
 testHashes :: Test
 testHashes = testCase "hashes" $ do
-    hset "key" "field" "value"   >>=? True
+    hset "key" "field" "another" >>=? 1
+    hset "key" "field" "another" >>=? 0
+    hset "key" "field" "value"   >>=? 0
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
@@ -634,7 +636,7 @@ testScans = testCase "scans" $ do
     scanOpts cursor0 sOpts2 >>=? (cursor0, [])
     sadd "set" ["1"]        >>=? 1
     sscan "set" cursor0     >>=? (cursor0, ["1"])
-    hset "hash" "k" "v"     >>=? True
+    hset "hash" "k" "v"     >>=? 1
     hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
     zadd "zset" [(42, "2")] >>=? 1
     zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
