@@ -526,7 +526,7 @@ testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
 
     where connInfo = defaultConnectInfo { connectAuth = Just "pass" }
           err = Left $ ConnectAuthError $
-                  Error "ERR Client sent AUTH, but no password is set"
+                  Error "ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?"
 
 testConnectDb :: Test
 testConnectDb = testCase "connect/db" $ do

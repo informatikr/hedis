@@ -1,10 +1,13 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, FlexibleContexts #-}
 
 module Database.Redis.ManualCommands where
 
 import Prelude hiding (min, max)
 import Data.ByteString (ByteString, empty, append)
 import Data.Maybe (maybeToList)
+#if __GLASGOW_HASKELL__ < 808
+import Data.Semigroup ((<>))
+#endif
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -1157,18 +1160,33 @@ data XInfoStreamResponse = XInfoStreamResponse
     } deriving (Show, Eq)
 
 instance RedisResult XInfoStreamResponse where
-    decode (MultiBulk (Just [
-        Bulk (Just "length"),Integer xinfoStreamLength,
-        Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-        Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-        Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-        Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-        Bulk (Just "first-entry"), rawFirstEntry ,
-        Bulk (Just "last-entry"), rawLastEntry ])) = do
-            xinfoStreamFirstEntry <- decode rawFirstEntry
-            xinfoStreamLastEntry <- decode rawLastEntry
-            return XInfoStreamResponse{..}
-    decode a = Left a
+    decode = decodeRedis5 <> decodeRedis6
+        where
+            decodeRedis5 (MultiBulk (Just [
+                Bulk (Just "length"),Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "first-entry"), rawFirstEntry ,
+                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                    xinfoStreamFirstEntry <- decode rawFirstEntry
+                    xinfoStreamLastEntry <- decode rawLastEntry
+                    return XInfoStreamResponse{..}
+            decodeRedis5 a = Left a
+
+            decodeRedis6 (MultiBulk (Just [
+                Bulk (Just "length"),Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"), rawFirstEntry ,
+                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                    xinfoStreamFirstEntry <- decode rawFirstEntry
+                    xinfoStreamLastEntry <- decode rawLastEntry
+                    return XInfoStreamResponse{..}
+            decodeRedis6 a = Left a
 
 xinfoStream
     :: (RedisCtx m f)

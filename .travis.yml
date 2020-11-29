@@ -2,6 +2,13 @@ language: c
 # sudo: false
 dist: bionic
 
+addons:
+  apt:
+    sources:
+      - sourceline: ppa:redislabs/redis
+    packages:
+      - redis
+
 cache:
   directories:
   - $HOME/.ghc
@@ -14,12 +21,6 @@ before_install:
   - export PATH=~/.local/bin:$PATH
   - curl -L https://github.com/commercialhaskell/stack/releases/download/v2.1.3/stack-2.1.3-linux-x86_64.tar.gz | tar xz -C ~/tmp
   - mv ~/tmp/stack-2.1.3-linux-x86_64/stack ~/.local/bin/
-  # - curl -L https://github.com/antirez/redis/archive/5.0.2.tar.gz | tar xz -C ~/tmp
-  # - cd ~/tmp/redis-5.0.2 && make
-  # - ~/tmp/redis-5.0.2/src/redis-server &
-  - sudo add-apt-repository -y ppa:chris-lea/redis-server
-  - sudo apt-get update
-  - sudo apt-get -y install redis-server
   - cd ${TRAVIS_BUILD_DIR}
 
 matrix:
