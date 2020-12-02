@@ -101,9 +101,6 @@ instance Exception UnsupportedClusterCommandException
 newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, Typeable)
 instance Exception CrossSlotException
 
-newtype MultiExecCrossSlotException = MultiExecCrossSlotException (String, [[B.ByteString]]) deriving (Show, Typeable)
-instance Exception MultiExecCrossSlotException
-
 connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> IO Connection
 connect commandInfos shardMapVar timeoutOpt = do
         shardMap <- readMVar shardMapVar
@@ -259,7 +256,7 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     -- moved to a different node we could end up in a situation where some of
     -- the commands in a transaction are applied and some are not. Better to
     -- fail early.
-    hashSlot <- hashSlotForKeys (MultiExecCrossSlotException (show keys, requests)) keys
+    hashSlot <- hashSlotForKeys (CrossSlotException (head requests)) keys
     nodeConn <- nodeConnForHashSlot "evaluatePipeline" shardMapVar conn (MissingNodeException (head requests)) hashSlot
     resps <- requestNode nodeConn requests
     -- It's unclear what to do if one of the commands in a transaction asks us
