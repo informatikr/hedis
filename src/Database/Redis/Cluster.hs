@@ -98,7 +98,7 @@ instance Exception MissingNodeException
 newtype UnsupportedClusterCommandException = UnsupportedClusterCommandException [B.ByteString] deriving (Show, Typeable)
 instance Exception UnsupportedClusterCommandException
 
-newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, Typeable)
+newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show, Typeable)
 instance Exception CrossSlotException
 
 connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> IO Connection
@@ -226,7 +226,7 @@ retryBatch shardMapVar refreshShardmapAction conn retryCount requests thisReply 
         (Error errString) | B.isPrefixOf "MOVED" errString -> do
             let (Connection _ _ _ infoMap) = conn
             keys <- mconcat <$> mapM (requestKeys infoMap) requests
-            hashSlot <- hashSlotForKeys (CrossSlotException (head requests)) keys
+            hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
             nodeConn <- nodeConnForHashSlot "MOVED" shardMapVar conn (MissingNodeException (head requests)) hashSlot
             head <$> requestNode nodeConn requests
         (askingRedirection -> Just (host, port)) -> do
@@ -256,7 +256,7 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     -- moved to a different node we could end up in a situation where some of
     -- the commands in a transaction are applied and some are not. Better to
     -- fail early.
-    hashSlot <- hashSlotForKeys (CrossSlotException (head requests)) keys
+    hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
     nodeConn <- nodeConnForHashSlot "evaluatePipeline" shardMapVar conn (MissingNodeException (head requests)) hashSlot
     resps <- requestNode nodeConn requests
     -- It's unclear what to do if one of the commands in a transaction asks us
@@ -324,7 +324,7 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shard
         ("UNWATCH" : _) -> allNodes
         _ -> do
             keys <- requestKeys infoMap request
-            hashSlot <- hashSlotForKeys (CrossSlotException request) keys
+            hashSlot <- hashSlotForKeys (CrossSlotException [request]) keys
             node <- case IntMap.lookup (fromEnum hashSlot) shardMap of
                 Nothing -> throwIO $ MissingNodeException request
                 Just (Shard master _) -> return master
