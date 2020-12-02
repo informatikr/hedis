@@ -220,26 +220,29 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         replies <- requestNode nodeConn $ map rawRequest nodeRequests
         return $ zipWith (curry (\(PendingRequest i r, rep) -> CompletedRequest i r rep)) nodeRequests replies
     retry :: Int -> CompletedRequest -> IO CompletedRequest
-    retry retryCount resp@(CompletedRequest index request thisReply) = do
-        retryReply <- case thisReply of
-            (Error errString) | B.isPrefixOf "MOVED" errString -> do
-                shardMap <- hasLocked "reading shard map in retry MOVED" $ readMVar shardMapVar
-                nodeConn <- head <$> nodeConnectionForCommand conn shardMap (requestForResponse resp)
-                head <$> requestNode nodeConn [request]
-            (askingRedirection -> Just (host, port)) -> do
-                shardMap <- hasLocked "reading shardmap in retry ASK" $ readMVar shardMapVar
-                let maybeAskNode = nodeConnWithHostAndPort shardMap conn host port
-                case maybeAskNode of
-                    Just askNode -> last <$> requestNode askNode [["ASKING"], requestForResponse resp]
-                    Nothing -> case retryCount of
-                        0 -> do
-                            _ <- refreshShardMapVar "missing node in first retry of ASK"
-                            rawResponse <$> retry (retryCount + 1) resp
-                        _ -> throwIO $ MissingNodeException (requestForResponse resp)
-            _ -> return thisReply
-        return (CompletedRequest index request retryReply)
+    retry = retry' shardMapVar refreshShardmapAction conn
     refreshShardMapVar :: String -> IO ()
     refreshShardMapVar msg = hasLocked msg $ modifyMVar_ shardMapVar (const refreshShardmapAction)
+
+retry' :: MVar ShardMap -> IO ShardMap -> Connection -> Int -> CompletedRequest -> IO CompletedRequest
+retry' shardMapVar refreshShardmapAction conn retryCount resp@(CompletedRequest index request thisReply) = do
+    retryReply <- case thisReply of
+        (Error errString) | B.isPrefixOf "MOVED" errString -> do
+            shardMap <- hasLocked "reading shard map in retry MOVED" $ readMVar shardMapVar
+            nodeConn <- head <$> nodeConnectionForCommand conn shardMap (requestForResponse resp)
+            head <$> requestNode nodeConn [request]
+        (askingRedirection -> Just (host, port)) -> do
+            shardMap <- hasLocked "reading shardmap in retry ASK" $ readMVar shardMapVar
+            let maybeAskNode = nodeConnWithHostAndPort shardMap conn host port
+            case maybeAskNode of
+                Just askNode -> last <$> requestNode askNode [["ASKING"], requestForResponse resp]
+                Nothing -> case retryCount of
+                    0 -> do
+                        _ <- hasLocked "missing node in first retry of ASK" $ modifyMVar_ shardMapVar (const refreshShardmapAction)
+                        rawResponse <$> retry' shardMapVar refreshShardmapAction conn (retryCount + 1) resp
+                    _ -> throwIO $ MissingNodeException (requestForResponse resp)
+        _ -> return thisReply
+    return (CompletedRequest index request retryReply)
 
 -- Like `evaluateOnPipeline`, except we expect to be able to run all commands
 -- on a single shard. Failing to meet this expectation is an error.
