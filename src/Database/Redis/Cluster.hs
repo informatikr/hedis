@@ -215,31 +215,36 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         return $ zipWith (curry (\(PendingRequest i r, rep) -> CompletedRequest i r rep)) nodeRequests replies
     retry :: Int -> CompletedRequest -> IO CompletedRequest
     retry retryCount (CompletedRequest index request thisReply) = do
-        retryReply <- retryBatch shardMapVar refreshShardmapAction conn retryCount [request] thisReply
+        retryReply <- head <$> retryBatch shardMapVar refreshShardmapAction conn retryCount [request] [thisReply]
         return (CompletedRequest index request retryReply)
     refreshShardMapVar :: String -> IO ()
     refreshShardMapVar msg = hasLocked msg $ modifyMVar_ shardMapVar (const refreshShardmapAction)
 
-retryBatch :: MVar ShardMap -> IO ShardMap -> Connection -> Int -> [[B.ByteString]] -> Reply -> IO Reply
-retryBatch shardMapVar refreshShardmapAction conn retryCount requests thisReply =
-    case thisReply of
+-- Retry a batch of requests if any of the responses is a redirect instruction.
+-- If multiple requests are passed in they're assumed to be a MULTI..EXEC
+-- transaction and will all be retried.
+retryBatch :: MVar ShardMap -> IO ShardMap -> Connection -> Int -> [[B.ByteString]] -> [Reply] -> IO [Reply]
+retryBatch shardMapVar refreshShardmapAction conn retryCount requests replies =
+    -- The last reply will be the `EXEC` reply containing the redirection, if
+    -- there is one.
+    case last replies of
         (Error errString) | B.isPrefixOf "MOVED" errString -> do
             let (Connection _ _ _ infoMap) = conn
             keys <- mconcat <$> mapM (requestKeys infoMap) requests
             hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
             nodeConn <- nodeConnForHashSlot "MOVED" shardMapVar conn (MissingNodeException (head requests)) hashSlot
-            head <$> requestNode nodeConn requests
+            requestNode nodeConn requests
         (askingRedirection -> Just (host, port)) -> do
             shardMap <- hasLocked "reading shardmap in retry ASK" $ readMVar shardMapVar
             let maybeAskNode = nodeConnWithHostAndPort shardMap conn host port
             case maybeAskNode of
-                Just askNode -> last <$> requestNode askNode (["ASKING"] : requests)
+                Just askNode -> tail <$> requestNode askNode (["ASKING"] : requests)
                 Nothing -> case retryCount of
                     0 -> do
                         _ <- hasLocked "missing node in first retry of ASK" $ modifyMVar_ shardMapVar (const refreshShardmapAction)
-                        retryBatch shardMapVar refreshShardmapAction conn (retryCount + 1) requests thisReply
+                        retryBatch shardMapVar refreshShardmapAction conn (retryCount + 1) requests replies
                     _ -> throwIO $ MissingNodeException (head requests)
-        _ -> return thisReply
+        _ -> return replies
 
 -- Like `evaluateOnPipeline`, except we expect to be able to run all commands
 -- on a single shard. Failing to meet this expectation is an error.
