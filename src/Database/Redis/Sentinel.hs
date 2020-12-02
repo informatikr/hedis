@@ -1,10 +1,11 @@
-{-# LANGUAGE BangPatterns      #-}
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE NamedFieldPuns    #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE StrictData        #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE BangPatterns       #-}
+{-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE StrictData         #-}
+{-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | "Database.Redis" like interface with connection through Redis Sentinel.
 --
@@ -215,4 +216,6 @@ data SentinelConnectInfo
 data RedisSentinelException
   = NoSentinels (NonEmpty (HostName, PortID))
     -- ^ Thrown if no sentinel can be reached.
-  deriving (Show, Typeable, Exception)
+  deriving (Show, Typeable)
+
+deriving instance Exception RedisSentinelException

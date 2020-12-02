@@ -1,5 +1,14 @@
 # Changelog for Hedis
 
+## 0.13.1
+
+* PR #158. Upgrade to Redis 6.0.9 & Fix auth test
+* PR #160. Fix GHC 8.0.1 compat
+
+## 0.13.0
+
+* PR #159. Issue #152. Make HSET return integer instead of bool
+
 ## 0.12.15
 
 * PR #154. Implement Redis Sentinel support

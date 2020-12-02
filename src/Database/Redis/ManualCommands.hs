@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, FlexibleContexts #-}
 
 module Database.Redis.ManualCommands where
 
@@ -7,6 +7,9 @@ import Data.ByteString (ByteString, empty, append)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString as BS
 import Data.Maybe (maybeToList, catMaybes)
+#if __GLASGOW_HASKELL__ < 808
+import Data.Semigroup ((<>))
+#endif
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -1160,18 +1163,33 @@ data XInfoStreamResponse = XInfoStreamResponse
     } deriving (Show, Eq)
 
 instance RedisResult XInfoStreamResponse where
-    decode (MultiBulk (Just [
-        Bulk (Just "length"),Integer xinfoStreamLength,
-        Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-        Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-        Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-        Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-        Bulk (Just "first-entry"), rawFirstEntry ,
-        Bulk (Just "last-entry"), rawLastEntry ])) = do
-            xinfoStreamFirstEntry <- decode rawFirstEntry
-            xinfoStreamLastEntry <- decode rawLastEntry
-            return XInfoStreamResponse{..}
-    decode a = Left a
+    decode = decodeRedis5 <> decodeRedis6
+        where
+            decodeRedis5 (MultiBulk (Just [
+                Bulk (Just "length"),Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "first-entry"), rawFirstEntry ,
+                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                    xinfoStreamFirstEntry <- decode rawFirstEntry
+                    xinfoStreamLastEntry <- decode rawLastEntry
+                    return XInfoStreamResponse{..}
+            decodeRedis5 a = Left a
+
+            decodeRedis6 (MultiBulk (Just [
+                Bulk (Just "length"),Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"), rawFirstEntry ,
+                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                    xinfoStreamFirstEntry <- decode rawFirstEntry
+                    xinfoStreamLastEntry <- decode rawLastEntry
+                    return XInfoStreamResponse{..}
+            decodeRedis6 a = Left a
 
 xinfoStream
     :: (RedisCtx m f)
@@ -1308,7 +1326,7 @@ data ClusterSlotsNode = ClusterSlotsNode
     , clusterSlotsNodeID :: ByteString
     } deriving (Show)
 
-data ClusterSlotsResponseEntry = ClusterSlotsResponseEntry 
+data ClusterSlotsResponseEntry = ClusterSlotsResponseEntry
     { clusterSlotsResponseEntryStartSlot :: Int
     , clusterSlotsResponseEntryEndSlot :: Int
     , clusterSlotsResponseEntryMaster :: ClusterSlotsNode
@@ -1322,10 +1340,10 @@ instance RedisResult ClusterSlotsResponse where
     decode a = Left a
 
 instance RedisResult ClusterSlotsResponseEntry where
-    decode (MultiBulk (Just 
+    decode (MultiBulk (Just
         ((Integer startSlot):(Integer endSlot):masterData:replicas))) = do
             clusterSlotsResponseEntryMaster <- decode masterData
-            clusterSlotsResponseEntryReplicas <- mapM decode replicas 
+            clusterSlotsResponseEntryReplicas <- mapM decode replicas
             let clusterSlotsResponseEntryStartSlot = fromInteger startSlot
             let clusterSlotsResponseEntryEndSlot = fromInteger endSlot
             return ClusterSlotsResponseEntry{..}
@@ -1335,21 +1353,21 @@ instance RedisResult ClusterSlotsNode where
     decode (MultiBulk (Just ((Bulk (Just clusterSlotsNodeIP)):(Integer port):(Bulk (Just clusterSlotsNodeID)):_))) = Right ClusterSlotsNode{..}
         where clusterSlotsNodePort = fromInteger port
     decode a = Left a
-    
+
 
 clusterSlots
     :: (RedisCtx m f)
     => m (f ClusterSlotsResponse)
 clusterSlots = sendRequest $ ["CLUSTER", "SLOTS"]
 
-clusterSetSlotImporting 
+clusterSetSlotImporting
     :: (RedisCtx m f)
     => Integer
     -> ByteString
     -> m (f Status)
 clusterSetSlotImporting slot sourceNodeId = sendRequest $ ["CLUSTER", "SETSLOT", (encode slot), "IMPORTING", sourceNodeId]
 
-clusterSetSlotMigrating 
+clusterSetSlotMigrating
     :: (RedisCtx m f)
     => Integer
     -> ByteString
