@@ -246,8 +246,7 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
 evaluateTransactionPipeline :: MVar ShardMap -> IO ShardMap -> Connection -> [[B.ByteString]] -> IO [Reply]
 evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = do
     let requests = reverse requests'
-    (ShardMap shardMap) <- hasLocked "reading shardmap in evaluatePipeline" $ readMVar shardMapVar
-    let (Connection nodeConns _ _ infoMap) = conn
+    let (Connection _ _ _ infoMap) = conn
     keys <- mconcat <$> mapM (requestKeys infoMap) requests
     -- In cluster mode Redis expects commands in transactions to all work on the
     -- same hashslot. We find that hashslot here.
@@ -258,14 +257,7 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     -- the commands in a transaction are applied and some are not. Better to
     -- fail early.
     hashSlot <- hashSlotForKeys (MultiExecCrossSlotException (show keys, requests)) keys
-    node <-
-        case IntMap.lookup (fromEnum hashSlot) shardMap of
-            Nothing -> throwIO $ MissingNodeException (head requests)
-            Just (Shard master _) -> return master
-    nodeConn <-
-        case HM.lookup (nodeId node) nodeConns of
-            Nothing -> throwIO $ MissingNodeException (head requests)
-            Just nodeConn' -> return nodeConn'
+    nodeConn <- nodeConnForHashSlot shardMapVar conn (MissingNodeException (head requests)) hashSlot
     resps <- requestNode nodeConn requests
     -- It's unclear what to do if one of the commands in a transaction asks us
     -- to redirect. Run only the redirected commands in another transaction?
@@ -273,6 +265,18 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     when (any moved resps)
       (hasLocked "locked refreshing due to moved responses" $ modifyMVar_ shardMapVar (const refreshShardmapAction))
     return resps
+
+nodeConnForHashSlot :: Exception e => MVar ShardMap -> Connection -> e -> HashSlot -> IO NodeConnection
+nodeConnForHashSlot shardMapVar conn exception hashSlot = do
+    let (Connection nodeConns _ _ _) = conn
+    (ShardMap shardMap) <- hasLocked "reading shardmap in evaluatePipeline" $ readMVar shardMapVar
+    node <-
+        case IntMap.lookup (fromEnum hashSlot) shardMap of
+            Nothing -> throwIO exception
+            Just (Shard master _) -> return master
+    case HM.lookup (nodeId node) nodeConns of
+        Nothing -> throwIO exception
+        Just nodeConn' -> return nodeConn'
 
 hashSlotForKeys :: Exception e => e -> [B.ByteString] -> IO HashSlot
 hashSlotForKeys exception keys =
