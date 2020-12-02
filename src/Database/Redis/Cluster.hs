@@ -264,12 +264,36 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
     nodeConn <- nodeConnForHashSlot "evaluatePipeline" shardMapVar conn (MissingNodeException (head requests)) hashSlot
     resps <- requestNode nodeConn requests
-    -- It's unclear what to do if one of the commands in a transaction asks us
-    -- to redirect. Run only the redirected commands in another transaction?
-    -- That doesn't seem very transactional.
+    -- The Redis documentation has the following to say on the effect of
+    -- resharding on multi-key operations:
+    --
+    --     Multi-key operations may become unavailable when a resharding of the
+    --     hash slot the keys belong to is in progress.
+    --
+    --     More specifically, even during a resharding the multi-key operations
+    --     targeting keys that all exist and all still hash to the same slot
+    --     (either the source or destination node) are still available.
+    --
+    --     Operations on keys that don't exist or are - during the resharding -
+    --     split between the source and destination nodes, will generate a
+    --     -TRYAGAIN error. The client can try the operation after some time,
+    --     or report back the error.
+    --
+    --     https://redis.io/topics/cluster-spec#multiple-keys-operations
+    --
+    -- An important take-away here is that MULTI..EXEC transactions can fail
+    -- with a redirect in which case we need to repeat the full transaction on
+    -- the node we're redirected too.
+    --
+    -- A second important takeway is that MULTI..EXEC transactions might
+    -- temporarily fail during resharding with a -TRYAGAIN error. We can only
+    -- make arbitrary decisions about how long to paus before the retry and how
+    -- often to retry, so instead we'll propagate the error to the library user
+    -- and let them decide how they would like to handle the error.
     when (any moved resps)
       (hasLocked "locked refreshing due to moved responses" $ modifyMVar_ shardMapVar (const refreshShardmapAction))
-    return resps
+    retriedResps <- retryBatch shardMapVar refreshShardmapAction conn 0 requests resps
+    return retriedResps
 
 nodeConnForHashSlot :: Exception e => String -> MVar ShardMap -> Connection -> e -> HashSlot -> IO NodeConnection
 nodeConnForHashSlot location shardMapVar conn exception hashSlot = do
