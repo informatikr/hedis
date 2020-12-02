@@ -184,9 +184,6 @@ responseIndex (CompletedRequest i _ _) = i
 rawResponse :: CompletedRequest -> Reply
 rawResponse (CompletedRequest _ _ r) = r
 
-requestForResponse :: CompletedRequest -> [B.ByteString]
-requestForResponse (CompletedRequest _ r _) = r
-
 -- The approach we take here is similar to that taken by the redis-py-cluster
 -- library, which is described at https://redis-py-cluster.readthedocs.io/en/master/pipelines.html
 --
@@ -220,29 +217,30 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         replies <- requestNode nodeConn $ map rawRequest nodeRequests
         return $ zipWith (curry (\(PendingRequest i r, rep) -> CompletedRequest i r rep)) nodeRequests replies
     retry :: Int -> CompletedRequest -> IO CompletedRequest
-    retry = retry' shardMapVar refreshShardmapAction conn
+    retry retryCount (CompletedRequest index request thisReply) = do
+        retryReply <- retry' shardMapVar refreshShardmapAction conn retryCount request thisReply
+        return (CompletedRequest index request retryReply)
     refreshShardMapVar :: String -> IO ()
     refreshShardMapVar msg = hasLocked msg $ modifyMVar_ shardMapVar (const refreshShardmapAction)
 
-retry' :: MVar ShardMap -> IO ShardMap -> Connection -> Int -> CompletedRequest -> IO CompletedRequest
-retry' shardMapVar refreshShardmapAction conn retryCount resp@(CompletedRequest index request thisReply) = do
-    retryReply <- case thisReply of
+retry' :: MVar ShardMap -> IO ShardMap -> Connection -> Int -> [B.ByteString] -> Reply -> IO Reply
+retry' shardMapVar refreshShardmapAction conn retryCount request thisReply =
+    case thisReply of
         (Error errString) | B.isPrefixOf "MOVED" errString -> do
             shardMap <- hasLocked "reading shard map in retry MOVED" $ readMVar shardMapVar
-            nodeConn <- head <$> nodeConnectionForCommand conn shardMap (requestForResponse resp)
+            nodeConn <- head <$> nodeConnectionForCommand conn shardMap request
             head <$> requestNode nodeConn [request]
         (askingRedirection -> Just (host, port)) -> do
             shardMap <- hasLocked "reading shardmap in retry ASK" $ readMVar shardMapVar
             let maybeAskNode = nodeConnWithHostAndPort shardMap conn host port
             case maybeAskNode of
-                Just askNode -> last <$> requestNode askNode [["ASKING"], requestForResponse resp]
+                Just askNode -> last <$> requestNode askNode [["ASKING"], request]
                 Nothing -> case retryCount of
                     0 -> do
                         _ <- hasLocked "missing node in first retry of ASK" $ modifyMVar_ shardMapVar (const refreshShardmapAction)
-                        rawResponse <$> retry' shardMapVar refreshShardmapAction conn (retryCount + 1) resp
-                    _ -> throwIO $ MissingNodeException (requestForResponse resp)
+                        retry' shardMapVar refreshShardmapAction conn (retryCount + 1) request thisReply
+                    _ -> throwIO $ MissingNodeException request
         _ -> return thisReply
-    return (CompletedRequest index request retryReply)
 
 -- Like `evaluateOnPipeline`, except we expect to be able to run all commands
 -- on a single shard. Failing to meet this expectation is an error.
