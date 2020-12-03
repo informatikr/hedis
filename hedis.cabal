@@ -72,7 +72,6 @@ library
                   , Database.Redis.Core.Internal
   build-depends:    scanner >= 0.2,
                     async >= 2.1,
-                    array >= 0.5.3,
                     base >= 4.8 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
@@ -90,8 +89,7 @@ library
                     vector >= 0.9,
                     HTTP,
                     errors,
-                    network-uri,
-                    say
+                    network-uri
   if !impl(ghc >= 8.0)
     build-depends:
       semigroups >= 0.11 && < 0.19
