@@ -43,7 +43,7 @@ data Connection = Connection
     , lastRecvRef :: IOR.IORef (Maybe B.ByteString) }
 
 instance Show Connection where
-    show Connection{..} = "Connection{ ctx = " <> show ctx <> ", lastRecvRef = IORef}"
+    show Connection{..} = "Connection{ ctx = " ++ show ctx ++ ", lastRecvRef = IORef}"
 
 data ConnectPhase
   = PhaseUnknown
