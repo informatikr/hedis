@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.14.0
+
+* PR #157. Clustering support
+
 ## 0.13.1
 
 * PR #158. Upgrade to Redis 6.0.9 & Fix auth test
