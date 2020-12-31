@@ -4,13 +4,16 @@ module Database.Redis.ManualCommands where
 
 import Prelude hiding (min, max)
 import Data.ByteString (ByteString, empty, append)
-import Data.Maybe (maybeToList)
+import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString as BS
+import Data.Maybe (maybeToList, catMaybes)
 #if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup ((<>))
 #endif
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
+import qualified Database.Redis.Cluster.Command as CMD
 
 
 objectRefcount
@@ -1215,3 +1218,181 @@ xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ optArgs
 
 inf :: RealFloat a => a
 inf = 1 / 0
+
+auth
+    :: RedisCtx m f
+    => ByteString -- ^ password
+    -> m (f Status)
+auth password = sendRequest ["AUTH", password]
+
+-- the select command. used in 'connect'.
+select
+    :: RedisCtx m f
+    => Integer -- ^ index
+    -> m (f Status)
+select ix = sendRequest ["SELECT", encode ix]
+
+-- the ping command. used in 'checkedconnect'.
+ping
+    :: (RedisCtx m f)
+    => m (f Status)
+ping  = sendRequest (["PING"] )
+
+data ClusterNodesResponse = ClusterNodesResponse
+    { clusterNodesResponseEntries :: [ClusterNodesResponseEntry]
+    } deriving (Show, Eq)
+
+data ClusterNodesResponseEntry = ClusterNodesResponseEntry { clusterNodesResponseNodeId :: ByteString
+    , clusterNodesResponseNodeIp :: ByteString
+    , clusterNodesResponseNodePort :: Integer
+    , clusterNodesResponseNodeFlags :: [ByteString]
+    , clusterNodesResponseMasterId :: Maybe ByteString
+    , clusterNodesResponsePingSent :: Integer
+    , clusterNodesResponsePongReceived :: Integer
+    , clusterNodesResponseConfigEpoch :: Integer
+    , clusterNodesResponseLinkState :: ByteString
+    , clusterNodesResponseSlots :: [ClusterNodesResponseSlotSpec]
+    } deriving (Show, Eq)
+
+data ClusterNodesResponseSlotSpec
+    = ClusterNodesResponseSingleSlot Integer
+    | ClusterNodesResponseSlotRange Integer Integer
+    | ClusterNodesResponseSlotImporting Integer ByteString
+    | ClusterNodesResponseSlotMigrating Integer ByteString deriving (Show, Eq)
+
+
+instance RedisResult ClusterNodesResponse where
+    decode r@(Bulk (Just bulkData)) = maybe (Left r) Right $ do
+        infos <- mapM parseNodeInfo $ Char8.lines bulkData
+        return $ ClusterNodesResponse infos where
+            parseNodeInfo :: ByteString -> Maybe ClusterNodesResponseEntry
+            parseNodeInfo line = case Char8.words line of
+              (nodeId : hostNamePort : flags : masterNodeId : pingSent : pongRecv : epoch : linkState : slots) ->
+                case Char8.split ':' hostNamePort of
+                  [hostName, port] -> ClusterNodesResponseEntry <$> pure nodeId
+                                               <*> pure hostName
+                                               <*> readInteger port
+                                               <*> pure (Char8.split ',' flags)
+                                               <*> pure (readMasterNodeId masterNodeId)
+                                               <*> readInteger pingSent
+                                               <*> readInteger pongRecv
+                                               <*> readInteger epoch
+                                               <*> pure linkState
+                                               <*> (pure . catMaybes $ map readNodeSlot slots)
+                  _ -> Nothing
+              _ -> Nothing
+            readInteger :: ByteString -> Maybe Integer
+            readInteger = fmap fst . Char8.readInteger
+
+            readMasterNodeId :: ByteString -> Maybe ByteString
+            readMasterNodeId "-"    = Nothing
+            readMasterNodeId nodeId = Just nodeId
+
+            readNodeSlot :: ByteString -> Maybe ClusterNodesResponseSlotSpec
+            readNodeSlot slotSpec = case '[' `Char8.elem` slotSpec of
+                True -> readSlotImportMigrate slotSpec
+                False -> case '-' `Char8.elem` slotSpec of
+                    True -> readSlotRange slotSpec
+                    False -> ClusterNodesResponseSingleSlot <$> readInteger slotSpec
+            readSlotImportMigrate :: ByteString -> Maybe ClusterNodesResponseSlotSpec
+            readSlotImportMigrate slotSpec = case BS.breakSubstring "->-" slotSpec of
+                (_, "") -> case BS.breakSubstring "-<-" slotSpec of
+                    (_, "") -> Nothing
+                    (leftPart, rightPart) -> ClusterNodesResponseSlotImporting
+                        <$> (readInteger $ Char8.drop 1 leftPart)
+                        <*> (pure $ BS.take (BS.length rightPart - 1) rightPart)
+                (leftPart, rightPart) -> ClusterNodesResponseSlotMigrating
+                    <$> (readInteger $ Char8.drop 1 leftPart)
+                    <*> (pure $ BS.take (BS.length rightPart - 1) rightPart)
+            readSlotRange :: ByteString -> Maybe ClusterNodesResponseSlotSpec
+            readSlotRange slotSpec = case BS.breakSubstring "-" slotSpec of
+                (_, "") -> Nothing
+                (leftPart, rightPart) -> ClusterNodesResponseSlotRange
+                    <$> readInteger leftPart
+                    <*> (readInteger $ BS.drop 1 rightPart)
+
+    decode r = Left r
+
+clusterNodes
+    :: (RedisCtx m f)
+    => m (f ClusterNodesResponse)
+clusterNodes = sendRequest $ ["CLUSTER", "NODES"]
+
+data ClusterSlotsResponse = ClusterSlotsResponse { clusterSlotsResponseEntries :: [ClusterSlotsResponseEntry] } deriving (Show)
+
+data ClusterSlotsNode = ClusterSlotsNode
+    { clusterSlotsNodeIP :: ByteString
+    , clusterSlotsNodePort :: Int
+    , clusterSlotsNodeID :: ByteString
+    } deriving (Show)
+
+data ClusterSlotsResponseEntry = ClusterSlotsResponseEntry
+    { clusterSlotsResponseEntryStartSlot :: Int
+    , clusterSlotsResponseEntryEndSlot :: Int
+    , clusterSlotsResponseEntryMaster :: ClusterSlotsNode
+    , clusterSlotsResponseEntryReplicas :: [ClusterSlotsNode]
+    } deriving (Show)
+
+instance RedisResult ClusterSlotsResponse where
+    decode (MultiBulk (Just bulkData)) = do
+        clusterSlotsResponseEntries <- mapM decode bulkData
+        return ClusterSlotsResponse{..}
+    decode a = Left a
+
+instance RedisResult ClusterSlotsResponseEntry where
+    decode (MultiBulk (Just
+        ((Integer startSlot):(Integer endSlot):masterData:replicas))) = do
+            clusterSlotsResponseEntryMaster <- decode masterData
+            clusterSlotsResponseEntryReplicas <- mapM decode replicas
+            let clusterSlotsResponseEntryStartSlot = fromInteger startSlot
+            let clusterSlotsResponseEntryEndSlot = fromInteger endSlot
+            return ClusterSlotsResponseEntry{..}
+    decode a = Left a
+
+instance RedisResult ClusterSlotsNode where
+    decode (MultiBulk (Just ((Bulk (Just clusterSlotsNodeIP)):(Integer port):(Bulk (Just clusterSlotsNodeID)):_))) = Right ClusterSlotsNode{..}
+        where clusterSlotsNodePort = fromInteger port
+    decode a = Left a
+
+
+clusterSlots
+    :: (RedisCtx m f)
+    => m (f ClusterSlotsResponse)
+clusterSlots = sendRequest $ ["CLUSTER", "SLOTS"]
+
+clusterSetSlotImporting
+    :: (RedisCtx m f)
+    => Integer
+    -> ByteString
+    -> m (f Status)
+clusterSetSlotImporting slot sourceNodeId = sendRequest $ ["CLUSTER", "SETSLOT", (encode slot), "IMPORTING", sourceNodeId]
+
+clusterSetSlotMigrating
+    :: (RedisCtx m f)
+    => Integer
+    -> ByteString
+    -> m (f Status)
+clusterSetSlotMigrating slot destinationNodeId = sendRequest $ ["CLUSTER", "SETSLOT", (encode slot), "MIGRATING", destinationNodeId]
+
+clusterSetSlotStable
+    :: (RedisCtx m f)
+    => Integer
+    -> m (f Status)
+clusterSetSlotStable slot = sendRequest $ ["CLUSTER", "SETSLOT", "STABLE", (encode slot)]
+
+clusterSetSlotNode
+    :: (RedisCtx m f)
+    => Integer
+    -> ByteString
+    -> m (f Status)
+clusterSetSlotNode slot node = sendRequest ["CLUSTER", "SETSLOT", (encode slot), "NODE", node]
+
+clusterGetKeysInSlot
+    :: (RedisCtx m f)
+    => Integer
+    -> Integer
+    -> m (f [ByteString])
+clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (encode slot), (encode count)]
+
+command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
+command = sendRequest ["COMMAND"]

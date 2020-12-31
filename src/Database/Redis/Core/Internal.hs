@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Data.IORef
 import Database.Redis.Protocol
 import qualified Database.Redis.ProtocolPipelining as PP
+import qualified Database.Redis.Cluster as Cluster
 
 -- |Context for normal command execution, outside of transactions. Use
 --  'runRedis' to run actions of this type.
@@ -22,8 +23,9 @@ newtype Redis a =
 #if __GLASGOW_HASKELL__ > 711
 deriving instance MonadFail Redis
 #endif
-data RedisEnv =
-  Env
-    { envConn :: PP.Connection
-    , envLastReply :: IORef Reply
-    }
+data RedisEnv
+    = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
+    | ClusteredEnv
+        { refreshAction :: IO Cluster.ShardMap
+        , connection :: Cluster.Connection
+        }

@@ -11,8 +11,8 @@ import Control.Monad (guard)
 #if __GLASGOW_HASKELL__ < 808
 import Data.Monoid ((<>))
 #endif
-import Database.Redis.Core (ConnectInfo(..), defaultConnectInfo)
-import Database.Redis.ProtocolPipelining
+import Database.Redis.Connection (ConnectInfo(..), defaultConnectInfo)
+import qualified Database.Redis.ConnectionContext as CC
 import Network.HTTP.Base
 import Network.URI (parseURI, uriPath, uriScheme)
 import Text.Read (readMaybe)
@@ -59,7 +59,7 @@ parseConnectInfo url = do
         { connectHost = if null h
             then connectHost defaultConnectInfo
             else h
-        , connectPort = maybe (connectPort defaultConnectInfo) (PortNumber . fromIntegral) (port uriAuth)
+        , connectPort = maybe (connectPort defaultConnectInfo) (CC.PortNumber . fromIntegral) (port uriAuth)
         , connectAuth = C8.pack <$> password uriAuth
         , connectDatabase = db
         }

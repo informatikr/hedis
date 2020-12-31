@@ -38,6 +38,7 @@ import Data.Semigroup (Semigroup(..))
 #endif
 import qualified Data.HashMap.Strict as HM
 import qualified Database.Redis.Core as Core
+import qualified Database.Redis.Connection as Connection
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Protocol (Reply(..), renderRequest)
 import Database.Redis.Types
@@ -90,7 +91,7 @@ instance Semigroup (Cmd Subscribe a) where
 instance Monoid (Cmd Subscribe a) where
   mempty = DoNothing
   mappend = (<>)
-    
+
 instance Semigroup (Cmd Unsubscribe a) where
   (<>) DoNothing x = x
   (<>) x DoNothing = x
@@ -181,7 +182,7 @@ unsubscribe
     -> PubSub
 unsubscribe cs = mempty{ unsubs = Cmd cs }
 
--- |Listen for messages published to channels matching the given patterns 
+-- |Listen for messages published to channels matching the given patterns
 --  (<http://redis.io/commands/psubscribe>).
 psubscribe
     :: [ByteString] -- ^ pattern
@@ -189,7 +190,7 @@ psubscribe
 psubscribe []       = mempty
 psubscribe ps = mempty{ psubs = Cmd ps }
 
--- |Stop listening for messages posted to channels matching the given patterns 
+-- |Stop listening for messages posted to channels matching the given patterns
 --  (<http://redis.io/commands/punsubscribe>).
 punsubscribe
     :: [ByteString] -- ^ pattern
@@ -199,11 +200,11 @@ punsubscribe ps = mempty{ punsubs = Cmd ps }
 -- |Listens to published messages on subscribed channels and channels matching
 --  the subscribed patterns. For documentation on the semantics of Redis
 --  Pub\/Sub see <http://redis.io/topics/pubsub>.
---  
---  The given callback function is called for each received message. 
+--
+--  The given callback function is called for each received message.
 --  Subscription changes are triggered by the returned 'PubSub'. To keep
 --  subscriptions unchanged, the callback can return 'mempty'.
---  
+--
 --  Example: Subscribe to the \"news\" channel indefinitely.
 --
 --  @
@@ -560,13 +561,13 @@ sendThread ctrl rawConn = forever $ do
 -- and then create a Haskell thread bound to each capability each calling 'pubSubForever' in a loop.
 -- This will create one network connection per controller/capability and allow you to
 -- register separate channels and callbacks for each controller, spreading the load across the capabilities.
-pubSubForever :: Core.Connection -- ^ The connection pool
+pubSubForever :: Connection.Connection -- ^ The connection pool
               -> PubSubController -- ^ The controller which keeps track of all subscriptions and handlers
               -> IO () -- ^ This action is executed once Redis acknowledges that all the subscriptions in
                        -- the controller are now subscribed.  You can use this after an exception (such as
                        -- 'ConnectionLost') to signal that all subscriptions are now reactivated.
               -> IO ()
-pubSubForever (Core.Conn pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
+pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
     -- get initial subscriptions and write them into the queue.
     atomically $ do
       let loop = tryReadTBQueue (sendChanges ctrl) >>=
@@ -597,6 +598,7 @@ pubSubForever (Core.Conn pool) ctrl onInitialLoad = withResource pool $ \rawConn
           (Right (Left err)) -> throwIO err
           (Left (Left err)) -> throwIO err
           _ -> return ()  -- should never happen, since threads exit only with an error
+pubSubForever (Connection.ClusteredConnection _ _) _ _ = undefined
 
 
 ------------------------------------------------------------------------------
