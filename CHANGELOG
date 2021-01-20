@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.14.1
+
+* PR #162. Improved documentation for EVALSHA
+
 ## 0.14.0
 
 * PR #157. Clustering support
