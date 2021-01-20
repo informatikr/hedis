@@ -360,9 +360,11 @@ eval script keys args =
   where
     numkeys = toInteger (length keys)
 
+-- | Works like 'eval', but sends the SHA1 hash of the script instead of the script itself.
+-- Fails if the server does not recognise the hash, in which case, 'eval' should be used instead.
 evalsha
     :: (RedisCtx m f, RedisResult a)
-    => ByteString -- ^ script
+    => ByteString -- ^ base16-encoded sha1 hash of the script
     -> [ByteString] -- ^ keys
     -> [ByteString] -- ^ args
     -> m (f a)
