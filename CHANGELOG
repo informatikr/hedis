@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.14.2
+
+* PR #163. support for redis 6.0 COMMAND format
+* PR #164. remove invalid tests for Redis Cluster
+
 ## 0.14.1
 
 * PR #162. Improved documentation for EVALSHA
