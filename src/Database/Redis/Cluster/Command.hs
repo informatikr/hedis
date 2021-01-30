@@ -86,6 +86,17 @@ instance RedisResult CommandInfo where
         parseLastKeyPos = return $ case lastKeyPos of
             i | i < 0 -> UnlimitedKeys (-i - 1)
             i -> LastKeyPosition i
+    -- since redis 6.0
+    decode (MultiBulk (Just
+        [ name@(Bulk (Just _))
+        , arity@(Integer _)
+        , flags@(MultiBulk (Just _))
+        , firstPos@(Integer _)
+        , lastPos@(Integer _)
+        , step@(Integer _)
+        , MultiBulk _  -- ACL categories
+        ])) =
+        decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
 
     decode e = Left e
 
