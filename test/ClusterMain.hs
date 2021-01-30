@@ -32,8 +32,7 @@ testsServer =
     [testBgrewriteaof, testFlushall, testSlowlog, testDebugObject]
 
 testsConnection :: [Test]
-testsConnection = [ testConnectAuthUnexpected, testConnectDb
-                  , testConnectDbUnexisting, testEcho, testPing
+testsConnection = [ testConnectAuthUnexpected, testEcho, testPing
                   ]
 
 testsKeys :: [Test]
