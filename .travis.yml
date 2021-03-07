@@ -2,12 +2,12 @@ language: c
 # sudo: false
 dist: focal
 
-addons:
-  apt:
-    sources:
-      - sourceline: ppa:redislabs/redis
-    packages:
-      - redis
+# addons:
+#   apt:
+#     sources:
+#       - sourceline: ppa:redislabs/redis
+#     packages:
+#       - redis
 
 cache:
   directories:
@@ -19,6 +19,8 @@ services:
   - docker
 
 before_install:
+  - sudo apt-get update
+  - sudo apt-get -y install redis-server
   - mkdir -p ~/.local/bin
   - mkdir -p ~/tmp
   - export PATH=~/.local/bin:$PATH
