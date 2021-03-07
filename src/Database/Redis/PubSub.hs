@@ -545,11 +545,13 @@ sendThread ctrl rawConn = forever $ do
 -- main = do
 --   conn <- connect defaultConnectInfo
 --   pubSubCtrl <- newPubSubController [("mychannel", myhandler)] []
---   forkIO $ forever $
+--   concurrently ( forever $
 --       pubSubForever conn pubSubCtrl onInitialComplete
 --         \`catch\` (\\(e :: SomeException) -> do
 --           putStrLn $ "Got error: " ++ show e
 --           threadDelay $ 50*1000) -- TODO: use exponential backoff
+--        ) $ restOfYourProgram
+--
 --
 --   {- elsewhere in your program, use pubSubCtrl to change subscriptions -}
 -- @
