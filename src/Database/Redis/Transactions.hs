@@ -41,7 +41,7 @@ instance RedisCtx RedisTx Queued where
         -- future index in EXEC result list
         i <- get
         put (i+1)
-        return $ Queued (decode . (!i))
+        return $ Queued (decode . (! i))
 
 -- |A 'Queued' value represents the result of a command inside a transaction. It
 --  is a proxy object for the /actual/ result, which will only be available
