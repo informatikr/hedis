@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.14.3
+
+* PR #171. Support GHC 9
+
 ## 0.14.2
 
 * PR #163. support for redis 6.0 COMMAND format
