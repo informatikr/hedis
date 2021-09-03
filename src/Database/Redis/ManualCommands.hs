@@ -1154,7 +1154,8 @@ xinfoGroups
     -> m (f [XInfoGroupsResponse])
 xinfoGroups stream = sendRequest ["XINFO", "GROUPS", stream]
 
-data XInfoStreamResponse = XInfoStreamResponse
+data XInfoStreamResponse 
+    = XInfoStreamResponse
     { xinfoStreamLength :: Integer
     , xinfoStreamRadixTreeKeys :: Integer
     , xinfoStreamRadixTreeNodes :: Integer
@@ -1162,11 +1163,28 @@ data XInfoStreamResponse = XInfoStreamResponse
     , xinfoStreamLastEntryId :: ByteString
     , xinfoStreamFirstEntry :: StreamsRecord
     , xinfoStreamLastEntry :: StreamsRecord
-    } deriving (Show, Eq)
+    } 
+    | XInfoStreamEmptyResponse
+    { xinfoStreamLength :: Integer
+    , xinfoStreamRadixTreeKeys :: Integer
+    , xinfoStreamRadixTreeNodes :: Integer
+    , xinfoStreamNumGroups :: Integer
+    , xinfoStreamLastEntryId :: ByteString
+    }
+    deriving (Show, Eq)
 
 instance RedisResult XInfoStreamResponse where
     decode = decodeRedis5 <> decodeRedis6
         where
+            decodeRedis5 (MultiBulk (Just [
+                 Bulk (Just "length"),Integer xinfoStreamLength,
+                 Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                 Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                 Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                 Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                 Bulk (Just "first-entry"), Bulk Nothing ,
+                 Bulk (Just "last-entry"), Bulk Nothing ])) = do
+                     return XInfoStreamEmptyResponse{..}
             decodeRedis5 (MultiBulk (Just [
                 Bulk (Just "length"),Integer xinfoStreamLength,
                 Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
@@ -1180,6 +1198,15 @@ instance RedisResult XInfoStreamResponse where
                     return XInfoStreamResponse{..}
             decodeRedis5 a = Left a
 
+            decodeRedis6 (MultiBulk (Just [
+                Bulk (Just "length"),Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"), Bulk Nothing ,
+                Bulk (Just "last-entry"), Bulk Nothing ])) = do
+                    return XInfoStreamEmptyResponse{..}
             decodeRedis6 (MultiBulk (Just [
                 Bulk (Just "length"),Integer xinfoStreamLength,
                 Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
