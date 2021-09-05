@@ -31,12 +31,12 @@ before_install:
 
 matrix:
   include:
-    - env: GHCVER=8.0.1 STACK_YAML=stack-8.0.yaml
     - env: GHCVER=8.2.2 STACK_YAML=stack-8.2.yaml
     - env: GHCVER=8.4.1 STACK_YAML=stack-8.4.yaml
     - env: GHCVER=8.6.5 STACK_YAML=stack-8.6.yaml
     - env: GHCVER=8.8.1 STACK_YAML=stack-8.8.yaml
     - env: GHCVER=8.10.4 STACK_YAML=stack-8.10.yaml
+    - env: GHCVER=8.10.6 STACK_YAML=stack-8.10.yaml
 
   allow_failures:
    - env: GHCVER=head STACK_YAML=stack-head.yaml
