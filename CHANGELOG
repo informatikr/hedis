@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.15.0
+
+* PR #174, Issue #173. Hedis fails to decode xstreamInfo response in case when the stream is empty
+
 ## 0.14.3
 
 * PR #171. Support GHC 9
