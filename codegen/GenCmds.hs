@@ -153,7 +153,7 @@ instance Show Cmds where
 
 data Arg = Arg { argName, argType :: String }
          | Pair Arg Arg
-         | Multiple Arg
+         | Multiple { multipleOf :: Arg, allowZero :: Bool }
          | Command String
          | Enum [String]
     deriving (Show)
@@ -183,7 +183,16 @@ instance FromJSON Arg where
         -- "multiple": "true"
         parseMultiple = do
             True <- arg .: "multiple"
-            Multiple <$> (parsePair <|> parseSingle)
+
+            -- We could default to either of True or False here - we choose
+            -- False because
+            --
+            --   1. No argument ever specifies false for this setting
+            --   2. It's the safer choice - we can only forbid correct
+            --      calls like this, rather than allow incorrect ones
+            allowZero <- arg .:? "optional" .!= False
+
+            Multiple <$> (parsePair <|> parseSingle) <*> pure allowZero
         -- example: SUBSCRIBE
         parseSingleList = do
             [argName]   <- arg .: "name"
@@ -354,6 +363,7 @@ imprts = mconcat $ flip map moduls (\modul ->
   where
     moduls = [ "Prelude hiding (min,max)" -- name shadowing warnings.
              , "Data.ByteString (ByteString)"
+             , "qualified Data.List.NonEmpty as NE"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
              , "Database.Redis.Core (sendRequest, RedisCtx)"
@@ -416,21 +426,24 @@ retType Cmd{..} = maybe err translate cmdRetType
 argumentList :: Arg -> Builder
 argumentList a = fromString " ++ " `mappend` go a
   where
-    go (Multiple p@(Pair _a _a')) = mconcat
+    go (Multiple p@(Pair _a _a') allowZero) = mconcat
         [ fromString "concatMap (\\(x,y) -> [encode x,encode y])"
         , argumentName p
         ]
-    go (Multiple a) = fromString "map encode " `mappend` argumentName a
+    go (Multiple a allowZero) = fromString "map encode " `mappend`
+        if allowZero
+            then argumentName a
+            else mconcat [ fromString "(NE.toList ", argumentName a, fromString ")" ]
     go a@Arg{..}    = mconcat
         [ fromString "[encode ", argumentName a, fromString "]" ]
 
 argumentName :: Arg -> Builder
 argumentName a = go a
   where
-    go (Multiple a) = go a
-    go (Pair a a')  = fromString . camelCase $ argName a ++ " " ++ argName a'
-    go a@Arg{..}    = name a
-    name Arg{..}    = fromString (camelCase argName)
+    go (Multiple a _) = go a
+    go (Pair a a')    = fromString . camelCase $ argName a ++ " " ++ argName a'
+    go a@Arg{..}      = name a
+    name Arg{..}      = fromString (camelCase argName)
 
 argumentType :: Arg -> Builder
 argumentType a = mconcat [ go a
@@ -438,8 +451,10 @@ argumentType a = mconcat [ go a
                          , fromString "\n    -> "
                          ]
   where
-    go (Multiple a) =
-        mconcat [fromString "[", go a, fromString "]"]
+    go (Multiple a allowZero) =
+        if allowZero
+            then mconcat [fromString "[", go a, fromString "]"]
+            else mconcat [fromString "(NE.NonEmpty ", go a, fromString ")"]
     go (Pair a a')  =
         mconcat [fromString "(", go a, fromString ",", go a', fromString ")"]
     go a@Arg{..}    = translateArgType a
