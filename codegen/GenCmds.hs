@@ -243,8 +243,10 @@ unimplementedCmds =
 
 exportList :: [Cmd] -> Builder
 exportList cmds =
-    mconcat . map exportGroup . groupBy ((==) `on` cmdGroup) $
-        sortBy (comparing cmdGroup) cmds
+    (mconcat . map exportGroup . groupBy ((==) `on` cmdGroup) $
+        sortBy (comparing cmdGroup) cmds)
+    `mappend`
+    manualExports
   where
     exportGroup group = mconcat
         [ newline
@@ -276,6 +278,23 @@ exportList cmds =
         "server"       -> "Server"
         "scripting"    -> "Scripting"
         _              -> error $ "untranslated group: " ++ cmdGroup
+
+    manualExports = mconcat $ map (\exprt -> fromString exprt `mappend` fromString ",\n")
+        [ "ClusterNodesResponse(..)"
+        , "ClusterNodesResponseEntry(..)"
+        , "ClusterNodesResponseSlotSpec(..)"
+        , "clusterNodes"
+        , "ClusterSlotsResponse(..)"
+        , "ClusterSlotsResponseEntry(..)"
+        , "ClusterSlotsNode(..)"
+        , "clusterSlots"
+        , "clusterSetSlotNode"
+        , "clusterSetSlotStable"
+        , "clusterSetSlotImporting"
+        , "clusterSetSlotMigrating"
+        , "clusterGetKeysInSlot"
+        , "command"
+        ]
 
 exportCmdNames :: Cmd -> Builder
 exportCmdNames Cmd{..} = types `mappend` functions
@@ -337,7 +356,7 @@ imprts = mconcat $ flip map moduls (\modul ->
              , "Data.ByteString (ByteString)"
              , "Database.Redis.ManualCommands"
              , "Database.Redis.Types"
-             , "Database.Redis.Core"
+             , "Database.Redis.Core (sendRequest, RedisCtx)"
              ]
 
 blackListed :: Cmd -> Bool
