@@ -108,6 +108,7 @@ library
                     Database.Redis.ManualCommands,
                     Database.Redis.URL,
                     Database.Redis.ConnectionContext
+  other-extensions: StrictData
 
 benchmark hedis-benchmark
     default-language: Haskell2010
