@@ -9,7 +9,7 @@ import Control.Monad.Fail (MonadFail)
 import Control.Monad.Reader
 import Data.IORef
 import Database.Redis.Protocol
-import UnliftIO (MonadUnliftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Database.Redis.ProtocolPipelining as PP
 import qualified Database.Redis.Cluster as Cluster
 
