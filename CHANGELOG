@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.15.1
+
+* PR #181. Add MonadUnliftIO instance
+
 ## 0.15.0
 
 * PR #174, Issue #173. Hedis fails to decode xstreamInfo response in case when the stream is empty
