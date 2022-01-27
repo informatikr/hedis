@@ -9,6 +9,7 @@ import Control.Monad.Fail (MonadFail)
 import Control.Monad.Reader
 import Data.IORef
 import Database.Redis.Protocol
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Database.Redis.ProtocolPipelining as PP
 import qualified Database.Redis.Cluster as Cluster
 
@@ -19,7 +20,7 @@ import qualified Database.Redis.Cluster as Cluster
 --  possibility of Redis returning an 'Error' reply.
 newtype Redis a =
   Redis (ReaderT RedisEnv IO a)
-  deriving (Monad, MonadIO, Functor, Applicative)
+  deriving (Monad, MonadIO, Functor, Applicative, MonadUnliftIO)
 #if __GLASGOW_HASKELL__ > 711
 deriving instance MonadFail Redis
 #endif
