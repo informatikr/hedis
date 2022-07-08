@@ -261,6 +261,9 @@ xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split int
 xdel, -- |Delete messages from a stream. Since Redis 5.0.0
 xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 inf, -- |Constructor for `inf` Redis argument values
+ClusterInfoResponse (..),
+ClusterInfoResponseState (..),
+clusterInfo,
 ClusterNodesResponse(..),
 ClusterNodesResponseEntry(..),
 ClusterNodesResponseSlotSpec(..),
