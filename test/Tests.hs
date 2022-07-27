@@ -10,6 +10,7 @@ import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Data.Either (isRight)
 import qualified Data.List as L
 import Data.Time
 import Data.Time.Clock.POSIX
@@ -538,6 +539,20 @@ testSelect :: Test
 testSelect = testCase "select" $ do
     select 13 >>=? Ok
     select 0 >>=? Ok
+
+
+------------------------------------------------------------------------------
+-- Client
+--
+testClientId :: Test
+testClientId = testCase "client id" $ do
+    clientId >>= assert . isRight
+
+testClientName :: Test
+testClientName = testCase "client {get,set}name" $ do
+    clientGetname >>=? Nothing
+    clientSetname "FooBar" >>=? Ok
+    clientGetname >>=? Just "FooBar"
 
 
 ------------------------------------------------------------------------------

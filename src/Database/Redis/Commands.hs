@@ -106,6 +106,7 @@ scriptLoad, -- |Load the specified Lua script into the script cache (<http://red
 bgrewriteaof, -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>). Since Redis 1.0.0
 bgsave, -- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>). Since Redis 1.0.0
 clientGetname, -- |Get the current connection name (<http://redis.io/commands/client-getname>). Since Redis 2.6.9
+clientId, -- |Get the current connection ID (<http://redis.io/commands/client-id>). Since Redis 5.0.0
 clientList, -- |Get the list of client connections (<http://redis.io/commands/client-list>). Since Redis 2.4.0
 clientPause, -- |Stop processing commands from clients for some time (<http://redis.io/commands/client-pause>). Since Redis 2.9.50
 ReplyMode,
@@ -346,7 +347,7 @@ commandCount  = sendRequest (["COMMAND","COUNT"] )
 clientSetname
     :: (RedisCtx m f)
     => ByteString -- ^ connectionName
-    -> m (f ByteString)
+    -> m (f Status)
 clientSetname connectionName = sendRequest (["CLIENT","SETNAME"] ++ [encode connectionName] )
 
 zrank
@@ -929,9 +930,14 @@ hexists
     -> m (f Bool)
 hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
 
+clientId
+    :: (RedisCtx m f)
+    => m (f Integer)
+clientId  = sendRequest (["CLIENT","ID"] )
+
 clientGetname
     :: (RedisCtx m f)
-    => m (f Status)
+    => m (f (Maybe ByteString))
 clientGetname  = sendRequest (["CLIENT","GETNAME"] )
 
 configRewrite
