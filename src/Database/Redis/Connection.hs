@@ -60,6 +60,7 @@ data Connection
 --
 data ConnectInfo = ConnInfo
     { connectHost           :: NS.HostName
+    -- ^ Ignored when 'connectPort' is a 'UnixSocket'
     , connectPort           :: CC.PortID
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
