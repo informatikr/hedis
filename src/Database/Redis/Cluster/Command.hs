@@ -111,8 +111,22 @@ parseMovable ("EVAL":_:rest) = readNumKeys rest
 parseMovable ("EVALSH":_:rest) = readNumKeys rest
 parseMovable ("ZUNIONSTORE":_:rest) = readNumKeys rest
 parseMovable ("ZINTERSTORE":_:rest) = readNumKeys rest
+parseMovable ("XREAD":rest) = readXreadKeys rest
+parseMovable ("XREADGROUP":"GROUP":_:_:rest) = readXreadgroupKeys rest
 parseMovable _ = Nothing
 
+readXreadKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
+readXreadKeys ("COUNT":_:rest) = readXreadKeys rest
+readXreadKeys ("BLOCK":_:rest) = readXreadKeys rest
+readXreadKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
+readXreadKeys _ = Nothing
+
+readXreadgroupKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
+readXreadgroupKeys ("COUNT":_:rest) = readXreadKeys rest
+readXreadgroupKeys ("BLOCK":_:rest) = readXreadKeys rest
+readXreadgroupKeys ("NOACK":rest) = readXreadKeys rest
+readXreadgroupKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
+readXreadgroupKeys _ = Nothing
 
 readNumKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
 readNumKeys (rawNumKeys:rest) = do
