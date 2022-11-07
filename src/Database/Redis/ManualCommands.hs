@@ -920,15 +920,6 @@ xreadGroup
     -> m (f (Maybe [XReadResponse]))
 xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
 
-xreadGroupWithOpts
-    :: (RedisCtx m f)
-    => ByteString -- ^ group name
-    -> ByteString -- ^ consumer name
-    -> [(ByteString, ByteString)] -- ^ (stream, id) pairs
-    -> XReadOpts -- ^ optional args {block, recordCount, noack}
-    -> m (f (Maybe [XReadResponse]))
-xreadGroupWithOpts groupName consumerName streamsAndIds opts = xreadGroupOpts groupName consumerName streamsAndIds opts
-
 xgroupCreate
     :: (RedisCtx m f)
     => ByteString -- ^ stream
