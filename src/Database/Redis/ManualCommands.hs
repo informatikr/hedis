@@ -926,7 +926,7 @@ xgroupCreate
     -> ByteString -- ^ group name
     -> ByteString -- ^ start ID
     -> m (f Status)
-xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId, "MKSTREAM"]
 
 xgroupSetId
     :: (RedisCtx m f)
