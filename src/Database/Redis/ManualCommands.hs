@@ -891,7 +891,7 @@ internalXreadArgs streamsAndIds XReadOpts{..} =
     where
         blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) block
         countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) recordCount
-        noackArgs = if noack == False then [] else ["NOACK", "true"] -- true supported only for xreadgroup calls
+        noackArgs = if noack == False then [] else ["NOACK"] -- NOACK supported only for xreadgroup calls
         streams = map (\(stream, _) -> stream) streamsAndIds
         recordIds = map (\(_, recordId) -> recordId) streamsAndIds
 
