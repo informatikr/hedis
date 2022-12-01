@@ -265,6 +265,7 @@ requestNode (NodeConnection ctx lastRecvRef _) requests = do
             IOR.writeIORef lastRecvRef (Just rest')
             return r
 
+{-# INLINE nodes #-}
 nodes :: ShardMap -> [Node]
 nodes (ShardMap shardMap) = concatMap snd $ IntMap.toList $ fmap shardNodes shardMap where
     shardNodes :: Shard -> [Node]
