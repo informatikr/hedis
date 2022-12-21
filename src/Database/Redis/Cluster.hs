@@ -49,7 +49,9 @@ import qualified Database.Redis.Cluster.Command as CMD
 
 -- | A connection to a redis cluster, it is compoesed of a map from Node IDs to
 -- | 'NodeConnection's, a 'Pipeline', and a 'ShardMap'
-data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap
+type IsReadOnly = Bool
+
+data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap IsReadOnly
 
 -- | A connection to a single node in the cluster, similar to 'ProtocolPipelining.Connection'
 data NodeConnection = NodeConnection CC.ConnectionContext (IOR.IORef (Maybe B.ByteString)) NodeID
@@ -86,13 +88,13 @@ newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, T
 instance Exception CrossSlotException
 
 
-connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> IO Connection
-connect commandInfos shardMapVar timeoutOpt = do
+connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> IO Connection
+connect commandInfos shardMapVar timeoutOpt isReadOnly = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
         nodeConns <- nodeConnections shardMap
-        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) where
+        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly where
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
     nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
     connectNode :: Node -> IO (NodeID, NodeConnection)
@@ -102,14 +104,14 @@ connect commandInfos shardMapVar timeoutOpt = do
         return (n, NodeConnection ctx ref n)
 
 disconnect :: Connection -> IO ()
-disconnect (Connection nodeConnMap _ _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
+disconnect (Connection nodeConnMap _ _ _ _ ) = mapM_ disconnectNode (HM.elems nodeConnMap) where
     disconnectNode (NodeConnection nodeCtx _ _) = CC.disconnect nodeCtx
 
 -- Add a request to the current pipeline for this connection. The pipeline will
 -- be executed implicitly as soon as any result returned from this function is
 -- evaluated.
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
-requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
+requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _ _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
     (newStateVar, repliesIndex) <- hasLocked "locked adding to pipeline" $ modifyMVar stateVar $ \case
         Pending requests -> return (Pending (nextRequest:requests), (stateVar, length requests))
         e@(Executed _) -> do
@@ -214,23 +216,31 @@ moved _ = False
 
 
 nodeConnWithHostAndPort :: ShardMap -> Connection -> Host -> Port -> Maybe NodeConnection
-nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _) host port = do
+nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _ _) host port = do
     node <- nodeWithHostAndPort shardMap host port
     HM.lookup (nodeId node) nodeConns
 
 nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO NodeConnection
-nodeConnectionForCommand (Connection nodeConns _ _ infoMap) (ShardMap shardMap) request = do
+nodeConnectionForCommand (Connection nodeConns _ _ infoMap connReadOnly) (ShardMap shardMap) request = do
     let mek = case request of
           ("MULTI" : key : _) -> Just [key]
           ("EXEC" : key : _) -> Just [key]
           _ -> Nothing
+        isCmdReadOnly = CMD.isCommandReadonly infoMap request
     keys <- case CMD.keysForRequest infoMap request of
         Nothing -> throwIO $ UnsupportedClusterCommandException request
         Just k -> return k
     let shards = nub $ mapMaybe ((flip IntMap.lookup shardMap) . fromEnum . keyToSlot) (fromMaybe keys mek)
-    node <- case shards of
-        [] -> throwIO $ MissingNodeException request
-        [Shard master _] -> return master
+    node <- case (shards, connReadOnly) of
+        ([],_) -> throwIO $ MissingNodeException request
+        ([Shard master _], False) -> 
+            return master
+        ([Shard master []], True) -> 
+            return master
+        ([Shard master (slave: _)], True) -> 
+            if isCmdReadOnly
+                then return slave
+                else return master
         _ -> throwIO $ CrossSlotException request
     maybe (throwIO $ MissingNodeException request) return (HM.lookup (nodeId node) nodeConns)
 

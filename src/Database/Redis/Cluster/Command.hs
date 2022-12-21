@@ -102,6 +102,13 @@ keysForRequest (InfoMap infoMap) request@(command:_) = do
         return $ takeEvery (fromEnum $ stepCount info) possibleKeys
 keysForRequest _ [] = Nothing
 
+isCommandReadonly :: InfoMap -> [BS.ByteString] -> Bool
+isCommandReadonly (InfoMap infoMap) (command: _) = 
+    let
+        info = HM.lookup (map toLower $ Char8.unpack command) infoMap
+    in maybe (False) (ReadOnly `elem`) (flags <$> info)
+isCommandReadonly _ _ = False
+
 isMovable :: CommandInfo -> Bool
 isMovable CommandInfo{..} = MovableKeys `elem` flags
 
