@@ -850,19 +850,21 @@ instance RedisResult StreamsRecord where
 data XReadOpts = XReadOpts
     { block :: Maybe Integer
     , recordCount :: Maybe Integer
+    , noack :: Bool
     } deriving (Show, Eq)
 
 -- |Redis default 'XReadOpts'. Equivalent to omitting all optional parameters.
 --
 -- @
 -- XReadOpts
---     { block = Nothing -- Don't block waiting for more records
---     , recordCount    = Nothing   -- no record count
+--     { block       = Nothing -- Don't block waiting for more records
+--     , recordCount = Nothing -- no record count
+--     , noack       = False -- Add read records to the PEL if acknowledgement is not received
 --     }
 -- @
 --
 defaultXreadOpts :: XReadOpts
-defaultXreadOpts = XReadOpts { block = Nothing, recordCount = Nothing }
+defaultXreadOpts = XReadOpts { block = Nothing, recordCount = Nothing, noack = False}
 
 data XReadResponse = XReadResponse
     { stream :: ByteString
@@ -885,10 +887,11 @@ xreadOpts streamsAndIds opts = sendRequest $
 
 internalXreadArgs :: [(ByteString, ByteString)] -> XReadOpts -> [ByteString]
 internalXreadArgs streamsAndIds XReadOpts{..} =
-    concat [blockArgs, countArgs, ["STREAMS"], streams, recordIds]
+    concat [blockArgs, countArgs, noackArgs, ["STREAMS"], streams, recordIds]
     where
         blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) block
         countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) recordCount
+        noackArgs = if noack == False then [] else ["NOACK"] -- NOACK supported only for xreadgroup calls
         streams = map (\(stream, _) -> stream) streamsAndIds
         recordIds = map (\(_, recordId) -> recordId) streamsAndIds
 
@@ -923,7 +926,7 @@ xgroupCreate
     -> ByteString -- ^ group name
     -> ByteString -- ^ start ID
     -> m (f Status)
-xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId, "MKSTREAM"]
 
 xgroupSetId
     :: (RedisCtx m f)
@@ -1381,4 +1384,3 @@ command = sendRequest ["COMMAND"]
 
 readOnly :: (RedisCtx m f) => m (f Status)
 readOnly = sendRequest ["READONLY"]
-

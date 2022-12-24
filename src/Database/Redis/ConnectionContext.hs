@@ -10,7 +10,7 @@ module Database.Redis.ConnectionContext (
   , connect
   , disconnect
   , send
-  , recv 
+  , recv
   , errConnClosed
   , enableTLS
   , flush
@@ -126,9 +126,9 @@ connectSocket (addr:rest) = tryConnect >>= \case
 
 send :: ConnectionContext -> B.ByteString -> IO ()
 send (NormalHandle h) requestData =
-      ioErrorToConnLost (B.hPut h requestData) 
+      ioErrorToConnLost (B.hPut h requestData)
 send (TLSContext ctx) requestData =
-        ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData)) 
+        ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData))
 
 recv :: ConnectionContext -> IO B.ByteString
 recv (NormalHandle h) = ioErrorToConnLost $ B.hGetSome h 4096
@@ -136,7 +136,7 @@ recv (TLSContext ctx) = TLS.recvData ctx
 
 
 ioErrorToConnLost :: IO a -> IO a
-ioErrorToConnLost a = a `catchIOError` const errConnClosed
+ioErrorToConnLost a = a `catchIOError` (\x -> putStrLn ("exception while running redis query: " <> show x) *> errConnClosed)
 
 errConnClosed :: IO a
 errConnClosed = throwIO ConnectionLost
