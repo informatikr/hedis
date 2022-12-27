@@ -1381,3 +1381,6 @@ clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (enco
 
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]
+
+readOnly :: (RedisCtx m f) => m (f Status)
+readOnly = sendRequest ["READONLY"]

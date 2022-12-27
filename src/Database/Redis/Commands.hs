@@ -274,7 +274,8 @@ clusterSetSlotStable,
 clusterSetSlotImporting,
 clusterSetSlotMigrating,
 clusterGetKeysInSlot,
-command
+command,
+readOnly
 -- * Unimplemented Commands
 -- |These commands are not implemented, as of now. Library
 --  users can implement these or other commands from
