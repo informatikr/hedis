@@ -214,14 +214,11 @@ connectCluster bootstrapConnInfo = do
         clusterConnect readOnlyConnection connection = do
             clusterConn@(Cluster.Connection nodeMap _ _ _ _) <- connection
             nodesConns <-  sequence $ ( PP.fromCtx . (\(Cluster.NodeConnection ctx _ _) -> ctx ) . snd) <$> (HM.toList nodeMap)
-            void $ if readOnlyConnection
-                then 
+            when readOnlyConnection $
                     mapM_ (\conn -> do
                             PP.beginReceiving conn
                             runRedisInternal conn readOnly
                         ) nodesConns
-                else
-                    return ()
             return clusterConn
 
 

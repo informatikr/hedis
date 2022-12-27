@@ -17,6 +17,7 @@ module Database.Redis.Cluster
 ) where
 
 import qualified Data.ByteString as B
+import Data.Char(toLower)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.IORef as IOR
 import Data.Maybe(listToMaybe, mapMaybe, fromMaybe)
@@ -226,7 +227,7 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap connReadOnly) (ShardM
           ("MULTI" : key : _) -> Just [key]
           ("EXEC" : key : _) -> Just [key]
           _ -> Nothing
-        isCmdReadOnly = CMD.isCommandReadonly infoMap request
+        isCmdReadOnly = isCommandReadonly infoMap request
     keys <- case CMD.keysForRequest infoMap request of
         Nothing -> throwIO $ UnsupportedClusterCommandException request
         Just k -> return k
@@ -243,6 +244,13 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap connReadOnly) (ShardM
                 else return master
         _ -> throwIO $ CrossSlotException request
     maybe (throwIO $ MissingNodeException request) return (HM.lookup (nodeId node) nodeConns)
+    where
+        isCommandReadonly :: CMD.InfoMap -> [B.ByteString] -> Bool
+        isCommandReadonly (CMD.InfoMap iMap) (command: _) = 
+            let
+                info = HM.lookup (map toLower $ Char8.unpack command) iMap
+            in maybe False (CMD.ReadOnly `elem`) (CMD.flags <$> info)
+        isCommandReadonly _ _ = False
 
 cleanRequest :: [B.ByteString] -> [B.ByteString]
 cleanRequest ("MULTI" : _) = ["MULTI"]
