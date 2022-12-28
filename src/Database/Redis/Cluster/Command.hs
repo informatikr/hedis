@@ -86,7 +86,29 @@ instance RedisResult CommandInfo where
         parseLastKeyPos = return $ case lastKeyPos of
             i | i == -1 -> UnlimitedKeys
             i -> LastKeyPosition i
-
+    decode (MultiBulk (Just
+        [ name@(Bulk (Just _))
+        , arity@(Integer _)
+        , flags@(MultiBulk (Just _))
+        , firstPos@(Integer _)
+        , lastPos@(Integer _)
+        , step@(Integer _)
+        , MultiBulk _  -- ACL categories
+        ])) =
+        decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
+    decode (MultiBulk (Just
+        [ name@(Bulk (Just _))
+        , arity@(Integer _)
+        , flags@(MultiBulk (Just _))
+        , firstPos@(Integer _)
+        , lastPos@(Integer _)
+        , step@(Integer _)
+        , MultiBulk _  -- ACL categories
+        , MultiBulk _  -- Tips
+        , MultiBulk _  -- Key specifications
+        , MultiBulk _  -- Sub commands
+        ])) =
+        decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
     decode e = Left e
 
 newInfoMap :: [CommandInfo] -> InfoMap
