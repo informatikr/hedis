@@ -206,11 +206,11 @@ connectCluster bootstrapConnInfo = do
         Right infos -> do
             let
                 isConnectionReadOnly = connectReadOnly bootstrapConnInfo
-                clusterConnection = Cluster.connect withAuthAndSelectDB infos shardMapVar Nothing isConnectionReadOnly
+                clusterConnection = Cluster.connect withAuth infos shardMapVar Nothing isConnectionReadOnly
             pool <- createPool (clusterConnect isConnectionReadOnly clusterConnection) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
     where
-      withAuthAndSelectDB host port timeout = do
+      withAuth host port timeout = do
         conn <- PP.connect host port timeout
         conn' <- case connectTLSParams bootstrapConnInfo of
                   Nothing -> return conn
@@ -226,12 +226,6 @@ connectCluster bootstrapConnInfo = do
                   case resp of
                     Left r -> liftIO $ throwIO $ ConnectAuthError r
                     _      -> return ()
-            -- SELECT
-            when (connectDatabase bootstrapConnInfo /= 0) $ do
-              resp <- select $ connectDatabase bootstrapConnInfo
-              case resp of
-                  Left r -> liftIO $ throwIO $ ConnectSelectError r
-                  _      -> return ()
         return $ PP.toCtx conn'
 
       clusterConnect :: Bool -> IO Cluster.Connection -> IO Cluster.Connection
