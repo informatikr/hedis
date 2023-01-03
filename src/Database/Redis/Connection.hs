@@ -204,24 +204,46 @@ connectCluster bootstrapConnInfo = do
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
-            let 
+            let
                 isConnectionReadOnly = connectReadOnly bootstrapConnInfo
-                clusterConnection = Cluster.connect infos shardMapVar Nothing isConnectionReadOnly
+                clusterConnection = Cluster.connect withAuthAndSelectDB infos shardMapVar Nothing isConnectionReadOnly
             pool <- createPool (clusterConnect isConnectionReadOnly clusterConnection) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
     where
-        clusterConnect :: Bool -> IO Cluster.Connection -> IO Cluster.Connection
-        clusterConnect readOnlyConnection connection = do
-            clusterConn@(Cluster.Connection nodeMap _ _ _ _) <- connection
-            nodesConns <-  sequence $ ( PP.fromCtx . (\(Cluster.NodeConnection ctx _ _) -> ctx ) . snd) <$> (HM.toList nodeMap)
-            when readOnlyConnection $
-                    mapM_ (\conn -> do
-                            PP.beginReceiving conn
-                            runRedisInternal conn readOnly
-                        ) nodesConns
-            return clusterConn
+      withAuthAndSelectDB host port timeout = do
+        conn <- PP.connect host port timeout
+        conn' <- case connectTLSParams bootstrapConnInfo of
+                  Nothing -> return conn
+                  Just tlsParams -> PP.enableTLS tlsParams conn
+        PP.beginReceiving conn'
 
+        runRedisInternal conn' $ do
+            -- AUTH
+            case connectAuth bootstrapConnInfo of
+                Nothing   -> return ()
+                Just pass -> do
+                  resp <- auth pass
+                  case resp of
+                    Left r -> liftIO $ throwIO $ ConnectAuthError r
+                    _      -> return ()
+            -- SELECT
+            when (connectDatabase bootstrapConnInfo /= 0) $ do
+              resp <- select $ connectDatabase bootstrapConnInfo
+              case resp of
+                  Left r -> liftIO $ throwIO $ ConnectSelectError r
+                  _      -> return ()
+        return $ PP.toCtx conn'
 
+      clusterConnect :: Bool -> IO Cluster.Connection -> IO Cluster.Connection
+      clusterConnect readOnlyConnection connection = do
+          clusterConn@(Cluster.Connection nodeMap _ _ _ _) <- connection
+          nodesConns <-  sequence $ ( PP.fromCtx . (\(Cluster.NodeConnection ctx _ _) -> ctx ) . snd) <$> (HM.toList nodeMap)
+          when readOnlyConnection $
+                  mapM_ (\conn -> do
+                          PP.beginReceiving conn
+                          runRedisInternal conn readOnly
+                      ) nodesConns
+          return clusterConn
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
 shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr mkShardMap (pure IntMap.empty)  clusterSlotsResponseEntries where

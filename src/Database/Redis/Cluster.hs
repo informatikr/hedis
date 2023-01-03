@@ -89,8 +89,8 @@ newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, T
 instance Exception CrossSlotException
 
 
-connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> IO Connection
-connect commandInfos shardMapVar timeoutOpt isReadOnly = do
+connect :: (Host -> CC.PortID -> Maybe Int -> IO CC.ConnectionContext) -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> IO Connection
+connect withAuth commandInfos shardMapVar timeoutOpt isReadOnly = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
@@ -100,7 +100,7 @@ connect commandInfos shardMapVar timeoutOpt isReadOnly = do
     nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
     connectNode :: Node -> IO (NodeID, NodeConnection)
     connectNode (Node n _ host port) = do
-        ctx <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
+        ctx <- withAuth host (CC.PortNumber $ toEnum port) timeoutOpt
         ref <- IOR.newIORef Nothing
         return (n, NodeConnection ctx ref n)
 
