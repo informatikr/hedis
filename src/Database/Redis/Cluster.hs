@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Database.Redis.Cluster
   ( Connection(..)
   , NodeRole(..)
@@ -24,7 +25,7 @@ import Data.Maybe(listToMaybe, mapMaybe, fromMaybe)
 import Data.List(nub, sortBy)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
-import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..))
+import Control.Exception(Exception, SomeException, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), try)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
 import Control.Monad(zipWithM, when)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
@@ -89,12 +90,22 @@ newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, T
 instance Exception CrossSlotException
 
 
-connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> IO Connection
-connect commandInfos shardMapVar timeoutOpt isReadOnly = do
+connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> (Bool -> IO ShardMap) -> IO Connection
+connect commandInfos shardMapVar timeoutOpt isReadOnly refreshShardMap = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
-        nodeConns <- nodeConnections shardMap
+        eNodeConns <- try $ nodeConnections shardMap
+        -- whenever one of the node connection is not established,
+        -- will refresh the slots and retry node connections.
+        -- This would handle fail over, IP change use cases.
+        nodeConns <-
+          case eNodeConns of
+            Right nodeConns -> return nodeConns
+            Left (_ :: SomeException) -> do
+              newShardMap <- refreshShardMap True
+              refreshShardMapVar "locked refreshing due to connection issues" newShardMap
+              nodeConnections newShardMap
         return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly where
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
     nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
@@ -103,6 +114,8 @@ connect commandInfos shardMapVar timeoutOpt isReadOnly = do
         ctx <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
         ref <- IOR.newIORef Nothing
         return (n, NodeConnection ctx ref n)
+    refreshShardMapVar :: String -> ShardMap -> IO ()
+    refreshShardMapVar msg shardMap = hasLocked msg $ modifyMVar_ shardMapVar (const (pure shardMap))
 
 disconnect :: Connection -> IO ()
 disconnect (Connection nodeConnMap _ _ _ _ ) = mapM_ disconnectNode (HM.elems nodeConnMap) where
@@ -234,11 +247,11 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap connReadOnly) (ShardM
     let shards = nub $ mapMaybe ((flip IntMap.lookup shardMap) . fromEnum . keyToSlot) (fromMaybe keys mek)
     node <- case (shards, connReadOnly) of
         ([],_) -> throwIO $ MissingNodeException request
-        ([Shard master _], False) -> 
+        ([Shard master _], False) ->
             return master
-        ([Shard master []], True) -> 
+        ([Shard master []], True) ->
             return master
-        ([Shard master (slave: _)], True) -> 
+        ([Shard master (slave: _)], True) ->
             if isCmdReadOnly
                 then return slave
                 else return master
@@ -246,7 +259,7 @@ nodeConnectionForCommand (Connection nodeConns _ _ infoMap connReadOnly) (ShardM
     maybe (throwIO $ MissingNodeException request) return (HM.lookup (nodeId node) nodeConns)
     where
         isCommandReadonly :: CMD.InfoMap -> [B.ByteString] -> Bool
-        isCommandReadonly (CMD.InfoMap iMap) (command: _) = 
+        isCommandReadonly (CMD.InfoMap iMap) (command: _) =
             let
                 info = HM.lookup (map toLower $ Char8.unpack command) iMap
             in maybe False (CMD.ReadOnly `elem`) (CMD.flags <$> info)
