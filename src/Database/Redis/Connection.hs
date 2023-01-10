@@ -208,7 +208,7 @@ connectCluster bootstrapConnInfo = do
         Right infos -> do
             let
                 isConnectionReadOnly = connectReadOnly bootstrapConnInfo
-                clusterConnection = Cluster.connect withAuth infos shardMapVar timeoutOptUs isConnectionReadOnly (refreshShardMapWithConn conn)
+                clusterConnection = Cluster.connect withAuth infos shardMapVar timeoutOptUs isConnectionReadOnly refreshShardMapWithNodeConn
             pool <- createPool (clusterConnect isConnectionReadOnly clusterConnection) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
     where
@@ -259,8 +259,11 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _ _ _ _) = do
-    let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
+refreshShardMap (Cluster.Connection nodeConns _ _ _ _) =
+    refreshShardMapWithNodeConn (head $ HM.elems nodeConns)
+
+refreshShardMapWithNodeConn :: Cluster.NodeConnection -> IO ShardMap
+refreshShardMapWithNodeConn (Cluster.NodeConnection ctx _ _) = do
     pipelineConn <- PP.fromCtx ctx
     refreshShardMapWithConn pipelineConn True
 

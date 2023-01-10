@@ -109,25 +109,41 @@ instance Exception UnsupportedClusterCommandException
 newtype CrossSlotException = CrossSlotException [B.ByteString] deriving (Show, Typeable)
 instance Exception CrossSlotException
 
-connect :: (Host -> CC.PortID -> Maybe Int -> IO CC.ConnectionContext) -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> (Bool -> IO ShardMap) -> IO Connection
+data NoNodeException = NoNodeException  deriving (Show, Typeable)
+instance Exception NoNodeException
+
+connect :: (Host -> CC.PortID -> Maybe Int -> IO CC.ConnectionContext) -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> (NodeConnection -> IO ShardMap) -> IO Connection
 connect withAuth commandInfos shardMapVar timeoutOpt isReadOnly refreshShardMap = do
-        shardMap <- readMVar shardMapVar
-        stateVar <- newMVar $ Pending []
-        pipelineVar <- newMVar $ Pipeline stateVar
-        eNodeConns <- try $ nodeConnections shardMap
-        -- whenever one of the node connection is not established,
-        -- will refresh the slots and retry node connections.
-        -- This would handle fail over, IP change use cases.
-        nodeConns <-
-          case eNodeConns of
-            Right nodeConns -> return nodeConns
-            Left (_ :: SomeException) -> do
-              newShardMap <- refreshShardMap True
-              refreshShardMapVar "locked refreshing due to connection issues" newShardMap
-              nodeConnections newShardMap
-        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly where
-    nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
-    nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
+  shardMap <- readMVar shardMapVar
+  stateVar <- newMVar $ Pending []
+  pipelineVar <- newMVar $ Pipeline stateVar
+  (eNodeConns, shouldRetry) <- nodeConnections shardMap
+  -- whenever one of the node connection is not established,
+  -- will refresh the slots and retry node connections.
+  -- This would handle fail over, IP change use cases.
+  nodeConns <-
+    if shouldRetry
+      then if not (HM.null eNodeConns)
+              then do
+                newShardMap <- refreshShardMap (head $ HM.elems eNodeConns)
+                refreshShardMapVar "locked refreshing due to connection issues" newShardMap
+                simpleNodeConnections newShardMap
+              else
+                throwIO NoNodeException
+      else
+        return eNodeConns
+  return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly
+  where
+    simpleNodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
+    simpleNodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
+    nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection, Bool)
+    nodeConnections shardMap = do
+      info <- mapM (try . connectNode) (nub $ nodes shardMap)
+      return $
+        foldl (\(acc, accB) x -> case x of
+                    Right (v, nc) -> (HM.insert v nc acc, accB)
+                    Left (_ :: SomeException) -> (acc, True)
+           ) (mempty, False) info
     connectNode :: Node -> IO (NodeID, NodeConnection)
     connectNode (Node n _ host port) = do
         ctx <- withAuth host (CC.PortNumber $ toEnum port) timeoutOpt
