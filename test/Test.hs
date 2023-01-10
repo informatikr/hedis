@@ -28,7 +28,7 @@ main :: IO ()
 main = do
     singleNodeConn <- connect defaultConnectInfo
     let singleNodeTests = tests singleNodeConn
-    clusterConn <- connectCluster $ defaultConnectInfo { connectPort = PortNumber 7001 }
+    clusterConn <- connectCluster $ defaultConnectInfo { connectPort = PortNumber 30001 }
     let clusterTestCases = clusterTests clusterConn
     Test.defaultMain $ clusterTestCases ++ singleNodeTests
 

@@ -33,7 +33,10 @@ import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
 import Data.Maybe (isJust)
 import Data.Pool
+#if MIN_VERSION_base(4,13,0)
+#else
 import Data.Semigroup (Semigroup(..))
+#endif
 import qualified Data.HashMap.Strict as HM
 import qualified Database.Redis.Core as Core
 import qualified Database.Redis.Connection as Connection

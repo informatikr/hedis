@@ -18,8 +18,11 @@ import Control.Applicative
 #if __GLASGOW_HASKELL__ > 711
 #endif
 import Control.Monad.Reader
+#if MIN_VERSION_base(4,13,0)
+
+#else
 import Control.Monad.Fail(MonadFail)
---import Control.Concurrent.MVar(MVar, readMVar, putMVar, newMVar)
+#endif
 import qualified Data.ByteString as B
 import Data.IORef
 
@@ -79,7 +82,7 @@ instance MonadRedis Redis where
 --
 --  'unRedis' and 'reRedis' can be used to define instances for
 --  arbitrary typeclasses.
--- 
+--
 --  WARNING! These functions are considered internal and no guarantee
 --  is given at this point that they will not break in future.
 unRedis :: Redis a -> ReaderT RedisEnv IO a
@@ -139,7 +142,7 @@ sendRequest :: (RedisCtx m f, RedisResult a)
 sendRequest req = do
     r' <- liftRedis $ Redis $ do
         env <- ask
-        case env of 
+        case env of
             NonClusteredEnv{..} -> do
                 r <- liftIO $ PP.request envConn (renderRequest req)
                 setLastReply r

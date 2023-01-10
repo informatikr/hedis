@@ -1,5 +1,5 @@
 name:               hedis
-version:            0.12.8
+version:            0.12.8.1
 synopsis:
     Client library for the Redis datastore: supports full command set,
     pipelining.
@@ -87,7 +87,6 @@ library
                     HTTP,
                     errors,
                     network-uri,
-                    crc16 == 0.1.0,
                     say
   if !impl(ghc >= 8.0)
     build-depends:

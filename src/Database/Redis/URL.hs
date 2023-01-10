@@ -8,7 +8,10 @@ import Control.Applicative ((<$>))
 #endif
 import Control.Error.Util (note)
 import Control.Monad (guard)
+#if MIN_VERSION_base(4,13,0)
+#else
 import Data.Monoid ((<>))
+#endif
 import Database.Redis.Connection (ConnectInfo(..), defaultConnectInfo)
 import qualified Database.Redis.ConnectionContext as CC
 import Network.HTTP.Base
@@ -22,7 +25,7 @@ import qualified Data.ByteString.Char8 as C8
 -- Username is ignored, path is used to specify the database:
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectReadOnly = False, connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/db"
 -- Left "Invalid port: db"
@@ -36,7 +39,7 @@ import qualified Data.ByteString.Char8 as C8
 -- @'defaultConnectInfo'@:
 --
 -- >>> parseConnectInfo "redis://"
--- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectReadOnly = False, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
 --
 parseConnectInfo :: String -> Either String ConnectInfo
 parseConnectInfo url = do

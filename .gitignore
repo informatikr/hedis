@@ -11,3 +11,4 @@ Main.hs
 .stack-work
 TAGS
 stack.yaml.lock
+.nvimrc
