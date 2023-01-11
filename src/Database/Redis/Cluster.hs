@@ -22,7 +22,7 @@ import qualified Data.ByteString as B
 import Data.Char(toLower)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.IORef as IOR
-import Data.Maybe(listToMaybe, mapMaybe, fromMaybe)
+import Data.Maybe(mapMaybe, fromMaybe)
 import Data.List(nub, sortBy, find, findIndex)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
@@ -114,26 +114,25 @@ instance Exception NoNodeException
 
 connect :: (Host -> CC.PortID -> Maybe Int -> IO CC.ConnectionContext) -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Bool -> (NodeConnection -> IO ShardMap) -> IO Connection
 connect withAuth commandInfos shardMapVar timeoutOpt isReadOnly refreshShardMap = do
-  shardMap <- readMVar shardMapVar
-  stateVar <- newMVar $ Pending []
-  pipelineVar <- newMVar $ Pipeline stateVar
-  (eNodeConns, shouldRetry) <- nodeConnections shardMap
-  -- whenever one of the node connection is not established,
-  -- will refresh the slots and retry node connections.
-  -- This would handle fail over, IP change use cases.
-  nodeConns <-
-    if shouldRetry
-      then if not (HM.null eNodeConns)
-              then do
-                newShardMap <- refreshShardMap (head $ HM.elems eNodeConns)
-                refreshShardMapVar "locked refreshing due to connection issues" newShardMap
-                simpleNodeConnections newShardMap
-              else
-                throwIO NoNodeException
-      else
-        return eNodeConns
-  return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly
-  where
+        shardMap <- readMVar shardMapVar
+        stateVar <- newMVar $ Pending []
+        pipelineVar <- newMVar $ Pipeline stateVar
+        (eNodeConns, shouldRetry) <- nodeConnections shardMap
+        -- whenever one of the node connection is not established,
+        -- will refresh the slots and retry node connections.
+        -- This would handle fail over, IP change use cases.
+        nodeConns <-
+          if shouldRetry
+            then if not (HM.null eNodeConns)
+                    then do
+                      newShardMap <- refreshShardMap (head $ HM.elems eNodeConns)
+                      refreshShardMapVar "locked refreshing due to connection issues" newShardMap
+                      simpleNodeConnections newShardMap
+                    else
+                      throwIO NoNodeException
+            else
+              return eNodeConns
+        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) isReadOnly where
     simpleNodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
     simpleNodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection, Bool)
