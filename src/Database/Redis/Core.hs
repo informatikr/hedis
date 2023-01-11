@@ -5,7 +5,7 @@
 module Database.Redis.Core (
     Redis(), unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
-    send, recv, sendRequest,
+    send, recv, sendRequest, sendToAllMasterNodes,
     runRedisInternal,
     runRedisClusteredInternal,
     RedisEnv(..),
@@ -49,11 +49,16 @@ deriving instance MonadFail Redis
 #endif
 
 data RedisEnv
-    = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
-    | ClusteredEnv
-        { refreshAction :: IO ShardMap
+    = NonClusteredEnv { envConn :: PP.Connection, nonClusteredLastReply :: IORef Reply }
+    | ClusteredEnv 
+        { refreshAction :: IO ShardMap 
         , connection :: Cluster.Connection
+        , clusteredLastReply :: IORef Reply
         }
+
+envLastReply :: RedisEnv -> IORef Reply
+envLastReply NonClusteredEnv{..} = nonClusteredLastReply
+envLastReply ClusteredEnv{..} = clusteredLastReply
 
 -- |This class captures the following behaviour: In a context @m@, a command
 --  will return its result wrapped in a \"container\" of type @f@.
@@ -100,8 +105,9 @@ runRedisInternal conn (Redis redis) = do
 
 runRedisClusteredInternal :: Cluster.Connection -> IO ShardMap -> Redis a -> IO a
 runRedisClusteredInternal connection refreshShardmapAction (Redis redis) = do
-    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection)
-    r `seq` return ()
+    ref <- newIORef (SingleLine "nobody will ever see this")
+    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection ref) 
+    readIORef ref >>= (`seq` return ())
     return r
 
 setLastReply :: Reply -> ReaderT RedisEnv IO ()
@@ -141,5 +147,21 @@ sendRequest req = do
                 r <- liftIO $ PP.request envConn (renderRequest req)
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined refreshAction connection req
+            ClusteredEnv{..} -> do
+                r <- liftIO $ Cluster.requestPipelined refreshAction connection req
+                lift (writeIORef clusteredLastReply r)
+                return r
     returnDecode r'
+
+sendToAllMasterNodes :: (RedisResult a, MonadRedis m) => [B.ByteString] -> m [Either Reply a]
+sendToAllMasterNodes req = do
+    r' <- liftRedis $ Redis $ do
+        env <- ask
+        case env of 
+            NonClusteredEnv{..} -> do
+                r <- liftIO $ PP.request envConn (renderRequest req)
+                r `seq` return [r]
+            ClusteredEnv{..} ->  do
+                r <- liftIO $ Cluster.requestMasterNodes connection req
+                return r
+    return $ map decode r'

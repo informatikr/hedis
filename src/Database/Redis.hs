@@ -177,6 +177,7 @@ module Database.Redis (
 
     -- * Low-Level Command API
     sendRequest,
+    sendToAllMasterNodes,
     Reply(..),Status(..),RedisResult(..),ConnectionLostException(..),
     
     -- |[Solution to Exercise]

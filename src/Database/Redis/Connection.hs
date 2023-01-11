@@ -193,6 +193,8 @@ instance Exception ClusterConnectError
 -- a 'ConnectInfo' for any node in the cluster
 connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
+    let timeoutOptUs =
+          round . (1000000 *) <$> connectTimeout bootstrapConnInfo
     conn <- createConnection bootstrapConnInfo
     slotsResponse <- runRedisInternal conn clusterSlots
     shardMapVar <- case slotsResponse of
@@ -206,7 +208,7 @@ connectCluster bootstrapConnInfo = do
         Right infos -> do
             let
                 isConnectionReadOnly = connectReadOnly bootstrapConnInfo
-                clusterConnection = Cluster.connect withAuth infos shardMapVar Nothing isConnectionReadOnly
+                clusterConnection = Cluster.connect withAuth infos shardMapVar timeoutOptUs isConnectionReadOnly (refreshShardMapWithConn conn)
             pool <- createPool (clusterConnect isConnectionReadOnly clusterConnection) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
     where
@@ -260,6 +262,10 @@ refreshShardMap :: Cluster.Connection -> IO ShardMap
 refreshShardMap (Cluster.Connection nodeConns _ _ _ _) = do
     let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
     pipelineConn <- PP.fromCtx ctx
+    refreshShardMapWithConn pipelineConn True
+
+refreshShardMapWithConn :: PP.Connection -> Bool -> IO ShardMap
+refreshShardMapWithConn pipelineConn _ = do
     _ <- PP.beginReceiving pipelineConn
     slotsResponse <- runRedisInternal pipelineConn clusterSlots
     case slotsResponse of
