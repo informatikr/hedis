@@ -119,7 +119,8 @@ keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
     if isMovable info then parseMovable request else do
         let possibleKeys = case lastKeyPosition info of
-                LastKeyPosition end -> take (fromEnum $ 1 + end - firstKeyPosition info) $ drop (fromEnum $ firstKeyPosition info) request
+                LastKeyPosition 0 -> []
+                LastKeyPosition end -> take (fromEnum $ 1 + end - firstKeyPosition info) $ drop (fromEnum $ firstKeyPosition info)  request
                 UnlimitedKeys -> drop (fromEnum $ firstKeyPosition info) request
         return $ takeEvery (fromEnum $ stepCount info) possibleKeys
 keysForRequest _ [] = Nothing
