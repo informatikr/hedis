@@ -247,8 +247,8 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
     mkShardMap ClusterSlotsResponseEntry{..} accumulator = do
         accumulated <- accumulator
         let master = nodeFromClusterSlotNode True clusterSlotsResponseEntryMaster
-        let replicas = map (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
-        let shard = Shard master replicas
+        -- let replicas = map (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
+        let shard = Shard master []
         let slotMap = IntMap.fromList $ map (, shard) [clusterSlotsResponseEntryStartSlot..clusterSlotsResponseEntryEndSlot]
         return $ IntMap.union slotMap accumulated
     nodeFromClusterSlotNode :: Bool -> ClusterSlotsNode -> Node
