@@ -27,6 +27,8 @@ import Data.List(nub, sortBy, find)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
 import Control.Exception(Exception, SomeException, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), try)
+import Control.Concurrent.Async(race)
+import Control.Concurrent(threadDelay)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
 import Control.DeepSeq(deepseq)
 import Control.Monad(zipWithM, when, replicateM)
@@ -326,15 +328,20 @@ cleanRequest ("MULTI" : _) = ["MULTI"]
 cleanRequest ("EXEC" : _) = ["EXEC"]
 cleanRequest req = req
 
-
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode (NodeConnection ctx lastRecvRef _) requests = do
-    let reqs = map cleanRequest requests
-    _ <- mapM_ (sendNode . renderRequest) reqs
-    _ <- CC.flush ctx
-    replicateM (length requests) recvNode
-
+  eresp <- race requestNodeImpl (threadDelay 1000000) -- 100 ms
+  case eresp of
+    Left e -> return e
+    Right _ -> putStrLn "timeout happened" *> throwIO NoNodeException
     where
+
+    requestNodeImpl :: IO [Reply]
+    requestNodeImpl = do
+        let reqs = map cleanRequest requests
+        _ <- mapM_ (sendNode . renderRequest) reqs
+        _ <- CC.flush ctx
+        replicateM (length requests) recvNode
 
     sendNode :: B.ByteString -> IO ()
     sendNode = CC.send ctx
