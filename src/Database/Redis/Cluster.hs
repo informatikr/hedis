@@ -246,18 +246,13 @@ evaluatePipeline shardMapVar refreshShardmapAction conn requests = do
         -- heavy perf issue. but still should be evaluated and figured out with complete rewrite.
         resps <- concat <$> mapM (\(resp, (cc, r)) -> case resp of
                                         Right v -> return v
-                                        Left (_ :: SomeException) ->  executeRequests (getRandomConnection cc) r
+                                        Left (_ :: SomeException) ->  executeRequests (getRandomConnection cc conn) r
                       ) (zip eresps requestsByNode)
         -- check for any moved in both responses and continue the flow.
         when (any (moved . rawResponse) resps) refreshShardMapVar
         retriedResps <- mapM (retry 0) resps
         return $ map rawResponse $ sortBy (on compare responseIndex) retriedResps
   where
-    getRandomConnection :: NodeConnection -> NodeConnection
-    getRandomConnection nc =
-      let (Connection hmn _ _ _ _) = conn
-          conns = HM.elems hmn
-          in fromMaybe (head conns) $ find (nc /= ) conns
     getRequestsByNode :: ShardMap -> IO [(NodeConnection, [PendingRequest])]
     getRequestsByNode shardMap = do
         commandsWithNodes <- zipWithM (requestWithNodes shardMap) (reverse [0..(length requests - 1)]) requests
@@ -320,7 +315,13 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
     -- fail early.
     hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
     nodeConn <- nodeConnForHashSlot shardMapVar conn (MissingNodeException (head requests)) hashSlot
-    resps <- requestNode nodeConn requests
+    -- catch the exception thrown, send the command to random node.
+    -- This change is required to handle the cluster topology change.
+    eresps <- try $ requestNode nodeConn requests
+    resps <-
+      case eresps of
+        Right v -> return v
+        Left (_ :: SomeException) -> requestNode (getRandomConnection nodeConn conn) requests
     -- The Redis documentation has the following to say on the effect of
     -- resharding on multi-key operations:
     --
@@ -487,3 +488,9 @@ masterNodes (Connection nodeConns _ shardMapVar _ _) = do
     let masters = map ((\(Shard m _) -> m) . snd) $ IntMap.toList shardMap
     let masterNodeIds = map nodeId masters
     return $ mapMaybe (`HM.lookup` nodeConns) masterNodeIds
+
+getRandomConnection :: NodeConnection -> Connection -> NodeConnection
+getRandomConnection nc conn =
+  let (Connection hmn _ _ _ _) = conn
+      conns = HM.elems hmn
+      in fromMaybe (head conns) $ find (nc /= ) conns
