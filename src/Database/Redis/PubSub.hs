@@ -33,8 +33,7 @@ import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
 import Data.Maybe (isJust)
 import Data.Pool
-#if MIN_VERSION_base(4,13,0)
-#else
+#if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup (Semigroup(..))
 #endif
 import qualified Data.HashMap.Strict as HM
@@ -92,7 +91,7 @@ instance Semigroup (Cmd Subscribe a) where
 instance Monoid (Cmd Subscribe a) where
   mempty = DoNothing
   mappend = (<>)
-    
+
 instance Semigroup (Cmd Unsubscribe a) where
   (<>) DoNothing x = x
   (<>) x DoNothing = x
@@ -183,7 +182,7 @@ unsubscribe
     -> PubSub
 unsubscribe cs = mempty{ unsubs = Cmd cs }
 
--- |Listen for messages published to channels matching the given patterns 
+-- |Listen for messages published to channels matching the given patterns
 --  (<http://redis.io/commands/psubscribe>).
 psubscribe
     :: [ByteString] -- ^ pattern
@@ -191,7 +190,7 @@ psubscribe
 psubscribe []       = mempty
 psubscribe ps = mempty{ psubs = Cmd ps }
 
--- |Stop listening for messages posted to channels matching the given patterns 
+-- |Stop listening for messages posted to channels matching the given patterns
 --  (<http://redis.io/commands/punsubscribe>).
 punsubscribe
     :: [ByteString] -- ^ pattern
@@ -201,11 +200,11 @@ punsubscribe ps = mempty{ punsubs = Cmd ps }
 -- |Listens to published messages on subscribed channels and channels matching
 --  the subscribed patterns. For documentation on the semantics of Redis
 --  Pub\/Sub see <http://redis.io/topics/pubsub>.
---  
---  The given callback function is called for each received message. 
+--
+--  The given callback function is called for each received message.
 --  Subscription changes are triggered by the returned 'PubSub'. To keep
 --  subscriptions unchanged, the callback can return 'mempty'.
---  
+--
 --  Example: Subscribe to the \"news\" channel indefinitely.
 --
 --  @
@@ -546,11 +545,13 @@ sendThread ctrl rawConn = forever $ do
 -- main = do
 --   conn <- connect defaultConnectInfo
 --   pubSubCtrl <- newPubSubController [("mychannel", myhandler)] []
---   forkIO $ forever $
+--   concurrently ( forever $
 --       pubSubForever conn pubSubCtrl onInitialComplete
 --         \`catch\` (\\(e :: SomeException) -> do
 --           putStrLn $ "Got error: " ++ show e
 --           threadDelay $ 50*1000) -- TODO: use exponential backoff
+--        ) $ restOfYourProgram
+--
 --
 --   {- elsewhere in your program, use pubSubCtrl to change subscriptions -}
 -- @

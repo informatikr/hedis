@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
-module Main (main) where
+module Tests where
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
@@ -13,50 +13,21 @@ import Control.Monad.Trans
 import qualified Data.List as L
 import Data.Time
 import Data.Time.Clock.POSIX
-import qualified Test.Framework as Test (Test, defaultMain)
+import qualified Test.Framework as Test (Test)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
-import qualified Data.ByteString as BS
 
 import Database.Redis
-import PubSubTest
 
 ------------------------------------------------------------------------------
--- Main and helpers
+-- helpers
 --
-main :: IO ()
-main = do
-    singleNodeConn <- connect defaultConnectInfo
-    let singleNodeTests = tests singleNodeConn
-    clusterConn <- connectCluster $ defaultConnectInfo { connectPort = PortNumber 30001 }
-    let clusterTestCases = clusterTests clusterConn
-    Test.defaultMain $ clusterTestCases ++ singleNodeTests
-
-
-data TestType = Cluster | SingleNode
-
-instance Show TestType where
-    show Cluster = "Cluster"
-    show SingleNode = "SingleNode"
-
-type Test = TestType -> Connection -> Test.Test
-
-
-resetDb :: Connection -> IO ()
-resetDb conn = do
-    resps <- runRedis conn $ sendToAllMasterNodes ["FLUSHDB"]
-    let combined = sequence resps
-    case combined of
-        Left reply -> HUnit.assertFailure $ "Redis error when flushing: " ++ show reply
-        Right replies -> if  all (\r -> r == Ok) replies
-                         then return ()
-                         else HUnit.assertFailure "Redis error when flushing, non OK reply received"
+type Test = Connection -> Test.Test
 
 testCase :: String -> Redis () -> Test
-testCase name r testType conn = Test.testCase nameWithTestType $
-    withTimeLimit 0.5 $ resetDb conn >> runRedis conn r
+testCase name r conn = Test.testCase name $ do
+    withTimeLimit 0.5 $ runRedis conn $ flushdb >>=? Ok >> r
   where
-    nameWithTestType = show testType ++ ": " ++ name
     withTimeLimit limit act = do
         start <- getCurrentTime
         _ <- act
@@ -73,25 +44,6 @@ redis >>=? expected = do
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
-
-------------------------------------------------------------------------------
--- Tests
---
-tests :: Connection -> [Test.Test]
-tests conn = map (\t -> t SingleNode conn) $ concat
-    [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
-    , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testScans], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
-    , (map (\f -> (\_ c -> f c)) testPubSubThreaded)
-      -- should always be run last as connection gets closed after it
-    , [testQuit]
-    ]
-
-clusterTests :: Connection -> [Test.Test]
-clusterTests conn = map (\t -> t Cluster conn)
-    [ testPipelining , testConstantSpacePipelining, testForceErrorReply
-    , testEvalReplies ]
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
@@ -140,56 +92,54 @@ testPipelining = testCase "pipelining" $ do
         liftIO $ fmap (`diffUTCTime` start) getCurrentTime
 
 testEvalReplies :: Test
-testEvalReplies testType conn = testCase "eval unused replies" go testType conn
+testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
       _ <- liftIO $ runRedis conn $ set "key" "value"
       result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
-         _ <- asyncGet mvar >>= Async.wait
+         _ <-
+           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
          takeMVar mvar
       pure result >>=? Just "value"
-    asyncGet :: MVar (Either Reply (Maybe BS.ByteString)) -> IO (Async.Async ())
-    asyncGet mvar = Async.async $ do
-        result <- runRedis conn $ get "key"
-        _ <- putMVar mvar result
-        return ()
 
 ------------------------------------------------------------------------------
 -- Keys
 --
-testsKeys :: [Test]
-testsKeys = [ testKeys, testExpireAt, testSort, testGetType, testObject ]
-
 testKeys :: Test
 testKeys = testCase "keys" $ do
+    set "{same}key" "value"     >>=? Ok
+    get "{same}key"             >>=? Just "value"
+    exists "{same}key"          >>=? True
+    expire "{same}key" 1        >>=? True
+    pexpire "{same}key" 1000    >>=? True
+    ttl "{same}key" >>= \case
+      Left _ -> error "error"
+      Right t -> do
+        assert $ t `elem` [0..1]
+        pttl "{same}key" >>= \case
+          Left _ -> error "error"
+          Right pt -> do
+            assert $ pt `elem` [990..1000]
+            persist "{same}key"         >>=? True
+            dump "{same}key" >>= \case
+              Left _ -> error "impossible"
+              Right s -> do
+                restore "{same}key'" 0 s          >>=? Ok
+                rename "{same}key" "{same}key'"   >>=? Ok
+                renamenx "{same}key'" "{same}key" >>=? True
+                del ["{same}key"]                 >>=? 1
+
+testKeysNoncluster :: Test
+testKeysNoncluster = testCase "keysNoncluster" $ do
     set "key" "value"     >>=? Ok
-    get "key"             >>=? Just "value"
-    exists "key"          >>=? True
     keys "*"              >>=? ["key"]
     randomkey             >>=? Just "key"
     move "key" 13         >>=? True
     select 13             >>=? Ok
-    expire "key" 1        >>=? True
-    pexpire "key" 1000    >>=? True
-    ttl "key" >>= \case
-      Left _ -> error "error"
-      Right t -> do
-        assert $ t `elem` [0..1]
-        pttl "key" >>= \case
-          Left _ -> error "error"
-          Right pt -> do
-            assert $ pt `elem` [990..1000]
-            persist "key"         >>=? True
-            dump "key" >>= \case
-              Left _ -> error "impossible"
-              Right s -> do
-                restore "key'" 0 s    >>=? Ok
-                rename "key" "key'"   >>=? Ok
-                renamenx "key'" "key" >>=? True
-                del ["key"]           >>=? 1
-                select 0              >>=? Ok
+    get "key"             >>=? Just "value"
+    select 0              >>=? Ok
 
 testExpireAt :: Test
 testExpireAt = testCase "expireat" $ do
@@ -230,7 +180,7 @@ testGetType = testCase "getType" $ do
         del ["key"]   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
-         , (hset "key" "field" "value"                >>=? True, Hash)
+         , (hset "key" "field" "value"                >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
          , (sadd "key" ["member"]                     >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
@@ -253,43 +203,45 @@ testsStrings = [testStrings, testBitops]
 
 testStrings :: Test
 testStrings = testCase "strings" $ do
-    setnx "key" "value"               >>=? True
-    getset "key" "hello"              >>=? Just "value"
-    append "key" "world"              >>=? 10
-    strlen "key"                      >>=? 10
-    setrange "key" 0 "hello"          >>=? 10
-    getrange "key" 0 4                >>=? "hello"
-    mset [("k1","v1"), ("k2","v2")]   >>=? Ok
-    msetnx [("k1","v1"), ("k2","v2")] >>=? False
-    mget ["key"]                      >>=? [Just "helloworld"]
-    setex "key" 1 "42"                >>=? Ok
-    psetex "key" 1000 "42"            >>=? Ok
-    decr "key"                        >>=? 41
-    decrby "key" 1                    >>=? 40
-    incr "key"                        >>=? 41
-    incrby "key" 1                    >>=? 42
-    incrbyfloat "key" 1               >>=? 43
-    del ["key"]                       >>=? 1
-    setbit "key" 42 "1"               >>=? 0
-    getbit "key" 42                   >>=? 1
-    bitcount "key"                    >>=? 1
-    bitcountRange "key" 0 (-1)        >>=? 1
+    setnx "key" "value"                           >>=? True
+    getset "key" "hello"                          >>=? Just "value"
+    append "key" "world"                          >>=? 10
+    strlen "key"                                  >>=? 10
+    setrange "key" 0 "hello"                      >>=? 10
+    getrange "key" 0 4                            >>=? "hello"
+    mset [("{same}k1","v1"), ("{same}k2","v2")]   >>=? Ok
+    msetnx [("{same}k1","v1"), ("{same}k2","v2")] >>=? False
+    mget ["key"]                                  >>=? [Just "helloworld"]
+    setex "key" 1 "42"                            >>=? Ok
+    psetex "key" 1000 "42"                        >>=? Ok
+    decr "key"                                    >>=? 41
+    decrby "key" 1                                >>=? 40
+    incr "key"                                    >>=? 41
+    incrby "key" 1                                >>=? 42
+    incrbyfloat "key" 1                           >>=? 43
+    del ["key"]                                   >>=? 1
+    setbit "key" 42 "1"                           >>=? 0
+    getbit "key" 42                               >>=? 1
+    bitcount "key"                                >>=? 1
+    bitcountRange "key" 0 (-1)                    >>=? 1
 
 testBitops :: Test
 testBitops = testCase "bitops" $ do
-    set "k1" "a"               >>=? Ok
-    set "k2" "b"               >>=? Ok
-    bitopAnd "k3" ["k1", "k2"] >>=? 1
-    bitopOr "k3" ["k1", "k2"]  >>=? 1
-    bitopXor "k3" ["k1", "k2"] >>=? 1
-    bitopNot "k3" "k1"         >>=? 1
+    set "{same}k1" "a"                           >>=? Ok
+    set "{same}k2" "b"                           >>=? Ok
+    bitopAnd "{same}k3" ["{same}k1", "{same}k2"] >>=? 1
+    bitopOr "{same}k3" ["{same}k1", "{same}k2"]  >>=? 1
+    bitopXor "{same}k3" ["{same}k1", "{same}k2"] >>=? 1
+    bitopNot "{same}k3" "{same}k1"               >>=? 1
 
 ------------------------------------------------------------------------------
 -- Hashes
 --
 testHashes :: Test
 testHashes = testCase "hashes" $ do
-    hset "key" "field" "value"   >>=? True
+    hset "key" "field" "another" >>=? 1
+    hset "key" "field" "another" >>=? 0
+    hset "key" "field" "value"   >>=? 0
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
@@ -330,12 +282,12 @@ testLists = testCase "lists" $ do
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
-    lpush "key" ["v3","v2","v1"] >>=? 3
-    blpop ["key"] 1              >>=? Just ("key","v1")
-    brpop ["key"] 1              >>=? Just ("key","v3")
-    rpush "k1" ["v1","v2"]       >>=? 2
-    brpoplpush "k1" "k2" 1       >>=? Just "v2"
-    rpoplpush "k1" "k2"          >>=? Just "v1"
+    lpush "{same}key" ["v3","v2","v1"] >>=? 3
+    blpop ["{same}key"] 1              >>=? Just ("{same}key","v1")
+    brpop ["{same}key"] 1              >>=? Just ("{same}key","v3")
+    rpush "{same}k1" ["v1","v2"]       >>=? 2
+    brpoplpush "{same}k1" "{same}k2" 1 >>=? Just "v2"
+    rpoplpush "{same}k1" "{same}k2"    >>=? Just "v1"
 
 ------------------------------------------------------------------------------
 -- Sets
@@ -352,7 +304,7 @@ testSets = testCase "sets" $ do
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
     srem "set" ["member"]       >>=? 0
-    smove "set" "set'" "member" >>=? False
+    smove "{same}set" "{same}set'" "member" >>=? False
     _ <- sadd "set" ["member1", "member2"]
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
     _ <- sadd "set" ["member1", "member2"]
@@ -360,13 +312,13 @@ testSets = testCase "sets" $ do
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "s1" ["member"]          >>=? 1
-    sdiff ["s1", "s2"]            >>=? ["member"]
-    sunion ["s1", "s2"]           >>=? ["member"]
-    sinter ["s1", "s2"]           >>=? []
-    sdiffstore "s3" ["s1", "s2"]  >>=? 1
-    sunionstore "s3" ["s1", "s2"] >>=? 1
-    sinterstore "s3" ["s1", "s2"] >>=? 0
+    sadd "{same}s1" ["member"]                      >>=? 1
+    sdiff ["{same}s1", "{same}s2"]                  >>=? ["member"]
+    sunion ["{same}s1", "{same}s2"]                 >>=? ["member"]
+    sinter ["{same}s1", "{same}s2"]                 >>=? []
+    sdiffstore "{same}s3" ["{same}s1", "{same}s2"]  >>=? 1
+    sunionstore "{same}s3" ["{same}s1", "{same}s2"] >>=? 1
+    sinterstore "{same}s3" ["{same}s1", "{same}s2"] >>=? 0
 
 ------------------------------------------------------------------------------
 -- Sorted Sets
@@ -405,16 +357,16 @@ testZSets = testCase "sorted sets" $ do
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
-    zadd "k1" [(1, "v1"), (2, "v2")] >>= \case
+    zadd "{same}k1" [(1, "v1"), (2, "v2")] >>= \case
       Left _ -> error "error"
       _ -> return ()
-    zadd "k2" [(2, "v2"), (3, "v3")] >>= \case
+    zadd "{same}k2" [(2, "v2"), (3, "v3")] >>= \case
       Left _ -> error "error"
       _ -> return ()
-    zinterstore "newkey" ["k1","k2"] Sum                >>=? 1
-    zinterstoreWeights "newkey" [("k1",1),("k2",2)] Max >>=? 1
-    zunionstore "newkey" ["k1","k2"] Sum                >>=? 3
-    zunionstoreWeights "newkey" [("k1",1),("k2",2)] Min >>=? 3
+    zinterstore "{same}newkey" ["{same}k1","{same}k2"] Sum                >>=? 1
+    zinterstoreWeights "{same}newkey" [("{same}k1",1),("{same}k2",2)] Max >>=? 1
+    zunionstore "{same}newkey" ["{same}k1","{same}k2"] Sum                >>=? 3
+    zunionstoreWeights "{same}newkey" [("{same}k1",1),("{same}k2",2)] Min >>=? 3
 
 ------------------------------------------------------------------------------
 -- HyperLogLog
@@ -437,24 +389,24 @@ testHyperLogLog = testCase "hyperloglog" $ do
       _ -> return ()
   pfcount ["hll1"] >>=? 5
   -- test merge
-  pfadd "hll2" ["1", "2", "3"] >>= \case
+  pfadd "{same}hll2" ["1", "2", "3"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfadd "hll3" ["4", "5", "6"] >>= \case
+  pfadd "{same}hll3" ["4", "5", "6"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfmerge "hll4" ["hll2", "hll3"] >>= \case
+  pfmerge "{same}hll4" ["{same}hll2", "{same}hll3"] >>= \case
       Left _ -> error "error"
       _ -> return ()
-  pfcount ["hll4"] >>=? 6
+  pfcount ["{same}hll4"] >>=? 6
   -- test union cardinality
-  pfcount ["hll2", "hll3"] >>=? 6
+  pfcount ["{same}hll2", "{same}hll3"] >>=? 6
 
 ------------------------------------------------------------------------------
 -- Pub/Sub
 --
 testPubSub :: Test
-testPubSub testType conn = testCase "pubSub" go testType conn
+testPubSub conn = testCase "pubSub" go conn
   where
     go = do
         -- producer
@@ -486,17 +438,17 @@ testPubSub testType conn = testCase "pubSub" go testType conn
 --
 testTransaction :: Test
 testTransaction = testCase "transaction" $ do
-    watch ["k1", "k2"] >>=? Ok
+    watch ["{same}k1", "{same}k2"] >>=? Ok
     unwatch            >>=? Ok
-    set "foo" "foo" >>= \case
+    set "{same}foo" "foo" >>= \case
       Left _ -> error "error"
       _ -> return ()
-    set "bar" "bar" >>= \case
+    set "{same}bar" "bar" >>= \case
       Left _ -> error "error"
       _ -> return ()
     foobar <- multiExec $ do
-        foo <- get "foo"
-        bar <- get "bar"
+        foo <- get "{same}foo"
+        bar <- get "{same}bar"
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
@@ -505,7 +457,7 @@ testTransaction = testCase "transaction" $ do
 -- Scripting
 --
 testScripting :: Test
-testScripting testType conn = testCase "scripting" go testType conn
+testScripting conn = testCase "scripting" go conn
   where
     go = do
         let script    = "return {false, 42}"
@@ -537,10 +489,6 @@ testScripting testType conn = testCase "scripting" go testType conn
 ------------------------------------------------------------------------------
 -- Connection
 --
-testsConnection :: [Test]
-testsConnection = [ testConnectAuth, testConnectAuthUnexpected, testConnectDb
-                  , testConnectDbUnexisting, testEcho, testPing, testSelect ]
-
 testConnectAuth :: Test
 testConnectAuth = testCase "connect/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
@@ -597,11 +545,6 @@ testSelect = testCase "select" $ do
 ------------------------------------------------------------------------------
 -- Server
 --
-testsServer :: [Test]
-testsServer =
-    [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
-    ,testSlowlog, testDebugObject]
-
 testServer :: Test
 testServer = testCase "server" $ do
     time >>= \case
@@ -666,14 +609,23 @@ testScans = testCase "scans" $ do
     scan cursor0            >>=? (cursor0, ["key"])
     scanOpts cursor0 sOpts1 >>=? (cursor0, ["key"])
     scanOpts cursor0 sOpts2 >>=? (cursor0, [])
-    sadd "set" ["1"]        >>=? 1
-    sscan "set" cursor0     >>=? (cursor0, ["1"])
-    hset "hash" "k" "v"     >>=? True
-    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
-    zadd "zset" [(42, "2")] >>=? 1
-    zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
     where sOpts1 = defaultScanOpts { scanMatch = Just "k*" }
           sOpts2 = defaultScanOpts { scanMatch = Just "not*"}
+
+testSScan :: Test
+testSScan = testCase "sscan" $ do
+    sadd "set" ["1"]        >>=? 1
+    sscan "set" cursor0     >>=? (cursor0, ["1"])
+
+testHScan :: Test
+testHScan = testCase "hscan" $ do
+    hset "hash" "k" "v"     >>=? 1
+    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+
+testZScan :: Test
+testZScan = testCase "zscan" $ do
+    zadd "zset" [(42, "2")] >>=? 1
+    zscan "zset" cursor0    >>=? (cursor0, [("2", 42)])
 
 testZrangelex ::Test
 testZrangelex = testCase "zrangebylex" $ do
@@ -686,20 +638,20 @@ testZrangelex = testCase "zrangebylex" $ do
 
 testXAddRead ::Test
 testXAddRead = testCase "xadd/xread" $ do
-    xadd "somestream" "123" [("key", "value"), ("key2", "value2")]
-    xadd "otherstream" "456" [("key1", "value1")]
-    xaddOpts "thirdstream" "*" [("k", "v")] (Maxlen 1)
-    xaddOpts "thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
-    xread [("somestream", "0"), ("otherstream", "0")] >>=? Just [
+    xadd "{same}somestream" "123" [("key", "value"), ("key2", "value2")]
+    xadd "{same}otherstream" "456" [("key1", "value1")]
+    xaddOpts "{same}thirdstream" "*" [("k", "v")] (Maxlen 1)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
+    xread [("{same}somestream", "0"), ("{same}otherstream", "0")] >>=? Just [
         XReadResponse {
-            stream = "somestream",
+            stream = "{same}somestream",
             records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value"), ("key2", "value2")]}]
         },
         XReadResponse {
-            stream = "otherstream",
+            stream = "{same}otherstream",
             records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
         }]
-    xlen "somestream" >>=? 1
+    xlen "{same}somestream" >>=? 1
 
 testXReadGroup ::Test
 testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do

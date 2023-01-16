@@ -47,7 +47,7 @@ data Connection = Connection
     , lastRecvRef :: IOR.IORef (Maybe B.ByteString) }
 
 instance Show Connection where
-    show Connection{..} = "Connection{ ctx = " <> show ctx <> ", lastRecvRef = IORef}"
+    show Connection{..} = "Connection{ ctx = " ++ show ctx ++ ", lastRecvRef = IORef}"
 
 data ConnectPhase
   = PhaseUnknown
@@ -65,7 +65,7 @@ instance Exception ConnectionLostException
 
 data PortID = PortNumber NS.PortNumber
             | UnixSocket String
-            deriving Show
+            deriving (Eq, Show)
 
 connect :: NS.HostName -> PortID -> Maybe Int -> IO ConnectionContext
 connect hostName portId timeoutOpt =
@@ -120,7 +120,7 @@ connectSocket (addr:rest) = tryConnect >>= \case
     tryConnect = bracketOnError createSock NS.close $ \sock ->
       try (NS.connect sock $ NS.addrAddress addr) >>= \case
       Right () -> return (Right sock)
-      Left err -> return (Left err)
+      Left err -> NS.close sock >> return (Left err)
       where
         createSock = NS.socket (NS.addrFamily addr)
                                (NS.addrSocketType addr)
