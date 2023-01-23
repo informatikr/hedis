@@ -111,6 +111,7 @@ instance RedisResult CommandInfo where
         , MultiBulk _  -- Sub commands
         ])) =
         decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
+
     decode e = Left e
 
 newInfoMap :: [CommandInfo] -> InfoMap
