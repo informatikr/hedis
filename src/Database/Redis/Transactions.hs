@@ -3,7 +3,7 @@
     GeneralizedNewtypeDeriving #-}
 
 module Database.Redis.Transactions (
-    watch, unwatch, multiExec, multiExecWithHash,
+    watch, unwatch, multiExec,
     Queued(), TxResult(..), RedisTx(),
 ) where
 
@@ -41,7 +41,7 @@ instance RedisCtx RedisTx Queued where
         -- future index in EXEC result list
         i <- get
         put (i+1)
-        return $ Queued (decode . (!i))
+        return $ Queued (decode . (! i))
 
 -- |A 'Queued' value represents the result of a command inside a transaction. It
 --  is a proxy object for the /actual/ result, which will only be available
@@ -134,27 +134,3 @@ multi = sendRequest ["MULTI"]
 
 exec :: Redis Reply
 exec = either id id <$> sendRequest ["EXEC"]
-
---------------
-
-multiExecWithHash :: ByteString -> RedisTx (Queued a) -> Redis (TxResult a)
-multiExecWithHash h rtx = do
-    -- We don't need to catch exceptions and call DISCARD. The pool will close
-    -- the connection anyway.
-    _        <- multiWithHash h
-    Queued f <- runRedisTx rtx
-    r        <- execWithHash h
-    case r of
-        MultiBulk rs ->
-
-            return $ maybe
-                TxAborted
-                (either (TxError . show) TxSuccess . f . fromList)
-                rs
-        _ -> error $ "hedis: EXEC returned " ++ show r
-
-multiWithHash :: ByteString -> Redis (Either Reply Status)
-multiWithHash h = sendRequest ["MULTI", h]
-
-execWithHash :: ByteString -> Redis Reply
-execWithHash h = either id id <$> sendRequest ["EXEC", h]

@@ -1,8 +1,7 @@
-resolver: lts-5.1
+resolver: nightly-2019-11-29
 packages:
 - '.'
 extra-deps:
-- scanner-0.2
 flags:
   hedis:
     dev: true

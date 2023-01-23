@@ -4,7 +4,8 @@
 module Database.Redis.Connection where
 
 import Control.Exception
-import Control.Monad.IO.Class(liftIO)
+import qualified Control.Monad.Catch as Catch
+import Control.Monad.IO.Class(liftIO, MonadIO)
 import Control.Monad(when)
 import Control.Concurrent.MVar(MVar, newMVar)
 import qualified Data.ByteString as B
@@ -166,8 +167,8 @@ disconnect (NonClusteredConnection pool) = destroyAllResources pool
 disconnect (ClusteredConnection _ pool) = destroyAllResources pool
 
 -- | Memory bracket around 'connect' and 'disconnect'.
-withConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
-withConnect connInfo = bracket (connect connInfo) disconnect
+withConnect :: (Catch.MonadMask m, MonadIO m) => ConnectInfo -> (Connection -> m c) -> m c
+withConnect connInfo = Catch.bracket (liftIO $ connect connInfo) (liftIO . disconnect)
 
 -- | Memory bracket around 'checkedConnect' and 'disconnect'
 withCheckedConnect :: ConnectInfo -> (Connection -> IO c) -> IO c
@@ -191,6 +192,12 @@ instance Exception ClusterConnectError
 
 -- |Constructs a 'ShardMap' of connections to clustered nodes. The argument is
 -- a 'ConnectInfo' for any node in the cluster
+--
+-- Some Redis commands are currently not supported in cluster mode
+-- - CONFIG, AUTH
+-- - SCAN
+-- - MOVE, SELECT
+-- - PUBLISH, SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE, PUNSUBSCRIBE, RESET
 connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
     let timeoutOptUs =
@@ -208,7 +215,7 @@ connectCluster bootstrapConnInfo = do
         Right infos -> do
             let
                 isConnectionReadOnly = connectReadOnly bootstrapConnInfo
-                clusterConnection = Cluster.connect withAuth infos shardMapVar timeoutOptUs isConnectionReadOnly (refreshShardMapWithConn conn)
+                clusterConnection = Cluster.connect withAuth infos shardMapVar timeoutOptUs isConnectionReadOnly refreshShardMapWithNodeConn
             pool <- createPool (clusterConnect isConnectionReadOnly clusterConnection) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
             return $ ClusteredConnection shardMapVar pool
     where
@@ -247,8 +254,8 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
     mkShardMap ClusterSlotsResponseEntry{..} accumulator = do
         accumulated <- accumulator
         let master = nodeFromClusterSlotNode True clusterSlotsResponseEntryMaster
-        let replicas = map (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
-        let shard = Shard master replicas
+        -- let replicas = map (nodeFromClusterSlotNode False) clusterSlotsResponseEntryReplicas
+        let shard = Shard master []
         let slotMap = IntMap.fromList $ map (, shard) [clusterSlotsResponseEntryStartSlot..clusterSlotsResponseEntryEndSlot]
         return $ IntMap.union slotMap accumulated
     nodeFromClusterSlotNode :: Bool -> ClusterSlotsNode -> Node
@@ -259,8 +266,11 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _ _ _ _) = do
-    let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
+refreshShardMap (Cluster.Connection nodeConns _ _ _ _) =
+    refreshShardMapWithNodeConn (head $ HM.elems nodeConns)
+
+refreshShardMapWithNodeConn :: Cluster.NodeConnection -> IO ShardMap
+refreshShardMapWithNodeConn (Cluster.NodeConnection ctx _ _) = do
     pipelineConn <- PP.fromCtx ctx
     refreshShardMapWithConn pipelineConn True
 

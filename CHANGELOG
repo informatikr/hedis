@@ -1,5 +1,63 @@
 # Changelog for Hedis
 
+## 0.15.1
+
+* PR #181. Add MonadUnliftIO instance
+
+## 0.15.0
+
+* PR #174, Issue #173. Hedis fails to decode xstreamInfo response in case when the stream is empty
+
+## 0.14.3
+
+* PR #171. Support GHC 9
+
+## 0.14.2
+
+* PR #163. support for redis 6.0 COMMAND format
+* PR #164. remove invalid tests for Redis Cluster
+
+## 0.14.1
+
+* PR #162. Improved documentation for EVALSHA
+
+## 0.14.0
+
+* PR #157. Clustering support
+
+## 0.13.1
+
+* PR #158. Upgrade to Redis 6.0.9 & Fix auth test
+* PR #160. Fix GHC 8.0.1 compat
+
+## 0.13.0
+
+* PR #159. Issue #152. Make HSET return integer instead of bool
+
+## 0.12.15
+
+* PR #154. Implement Redis Sentinel support
+
+## 0.12.14
+
+* PR #153. Publicly expose ConnectTimeout exception
+
+## 0.12.13
+
+* PR #150, Issue #143. Leaking sockets when connection fails
+
+## 0.12.12
+
+* PR #149. Make withConnect friendly to transformer stack
+
+## 0.12.11
+
+* Expose `withCheckedConnect`, `withConnect`
+
+## 0.12.9
+
+* Expose the `Database.Redis.Core.Internal` module (see https://github.com/informatikr/hedis/issues/144 )
+
 ## 0.12.8
 
 * PR #140. Added support of +/- inf redis argument

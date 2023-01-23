@@ -23,14 +23,18 @@ import Control.Monad(when)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.IORef as IOR
+import qualified Data.Time as Time
+import Data.Maybe (fromMaybe)
 import Control.Concurrent.MVar(newMVar, readMVar, swapMVar)
 import Control.Exception(bracketOnError, Exception, throwIO, try)
 import           Data.Typeable
 import Data.Functor(void)
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
+import System.Environment (lookupEnv)
 import System.IO(Handle, hSetBinaryMode, hClose, IOMode(..), hFlush, hIsOpen)
 import System.IO.Error(catchIOError)
+import Text.Read (readMaybe)
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
@@ -43,7 +47,7 @@ data Connection = Connection
     , lastRecvRef :: IOR.IORef (Maybe B.ByteString) }
 
 instance Show Connection where
-    show Connection{..} = "Connection{ ctx = " <> show ctx <> ", lastRecvRef = IORef}"
+    show Connection{..} = "Connection{ ctx = " ++ show ctx ++ ", lastRecvRef = IORef}"
 
 data ConnectPhase
   = PhaseUnknown
@@ -61,7 +65,7 @@ instance Exception ConnectionLostException
 
 data PortID = PortNumber NS.PortNumber
             | UnixSocket String
-            deriving Show
+            deriving (Eq, Show)
 
 connect :: NS.HostName -> PortID -> Maybe Int -> IO ConnectionContext
 connect hostName portId timeoutOpt =
@@ -72,15 +76,13 @@ connect hostName portId timeoutOpt =
         hConnect = do
           phaseMVar <- newMVar PhaseUnknown
           let doConnect = hConnect' phaseMVar
-          case timeoutOpt of
-            Nothing -> doConnect
-            Just micros -> do
-              result <- race doConnect (threadDelay micros)
-              case result of
-                Left h -> return h
-                Right () -> do
-                  phase <- readMVar phaseMVar
-                  errConnectTimeout phase
+          envTimeout <- round . (\x -> (x :: Time.NominalDiffTime) * 1000000) . realToFrac . fromMaybe (0.5 :: Double) . (>>= readMaybe) <$> lookupEnv "REDIS_CONNECT_TIMEOUT"
+          result <- race doConnect (threadDelay $ fromMaybe envTimeout timeoutOpt)
+          case result of
+            Left h -> return h
+            Right () -> do
+              phase <- readMVar phaseMVar
+              errConnectTimeout phase
         hConnect' mvar = bracketOnError createSock NS.close $ \sock -> do
           NS.setSocketOption sock NS.KeepAlive 1
           void $ swapMVar mvar PhaseResolve
@@ -118,7 +120,7 @@ connectSocket (addr:rest) = tryConnect >>= \case
     tryConnect = bracketOnError createSock NS.close $ \sock ->
       try (NS.connect sock $ NS.addrAddress addr) >>= \case
       Right () -> return (Right sock)
-      Left err -> return (Left err)
+      Left err -> NS.close sock >> return (Left err)
       where
         createSock = NS.socket (NS.addrFamily addr)
                                (NS.addrSocketType addr)
