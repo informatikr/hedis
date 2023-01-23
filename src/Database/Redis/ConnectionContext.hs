@@ -76,7 +76,7 @@ connect hostName portId timeoutOpt =
         hConnect = do
           phaseMVar <- newMVar PhaseUnknown
           let doConnect = hConnect' phaseMVar
-          envTimeout <- round . (\x -> (x :: Time.NominalDiffTime) * 1000000) . realToFrac . fromMaybe (0.5 :: Double) . (>>= readMaybe) <$> lookupEnv "REDIS_DEFAULT_TIMEOUT"
+          envTimeout <- round . (\x -> (x :: Time.NominalDiffTime) * 1000000) . realToFrac . fromMaybe (0.5 :: Double) . (>>= readMaybe) <$> lookupEnv "REDIS_CONNECT_TIMEOUT"
           result <- race doConnect (threadDelay $ fromMaybe envTimeout timeoutOpt)
           case result of
             Left h -> return h

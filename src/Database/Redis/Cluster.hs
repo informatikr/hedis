@@ -35,9 +35,12 @@ import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict as IntMap
+import qualified Data.Time as Time
 import           Data.Typeable
 import qualified Scanner
+import System.Environment (lookupEnv)
 import System.IO.Unsafe(unsafeInterleaveIO)
+import Text.Read (readMaybe)
 
 import Database.Redis.Protocol(Reply(Error), renderRequest, reply)
 import qualified Database.Redis.Cluster.Command as CMD
@@ -430,7 +433,8 @@ allMasterNodes (Connection nodeConns _ _ _ _) (ShardMap shardMap) =
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode (NodeConnection ctx lastRecvRef _) requests = do
-    eresp <- race requestNodeImpl (threadDelay 1000000) -- 100 ms
+    envTimeout <- round . (\x -> (x :: Time.NominalDiffTime) * 100000) . realToFrac . fromMaybe (0.5 :: Double) . (>>= readMaybe) <$> lookupEnv "REDIS_REQUEST_NODE_TIMEOUT"
+    eresp <- race requestNodeImpl (threadDelay envTimeout)
     case eresp of
       Left e -> return e
       Right _ -> putStrLn "timeout happened" *> throwIO NoNodeException
