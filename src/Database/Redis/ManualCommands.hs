@@ -922,13 +922,42 @@ xreadGroup
     -> m (f (Maybe [XReadResponse]))
 xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
 
+newtype XGroupCreateOpts = XGroupCreateOpts
+    { mkStream :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'XGroupCreateOpts'. Equivalent to omitting all optional parameters.
+--
+-- @
+-- XGroupCreateOpts
+--     { mkStream = False -- Don't create the stream if it doesn't exist
+--     }
+-- @
+--
+defaultXgroupCreateOpts :: XGroupCreateOpts
+defaultXgroupCreateOpts = XGroupCreateOpts 
+    { mkStream = False }
+    
+
+xgroupCreateOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ stream
+    -> ByteString -- ^ group name
+    -> ByteString -- ^ start ID
+    -> XGroupCreateOpts -- ^ Options
+    -> m (f Status)
+xgroupCreateOpts stream groupName startId XGroupCreateOpts{..} = 
+    sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId] ++ mkStreamArgs
+    where
+        mkStreamArgs = if mkStream then ["MKSTREAM"] else []
+
 xgroupCreate
     :: (RedisCtx m f)
     => ByteString -- ^ stream
     -> ByteString -- ^ group name
     -> ByteString -- ^ start ID
     -> m (f Status)
-xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+xgroupCreate stream groupName startId = xgroupCreateOpts stream groupName startId defaultXgroupCreateOpts
 
 xgroupSetId
     :: (RedisCtx m f)

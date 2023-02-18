@@ -666,6 +666,21 @@ testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
     xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
     xgroupDestroy "somestream" "somegroup" >>=? True
 
+testXReadGroupMkStream ::Test
+testXReadGroupMkStream = testCase "XGROUP MKSTREAM */xreadgroup/xack" $ do
+    xgroupCreateOpts "somestream" "somegroup" "0" (XGroupCreateOpts {mkStream = True})
+    xadd "somestream" "123" [("key", "value")]
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Just [
+        XReadResponse {
+            stream = "somestream",
+            records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value")]}]
+        }]
+    xack "somestream" "somegroup" ["123-0"] >>=? 1
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Nothing
+    xgroupSetId "somestream" "somegroup" "0" >>=? Ok
+    xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
+    xgroupDestroy "somestream" "somegroup" >>=? True
+
 testXRange ::Test
 testXRange = testCase "xrange/xrevrange" $ do
     xadd "somestream" "121" [("key1", "value1")]

@@ -237,10 +237,13 @@ xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). Th
 xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
 xreadGroupOpts, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
 xack, -- |Acknowledge receipt of a message as part of a consumer group. Since Redis 5.0.0
-xgroupCreate, -- |Create a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupSetId, -- |Set the id for a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupDestroy, -- |Destroy a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupDelConsumer, -- |Delete a consumer. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+XGroupCreateOpts(..),
+defaultXgroupCreateOpts,
+xgroupCreate, -- |Create a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupCreateOpts', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupCreateOpts, -- |Create a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupCreateOpts', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupSetId, -- |Set the id for a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate',  'xgroupCreateOpts', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupDestroy, -- |Destroy a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupCreateOpts', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+xgroupDelConsumer, -- |Delete a consumer. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupCreateOpts', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
 xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
 xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
 xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0

@@ -10,7 +10,7 @@ import Tests
 main :: IO ()
 main = do
     -- We're looking for the cluster on a non-default port to support running
-    -- this test in parallel witht the regular non-cluster tests. To quickly
+    -- this test in parallel with the regular non-cluster tests. To quickly
     -- spin up a cluster on this port using docker you can run:
     --
     --     docker run -e "IP=0.0.0.0" -p 7000-7010:7000-7010 grokzen/redis-cluster:5.0.6
@@ -22,7 +22,7 @@ tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
     , testsConnection, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
-    , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
+    , [testXAddRead, testXReadGroup, testXReadGroupMkStream, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
