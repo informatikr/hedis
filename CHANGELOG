@@ -1,5 +1,10 @@
 # Changelog for Hedis
 
+## 0.15.2
+
+* PR #189. Document that UnixSocket ignores connectHost
+* PR #190. mtl version update
+
 ## 0.15.1
 
 * PR #181. Add MonadUnliftIO instance
