@@ -82,7 +82,7 @@ library
                     deepseq,
                     mtl >= 2,
                     network >= 2 && < 3.2,
-                    resource-pool >= 0.2,
+                    resource-pool >= 0.2.2,
                     stm,
                     time,
                     tls >= 1.3,
