@@ -472,6 +472,50 @@ testTransaction = testCase "transaction" $ do
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
+testSet7 :: Test
+testSet7 = testCase "Set" $ do
+    set "hello" "hi" >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Just 2000,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Just 20000,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = True
+    } >>=? Ok
+    setGet "hello" "henlo" >>=? "hi"
+    setGetOpts "hello" "henlo2" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Just Nx,
+        setKeepTTL           = False
+    } >>=? "henlo"
+    return ()
+
+testZAdd7 :: Test
+testZAdd7 = testCase "ZADD" $ do
+    zadd "set" [(42, "2")] >>=? 1
+    zaddOpts "set" [(44, "6")] (defaultZaddOpts {zaddSizeCondition = Just CGT}) >>=? 1
+    zaddOpts "set" [(46, "7")] (defaultZaddOpts {zaddSizeCondition = Just CLT}) >>=? 1
+    return ()
 
 ------------------------------------------------------------------------------
 -- Scripting

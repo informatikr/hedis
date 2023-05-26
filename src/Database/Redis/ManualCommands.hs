@@ -11,6 +11,8 @@ import Data.Maybe (maybeToList, catMaybes)
 import Data.Semigroup ((<>))
 #endif
 
+
+
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -507,7 +509,10 @@ set
 set key value = sendRequest ["SET", key, value]
 
 
-data Condition = Nx | Xx deriving (Show, Eq)
+data Condition =
+  Nx | -- ^ Only set the key if it does not already exist.
+  Xx   -- ^ Only set the key if it already exists.
+   deriving (Show, Eq)
 
 
 instance RedisArg Condition where
@@ -516,11 +521,33 @@ instance RedisArg Condition where
 
 
 data SetOpts = SetOpts
-  { setSeconds      :: Maybe Integer
-  , setMilliseconds :: Maybe Integer
-  , setCondition    :: Maybe Condition
+  { setSeconds           :: Maybe Integer -- ^ Set the specified expire time, in seconds.
+  , setMilliseconds      :: Maybe Integer -- ^ Set the specified expire time, in milliseconds.
+  , setUnixSeconds       :: Maybe Integer
+  {- ^ Set the specified Unix time at which the key will expire, in seconds.
+
+  Since Redis 6.2
+  -}
+  , setUnixMilliseconds  :: Maybe Integer
+  {- ^ Set the specified Unix time at which the key will expire, in milliseconds.
+  -}
+  , setCondition         :: Maybe Condition -- ^ Set the key on condition
+  , setKeepTTL           :: Bool
+  {- ^ Retain the time to live associated with the key.
+
+  Since Redis 6.0
+  -}
   } deriving (Show, Eq)
 
+internalSetOptsToArgs :: SetOpts -> [ByteString]
+internalSetOptsToArgs SetOpts{..} = concat [ex, px, exat, pxat, keepttl, condition]
+  where
+    ex   = maybe [] (\s -> ["EX",   encode s]) setSeconds
+    px   = maybe [] (\s -> ["PX",   encode s]) setMilliseconds
+    exat = maybe [] (\s -> ["EXAT", encode s]) setUnixSeconds
+    pxat = maybe [] (\s -> ["PXAT", encode s]) setUnixMilliseconds
+    keepttl = ["KEEPTTL" | setKeepTTL]
+    condition = map encode $ maybeToList setCondition
 
 setOpts
     :: (RedisCtx m f)
@@ -528,12 +555,22 @@ setOpts
     -> ByteString -- ^ value
     -> SetOpts
     -> m (f Status)
-setOpts key value SetOpts{..} =
-    sendRequest $ concat [["SET", key, value], ex, px, condition]
-  where
-    ex = maybe [] (\s -> ["EX", encode s]) setSeconds
-    px = maybe [] (\s -> ["PX", encode s]) setMilliseconds
-    condition = map encode $ maybeToList setCondition
+setOpts key value opts = sendRequest $ ["SET", key, value] ++ internalSetOptsToArgs opts
+
+setGet
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f ByteString)
+setGet key value = sendRequest ["SET", key, value, "GET"]
+
+setGetOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> SetOpts
+    -> m (f ByteString)
+setGetOpts key value opts = sendRequest $ ["SET", key, value, "GET"] ++ internalSetOptsToArgs opts
 
 
 data DebugMode = Yes | Sync | No deriving (Show, Eq)
@@ -562,10 +599,24 @@ zadd key scoreMembers =
   zaddOpts key scoreMembers defaultZaddOpts
 
 
+data SizeCondition =
+    CGT | -- ^  Only update existing elements if the new score is greater than the current score. This flag doesn't prevent adding new elements.
+    CLT   -- ^  Only update existing elements if the new score is less than the current score. This flag doesn't prevent adding new elements.
+    deriving (Show, Eq)
+
+instance RedisArg SizeCondition where
+  encode CGT = "GT"
+  encode CLT = "LT"
+
 data ZaddOpts = ZaddOpts
-  { zaddCondition :: Maybe Condition
-  , zaddChange    :: Bool
-  , zaddIncrement :: Bool
+  { zaddCondition :: Maybe Condition -- ^ Add on condition
+  , zaddSizeCondition :: Maybe SizeCondition
+  {- ^ Only update existing elements on condition
+
+  Since Redis 6.2
+  -}
+  , zaddChange    :: Bool -- ^ Modify the return value from the number of new elements added, to the total number of elements changed
+  , zaddIncrement :: Bool -- ^ When this option is specified ZADD acts like ZINCRBY. Only one score-element pair can be specified in this mode.
   } deriving (Show, Eq)
 
 
@@ -584,6 +635,7 @@ defaultZaddOpts = ZaddOpts
   { zaddCondition = Nothing
   , zaddChange    = False
   , zaddIncrement = False
+  , zaddSizeCondition = Nothing
   }
 
 
@@ -594,10 +646,11 @@ zaddOpts
     -> ZaddOpts              -- ^ options
     -> m (f Integer)
 zaddOpts key scoreMembers ZaddOpts{..} =
-    sendRequest $ concat [["ZADD", key], condition, change, increment, scores]
+    sendRequest $ concat [["ZADD", key], condition, sizeCondition, change, increment, scores]
   where
     scores = concatMap (\(x,y) -> [encode x,encode y]) scoreMembers
     condition = map encode $ maybeToList zaddCondition
+    sizeCondition = map encode $ maybeToList zaddSizeCondition
     change = ["CH" | zaddChange]
     increment = ["INCR" | zaddIncrement]
 
@@ -810,7 +863,8 @@ zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
 
--- |
+-- | Trimming strategy.
+--
 -- @since 0.16.0
 data TrimStrategy
   = TrimMaxlen Integer
@@ -1850,3 +1904,4 @@ clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (enco
 
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]
+

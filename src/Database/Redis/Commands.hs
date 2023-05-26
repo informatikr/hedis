@@ -159,6 +159,7 @@ ZaddOpts(..),
 defaultZaddOpts,
 zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 zaddOpts, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
+SizeCondition(..),
 zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>). Since Redis 1.2.0
 zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>). Since Redis 2.0.0
 zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>). Since Redis 1.2.0
@@ -216,13 +217,16 @@ msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist
 psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>). Since Redis 2.6.0
 Condition(..),
 SetOpts(..),
-set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
-setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
+set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setGet, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setGetOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
 setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>). Since Redis 2.2.0
 setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>). Since Redis 2.0.0
 setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>). Since Redis 1.0.0
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
+
 
 -- ** Streams
 XReadOpts(..),
