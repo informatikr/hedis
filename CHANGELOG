@@ -2,7 +2,8 @@
 
 ## 0.16
 
-- Extended Redis 6 and 7 support.
+- PR #182. Add MonadTrans instance for MonadRedis.
+- PR #198. Extended Redis 6 and 7 support.
   - add xgroupCreate, xgroupCreateConsumer, xgroupSetId;
   - added support of the message trimming by message;
   - add support for count parameter for approximate trimming.
