@@ -159,6 +159,7 @@ ZaddOpts(..),
 defaultZaddOpts,
 zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 zaddOpts, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
+SizeCondition(..),
 zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>). Since Redis 1.2.0
 zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>). Since Redis 2.0.0
 zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>). Since Redis 1.2.0
@@ -216,13 +217,16 @@ msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist
 psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>). Since Redis 2.6.0
 Condition(..),
 SetOpts(..),
-set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
-setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts'. Since Redis 1.0.0
+set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setGet, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
+setGetOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
 setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>). Since Redis 2.2.0
 setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>). Since Redis 2.0.0
 setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>). Since Redis 1.0.0
 setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
 strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
+
 
 -- ** Streams
 XReadOpts(..),
@@ -230,28 +234,71 @@ defaultXreadOpts,
 XReadResponse(..),
 StreamsRecord(..),
 TrimOpts(..),
-xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
-xaddOpts, -- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
+xadd,
+xaddOpts, 
+XAddOpts(..),
+defaultXAddOpts,
+TrimStrategy(..),
+TrimType(..),
+TrimOpts(..),
+trimOpts,
 xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
 xreadGroupOpts, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
 xack, -- |Acknowledge receipt of a message as part of a consumer group. Since Redis 5.0.0
-xgroupCreate, -- |Create a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupSetId, -- |Set the id for a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupDestroy, -- |Destroy a consumer group. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
-xgroupDelConsumer, -- |Delete a consumer. The redis command @XGROUP@ is split up into 'xgroupCreate', 'xgroupSetId', 'xgroupDestroy', and 'xgroupDelConsumer'. Since Redis 5.0.0
+
+-- *** XGROUP CREATE
+-- $xgroupCreate
+xgroupCreate,
+xgroupCreateOpts,
+XGroupCreateOpts(..),
+defaultXGroupCreateOpts,
+
+-- *** XGROUP CREATECONSUMER
+xgroupCreateConsumer,
+
+-- *** XGROUP SETID
+-- $xgroupSetId
+xgroupSetId,
+xgroupSetIdOpts,
+XGroupSetIdOpts(..),
+defaultXGroupSetIdOpts,
+
+-- *** XGROUP DESTROY
+xgroupDestroy,
+
+-- *** XGROUP DELCONSUMER
+xgroupDelConsumer,
+
 xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
 xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
 xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0
+
+-- *** XPENDING
+-- $xpending
+xpendingSummary,
 XPendingSummaryResponse(..),
-xpendingSummary, -- |Get information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XPendingDetailOpts(..),
+defaultXPendingDetailOpts,
 XPendingDetailRecord(..),
-xpendingDetail, -- |Get detailed information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+xpendingDetail,
+
 XClaimOpts(..),
 defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+
+-- *** Autoclaim
+-- $autoclaim
+xautoclaim,
+xautoclaimOpts,
+XAutoclaimOpts(..),
+XAutoclaimStreamsResult,
+XAutoclaimResult(..),
+xautoclaimJustIds,
+xautoclaimJustIdsOpts,
+XAutoclaimJustIdsResult,
 XInfoConsumersResponse(..),
 xinfoConsumers, -- |Get info about consumers in a group. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 XInfoGroupsResponse(..),
@@ -1093,3 +1140,26 @@ sismember
     -> ByteString -- ^ member
     -> m (f Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
+
+-- $autoclaim
+--
+-- Family of the commands related to the autoclaim command in redis, they provide an
+-- ability to claim messages that are not processed for a long time.
+--
+-- Transfers ownership of pending stream entries that match
+-- the specified criteria. The message should be pending for more than \<min-idle-time\>
+-- milliseconds and ID should be greater than \<start\>.
+--
+-- Redis @xautoclaim@ command is split info `xautoclaim`, `xautoclaimOpts`, `xautoclaimJustIds`
+-- `xautoclaimJustIdsOpt` functions.
+--
+-- All commands are available since Redis 7.0
+
+-- $xpending
+-- The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'.
+
+-- $xgroupCreate
+-- Create a consumer group. The redis command @XGROUP CREATE@ is split up into 'xgroupCreate', 'xgroupCreateOpts'.
+
+-- $xgroupSetId
+-- Sets last delivered ID for a consumer group. The redis command @XGROUP SETID@ is split up into 'xgroupSetId' and 'xgroupSetIdOpts' methods.

@@ -1,5 +1,27 @@
 # Changelog for Hedis
 
+## 0.16
+
+- Extended Redis 6 and 7 support.
+  - add xgroupCreate, xgroupCreateConsumer, xgroupSetId;
+  - added support of the message trimming by message;
+  - add support for count parameter for approximate trimming.
+  
+Breaking changes:
+
+- **xpendingDetail** instead of 'Maybe ByteString' for a consumer name the method
+receives XPendingOpts structure that can take number of milliseconds and consumer name.
+In order to preserve an old behavior code should be rewritten as:
+  xpendingDetails s g f l t Nothing -> xpendingSummary s g f l t defaultXPendingDetailOpts
+  xpendingDetails s g f l t (Just c) -> xpendingSummary s g f l t defaultXPendingDetailOpts{xPeedingDetailConsumer=Just c)
+- **xpendingSummary** no longer accepts consumer arguments as it was done in violation to spec and methodd never worked this way
+- **XTrimOpts** type changed, because previous type didn't hold library invariants now instead of a simple ADT XTrimOpts is data that defines strategy of trimming and type, exact or approximate. Here is a conversion table:
+  NoArg -> is not representable,
+   In xaddOpts options use Nothing instead;
+   In xtrim using NoArgs as a bug.
+  Maxlen n -> TrimOpts{trimOptsStrategy=TrimMaxlen n, trimOptsType=TrimExact};
+  MaxlenApprox n -> TrimOpts{trumOptsStrategy=TrimMaxlen n, trimOptsType=TrimApprox Nothing};
+
 ## 0.15.2
 
 * PR #189. Document that UnixSocket ignores connectHost

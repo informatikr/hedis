@@ -10,6 +10,9 @@ import Data.Maybe (maybeToList, catMaybes)
 #if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup ((<>))
 #endif
+
+
+
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -506,7 +509,10 @@ set
 set key value = sendRequest ["SET", key, value]
 
 
-data Condition = Nx | Xx deriving (Show, Eq)
+data Condition =
+  Nx | -- ^ Only set the key if it does not already exist.
+  Xx   -- ^ Only set the key if it already exists.
+   deriving (Show, Eq)
 
 
 instance RedisArg Condition where
@@ -515,11 +521,33 @@ instance RedisArg Condition where
 
 
 data SetOpts = SetOpts
-  { setSeconds      :: Maybe Integer
-  , setMilliseconds :: Maybe Integer
-  , setCondition    :: Maybe Condition
+  { setSeconds           :: Maybe Integer -- ^ Set the specified expire time, in seconds.
+  , setMilliseconds      :: Maybe Integer -- ^ Set the specified expire time, in milliseconds.
+  , setUnixSeconds       :: Maybe Integer
+  {- ^ Set the specified Unix time at which the key will expire, in seconds.
+
+  Since Redis 6.2
+  -}
+  , setUnixMilliseconds  :: Maybe Integer
+  {- ^ Set the specified Unix time at which the key will expire, in milliseconds.
+  -}
+  , setCondition         :: Maybe Condition -- ^ Set the key on condition
+  , setKeepTTL           :: Bool
+  {- ^ Retain the time to live associated with the key.
+
+  Since Redis 6.0
+  -}
   } deriving (Show, Eq)
 
+internalSetOptsToArgs :: SetOpts -> [ByteString]
+internalSetOptsToArgs SetOpts{..} = concat [ex, px, exat, pxat, keepttl, condition]
+  where
+    ex   = maybe [] (\s -> ["EX",   encode s]) setSeconds
+    px   = maybe [] (\s -> ["PX",   encode s]) setMilliseconds
+    exat = maybe [] (\s -> ["EXAT", encode s]) setUnixSeconds
+    pxat = maybe [] (\s -> ["PXAT", encode s]) setUnixMilliseconds
+    keepttl = ["KEEPTTL" | setKeepTTL]
+    condition = map encode $ maybeToList setCondition
 
 setOpts
     :: (RedisCtx m f)
@@ -527,12 +555,22 @@ setOpts
     -> ByteString -- ^ value
     -> SetOpts
     -> m (f Status)
-setOpts key value SetOpts{..} =
-    sendRequest $ concat [["SET", key, value], ex, px, condition]
-  where
-    ex = maybe [] (\s -> ["EX", encode s]) setSeconds
-    px = maybe [] (\s -> ["PX", encode s]) setMilliseconds
-    condition = map encode $ maybeToList setCondition
+setOpts key value opts = sendRequest $ ["SET", key, value] ++ internalSetOptsToArgs opts
+
+setGet
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> m (f ByteString)
+setGet key value = sendRequest ["SET", key, value, "GET"]
+
+setGetOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ value
+    -> SetOpts
+    -> m (f ByteString)
+setGetOpts key value opts = sendRequest $ ["SET", key, value, "GET"] ++ internalSetOptsToArgs opts
 
 
 data DebugMode = Yes | Sync | No deriving (Show, Eq)
@@ -561,10 +599,24 @@ zadd key scoreMembers =
   zaddOpts key scoreMembers defaultZaddOpts
 
 
+data SizeCondition =
+    CGT | -- ^  Only update existing elements if the new score is greater than the current score. This flag doesn't prevent adding new elements.
+    CLT   -- ^  Only update existing elements if the new score is less than the current score. This flag doesn't prevent adding new elements.
+    deriving (Show, Eq)
+
+instance RedisArg SizeCondition where
+  encode CGT = "GT"
+  encode CLT = "LT"
+
 data ZaddOpts = ZaddOpts
-  { zaddCondition :: Maybe Condition
-  , zaddChange    :: Bool
-  , zaddIncrement :: Bool
+  { zaddCondition :: Maybe Condition -- ^ Add on condition
+  , zaddSizeCondition :: Maybe SizeCondition
+  {- ^ Only update existing elements on condition
+
+  Since Redis 6.2
+  -}
+  , zaddChange    :: Bool -- ^ Modify the return value from the number of new elements added, to the total number of elements changed
+  , zaddIncrement :: Bool -- ^ When this option is specified ZADD acts like ZINCRBY. Only one score-element pair can be specified in this mode.
   } deriving (Show, Eq)
 
 
@@ -583,6 +635,7 @@ defaultZaddOpts = ZaddOpts
   { zaddCondition = Nothing
   , zaddChange    = False
   , zaddIncrement = False
+  , zaddSizeCondition = Nothing
   }
 
 
@@ -593,10 +646,11 @@ zaddOpts
     -> ZaddOpts              -- ^ options
     -> m (f Integer)
 zaddOpts key scoreMembers ZaddOpts{..} =
-    sendRequest $ concat [["ZADD", key], condition, change, increment, scores]
+    sendRequest $ concat [["ZADD", key], condition, sizeCondition, change, increment, scores]
   where
     scores = concatMap (\(x,y) -> [encode x,encode y]) scoreMembers
     condition = map encode $ maybeToList zaddCondition
+    sizeCondition = map encode $ maybeToList zaddSizeCondition
     change = ["CH" | zaddChange]
     increment = ["INCR" | zaddIncrement]
 
@@ -809,31 +863,210 @@ zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
 
-data TrimOpts = NoArgs | Maxlen Integer | ApproxMaxlen Integer
+-- | Trimming strategy.
+--
+-- @since 0.16.0
+data TrimStrategy
+  = TrimMaxlen Integer
+    -- ^ Evicts entries as long as the stream's length exceeds the specified threshold, where threshold is a positive integer.
+  | TrimMinId ByteString
+   {- ^  Evicts entries with IDs lower than threshold, where threshold is a stream ID.
 
+   Since Redis 6.2: will fail if used on ealier versions.
+   -}
+
+-- | Type of the trimming.
+--
+-- @since 0.16.0
+data TrimType
+  = TrimExact {- ^ Exact trimming -}
+  | TrimApprox (Maybe Integer) {- ^ Approximate trimming. Is faster, but may leave slightly more
+    elements in the stream if they can't be immediately deleted.
+
+    Additional parameter Specifies the maximal count of entries that will be evicted. When LIMIT and count aren't specified, the default value of 100 * the number of entries in a macro node will be implicitly used as the count, @Just 0@ removes the limit entirely.
+    -}
+
+data TrimOpts = TrimOpts
+  { trimOptsStrategy :: TrimStrategy
+  , trimOptsType :: TrimType
+  }
+
+-- | Converts trim options to the low level parameters
+internalTrimArgToList :: TrimOpts -> [ByteString]
+internalTrimArgToList TrimOpts{..} = trimArg ++ limitArg
+  where trimArg = case trimOptsStrategy of
+           TrimMaxlen max -> ("MAXLEN":approxArg:encode max:[])
+           TrimMinId i -> ("MINID":approxArg:i:[])
+        (approxArg, limitArg) = case trimOptsType of
+            TrimExact -> ("=", [])
+            TrimApprox limit -> ("~",  maybe [] (("LIMIT":) . (:[]) . encode) limit)
+
+trimOpts :: TrimStrategy -> TrimType -> TrimOpts
+trimOpts = TrimOpts
+
+data XAddOpts = XAddOpts {
+    xAddTrimOpts :: Maybe TrimOpts, -- ^ Call XTRIM right after XADD
+    xAddnoMkStream :: Bool
+    {- ^ Don't create a new stream if it doesn't exist
+
+    @since Redis 6.2
+    -}
+}
+
+defaultXAddOpts :: XAddOpts
+defaultXAddOpts = XAddOpts {
+    xAddTrimOpts = Nothing,
+    xAddnoMkStream = False
+}
+
+-- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
 xaddOpts
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ id
-    -> [(ByteString, ByteString)] -- ^ (field, value)
-    -> TrimOpts
-    -> m (f ByteString)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Message ID
+    -> [(ByteString, ByteString)] -- ^ Message data (field, value)
+    -> XAddOpts -- ^ Additional parameteers
+    -> m (f ByteString) -- ^ ID of the added entry.
 xaddOpts key entryId fieldValues opts = sendRequest $
-    ["XADD", key] ++ optArgs ++ [entryId] ++ fieldArgs
+    ["XADD", key] ++ noMkStreamArgs ++ trimArgs ++ [entryId] ++ fieldArgs
     where
         fieldArgs = concatMap (\(x,y) -> [x,y]) fieldValues
-        optArgs = case opts of
-            NoArgs -> []
-            Maxlen max -> ["MAXLEN", encode max]
-            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+        noMkStreamArgs = ["NOMKSTREAM" | xAddnoMkStream opts]
+        trimArgs = maybe [] (internalTrimArgToList) (xAddTrimOpts opts)
 
+-- | /O(1)/ Adds a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
 xadd
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ id
-    -> [(ByteString, ByteString)] -- ^ (field, value)
+    => ByteString -- ^ Stream name
+    -> ByteString -- ^ Message id
+    -> [(ByteString, ByteString)] -- ^ Message data (field, value)
     -> m (f ByteString)
-xadd key entryId fieldValues = xaddOpts key entryId fieldValues NoArgs
+xadd key entryId fieldValues = xaddOpts key entryId fieldValues defaultXAddOpts
+
+-- | Additional parameters.
+newtype XAutoclaimOpts = XAutoclaimOpts {
+    xAutoclaimCount :: Maybe Integer -- ^  The upper limit of the number of entries that the command attempts to claim (default: 100).
+}
+
+-- | Default 'XAutoclaimOpts' value.
+--
+-- Prefer to use this function over direct use of constructor to preserve
+-- backwards compatibility.
+--
+-- Defaults to @[Count 100)@
+defaultXAutoclaimOpts :: XAutoclaimOpts
+defaultXAutoclaimOpts = XAutoclaimOpts {
+    xAutoclaimCount = Nothing
+}
+
+-- | Result of the 'xautoclaim' family of calls
+data XAutoclaimResult resultFormat = XAutoclaimResult {
+    xAutoclaimResultId :: ByteString,
+    -- ^ ID of message that should be used in the next 'xautoclaim' call as a start parameter.
+    xAutoclaimClaimedMessages :: [resultFormat],
+    -- ^ List of succesfully claimed messages.
+    xAutoclaimDeletedMessages :: [ByteString]
+    -- ^ List of the messages that are available in the PEL but already deleted from the stream.
+} deriving (Show, Eq)
+
+instance RedisResult a => RedisResult (XAutoclaimResult a) where
+    decode (MultiBulk (Just [
+        Bulk (Just xAutoclaimResultId) ,
+        claimedMsg,
+        deletedMsg])) = do
+            xAutoclaimClaimedMessages <- decode claimedMsg
+            xAutoclaimDeletedMessages <- decode deletedMsg
+            Right XAutoclaimResult{..}
+    decode a = Left a
+
+-- | Version of the autoclaim result that contains data of the messages.
+type XAutoclaimStreamsResult = XAutoclaimResult StreamsRecord
+-- | Version of the autoclaim result that contains only IDs.
+type XAutoclaimJustIdsResult = XAutoclaimResult ByteString
+
+-- | /O(1)/ Transfers ownership of pending stream entries that match
+-- the specified criteria. The message should be pending for more than \<min-idle-time\>
+-- milliseconds and ID should be greater than \<start\>.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\>@
+--
+-- This version of function  claims no more than 100 mesages, use 'xautoclaimOpt' to
+-- override this behavior.
+--
+-- Since Redis 7.0: fails on ealier versions.
+xautoclaim
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ Min idle time (ms).
+    -> ByteString -- ^ ID of the message to start.
+    -> m (f XAutoclaimStreamsResult)
+xautoclaim key group consumer min_idle_time start = xautoclaimOpts key group consumer min_idle_time start defaultXAutoclaimOpts
+
+-- | /O(1) if count is small/. Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for details.
+--
+-- Allows to pass additional optional parameters to set limit.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> COUNT \<count\>@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ min idle time (ms).
+    -> ByteString -- ^ start ID.
+    -> XAutoclaimOpts -- ^ Additional parameters.
+    -> m (f XAutoclaimStreamsResult)
+xautoclaimOpts key group consumer min_idle_time start opts = sendRequest $
+    ["XAUTOCLAIM", key, group, consumer, encode min_idle_time, start] ++ count
+    where count  = maybe [] (("COUNT":) . (:[]) . encode) (xAutoclaimCount opts)
+
+-- | /O(1)/ Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for more details about criteria.
+--
+-- This variant returns only id of the messages without data. This method
+-- claims no more than 100 messages, see 'xautoclaimJustIdsOpts' for changing
+-- this default.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> JUSTID@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimJustIds
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ Min idle time (ms).
+    -> ByteString -- ^ start ID.
+    -> m (f XAutoclaimJustIdsResult)
+xautoclaimJustIds key group consumer min_idle_time start =
+  xautoclaimJustIdsOpts key group consumer min_idle_time start defaultXAutoclaimOpts
+
+-- | /O(1) if count is small/ Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for more details about criteria.
+--
+-- This variant returns only id of the messages without data and allows to set the maximum
+-- number of messages to be claimed.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> COUNT \<count\> JUSTID@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimJustIdsOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumers group name.
+    -> ByteString -- ^ Consumer namee.
+    -> Integer -- ^ min idle time (ms).
+    -> ByteString -- ^ Start ID.
+    -> XAutoclaimOpts -- ^ Additional parametres.
+    -> m (f XAutoclaimJustIdsResult)
+xautoclaimJustIdsOpts key group consumer min_idle_time start opts = sendRequest $
+    ["XAUTOCLAIM", key, group, consumer, encode min_idle_time, start] ++ count ++ ["JUSTID"]
+    where count  = maybe [] (("COUNT":) . (:[]) . encode) (xAutoclaimCount opts)
 
 data StreamsRecord = StreamsRecord
     { recordId :: ByteString
@@ -922,35 +1155,115 @@ xreadGroup
     -> m (f (Maybe [XReadResponse]))
 xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
 
+-- | Additional parameters of the XGroupCreate
+data XGroupCreateOpts = XGroupCreateOpts
+    { xGroupCreateMkStream :: Bool -- ^ If a stream does not exist, create it automatically with length of 0
+    , xGroupCreateEntriesRead :: Maybe ByteString
+    {- ^ Enable consumer group lag tracking, specify an arbitrary ID.
+     An arbitrary ID is any ID that isn't the ID of the stream's first entry,
+     last entry, or zero (@"0-0"@) ID. Use it to find out how many entries
+     are between the arbitrary ID (excluding it) and the stream's last entry.
+
+     Since Redis 7.0, fails if set on the ealier versions.
+    -}
+    } deriving (Show, Eq)
+
+-- | Specifies default group opts.
+--
+-- Prefer using this method over use of constructor to preserve backwards compatibility.
+defaultXGroupCreateOpts :: XGroupCreateOpts
+defaultXGroupCreateOpts = XGroupCreateOpts{
+    xGroupCreateEntriesRead = Nothing,
+    xGroupCreateMkStream = False
+}
+
+-- | /O(1)/ Creates consumer group.
+--
+-- Fails if called on with the stream name that does not exist, use 'xgroupCreateOpts'
+-- to override this behavior.
 xgroupCreate
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group name
-    -> ByteString -- ^ start ID
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the message to start reading with.
     -> m (f Status)
-xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+xgroupCreate stream groupName startId = xgroupCreateOpts stream groupName startId defaultXGroupCreateOpts
 
+-- | /O(1)/ Creates consumer group, accepts additional parameters.
+xgroupCreateOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the message to start reading with.
+    -> XGroupCreateOpts -- ^ Additional parameters.
+    -> m (f Status)
+xgroupCreateOpts stream groupName startId opts = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId] ++ args
+    where args = mkstream ++ entriesRead
+          mkstream    = ["MKSTREAM" | xGroupCreateMkStream opts]
+          entriesRead = maybe []  (("ENTRIESREAD":) . (:[])) (xGroupCreateEntriesRead opts)
+
+-- | /O(1)/ Creates new consumer in the consumers group.
+--
+-- Since redis 6.2.0: fails on the ealier versions.
+xgroupCreateConsumer
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> m (f Bool) -- ^ Returns if the consumer was created or not.
+xgroupCreateConsumer key group consumer = sendRequest ["XGROUP", "CREATECONSUMER", key, group, consumer]
+
+-- | /O(1)/ Sets last delivered id for a consumer group.
 xgroupSetId
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ id
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumr group name.
+    -> ByteString -- ^ Message ID or @$@
     -> m (f Status)
-xgroupSetId stream group messageId = sendRequest ["XGROUP", "SETID", stream, group, messageId]
+xgroupSetId stream group messageId = xgroupSetIdOpts stream group messageId defaultXGroupSetIdOpts
 
+-- | Additional parameters for the 'xgroupSetId' method
+newtype XGroupSetIdOpts = XGroupSetIdOpts {
+    xGroupSetIdEntriesRead :: Maybe ByteString
+    {- ^ Enable consumer group lag tracking for an arbitrary ID. An arbitrary ID is any ID that isn't the ID of the stream's first entry, its last entry or the zero (@"0-0"@) ID
+
+    @since Redis 7.0, fails if set to Just on ealier versions.
+    -}
+}
+
+-- | Default value for the 'XGroupSetIdOpts'.
+--
+-- Prefer use this method over the raw constructor in order to preserve
+-- backwards compatibility.
+defaultXGroupSetIdOpts :: XGroupSetIdOpts
+defaultXGroupSetIdOpts = XGroupSetIdOpts {xGroupSetIdEntriesRead = Nothing}
+
+-- | /O(1)/ a variant of the 'xgroupSetId' that allowes to pass additional parameters.
+xgroupSetIdOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Message id or @$S
+    -> XGroupSetIdOpts -- ^ Additional parameters.
+    -> m (f Status)
+xgroupSetIdOpts stream group messageId opts = sendRequest $ ["XGROUP", "SETID", stream, group, messageId] ++ entriesRead
+    where entriesRead = maybe [] (("ENTRIESREAD":) . (:[])) (xGroupSetIdEntriesRead opts)
+
+-- | /O(1)/ Delete consumer.
 xgroupDelConsumer
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ consumer
-    -> m (f Integer)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> m (f Integer) -- ^ The number of pending messages owned by the consumer.
 xgroupDelConsumer stream group consumer = sendRequest ["XGROUP", "DELCONSUMER", stream, group, consumer]
 
+-- | /O(1)/ destroys a group.
 xgroupDestroy
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> m (f Bool)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> m (f Bool)  -- ^ Tells if the group was destroyed or not.
 xgroupDestroy stream group = sendRequest ["XGROUP", "DESTROY", stream, group]
 
 xack
@@ -1015,15 +1328,19 @@ instance RedisResult XPendingSummaryResponse where
                 chunksOfTwo _ = []
     decode a = Left a
 
+-- | /O(N)/ N - number of message beign returned.
+--
+-- Get information about pending messages (https://redis.io/commands/xpending).
+--
+-- Since Redis 5.0.
 xpendingSummary
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> Maybe ByteString -- ^ consumer
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Stream consumer group.
     -> m (f XPendingSummaryResponse)
-xpendingSummary stream group consumer = sendRequest $ ["XPENDING", stream, group] ++ consumerArg
-    where consumerArg = maybe [] (\c -> [c]) consumer
+xpendingSummary stream group = sendRequest $ ["XPENDING", stream, group]
 
+-- | Details about message returned by the 'xpendingDetails'
 data XPendingDetailRecord = XPendingDetailRecord
     { messageId :: ByteString
     , consumer :: ByteString
@@ -1039,18 +1356,43 @@ instance RedisResult XPendingDetailRecord where
         Integer numTimesDelivered])) = Right XPendingDetailRecord{..}
     decode a = Left a
 
+-- | Additional parameters of the xpending call family
+data XPendingDetailOpts = XPendingDetailOpts
+  {
+    xPendingDetailConsumer :: Maybe ByteString, -- ^ Fetch the messages having a specific owner.
+    xPendingDetailIdle :: Maybe Integer
+    {- ^  Filter pending stream entries by their idle-time, ms
+
+    Since Redis 6.2: Just values will fail
+    -}
+  }
+
+-- | Default 'XPendingOpts' values.
+--
+-- Prefer this method over use of the constructor in order to preserve
+-- backwards compatibility.
+defaultXPendingDetailOpts :: XPendingDetailOpts
+defaultXPendingDetailOpts = XPendingDetailOpts {
+    xPendingDetailConsumer = Nothing,
+    xPendingDetailIdle     = Nothing
+}
+
+-- | /O(N)/ N - number of messages returned.
+--
+-- Get detailed information about pending messages (https://redis.io/commands/xpending).
 xpendingDetail
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ startId
-    -> ByteString -- ^ endId
-    -> Integer -- ^ count
-    -> Maybe ByteString -- ^ consumer
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the first interesting message.
+    -> ByteString -- ^ ID of the last intersting message.
+    -> Integer -- ^ Limits the numbere of messages returned from the call.
+    -> XPendingDetailOpts
     -> m (f [XPendingDetailRecord])
-xpendingDetail stream group startId endId count consumer = sendRequest $
-    ["XPENDING", stream, group, startId, endId, encode count] ++ consumerArg
-    where consumerArg = maybe [] (\c -> [c]) consumer
+xpendingDetail stream group startId endId count opts = sendRequest $
+    ["XPENDING", stream, group] ++ idleArg ++ [startId, endId, encode count] ++ consumerArg
+    where consumerArg = maybeToList (xPendingDetailConsumer opts)
+          idleArg = maybe [] (("IDLE":) . (:[]) . encode) (xPendingDetailIdle opts)
 
 data XClaimOpts = XClaimOpts
     { xclaimIdle :: Maybe Integer
@@ -1110,115 +1452,257 @@ xclaimJustIds
 xclaimJustIds stream group consumer minIdleTime opts messageIds = sendRequest $
     (xclaimRequest stream group consumer minIdleTime opts messageIds) ++ ["JUSTID"]
 
+-- | Data structure that is returned as a result of  'xinfoConsumers'
 data XInfoConsumersResponse = XInfoConsumersResponse
-    { xinfoConsumerName :: ByteString
-    , xinfoConsumerNumPendingMessages :: Integer
-    , xinfoConsumerIdleTime :: Integer
+    { xinfoConsumerName :: ByteString -- ^ The name of the consumer.
+    , xinfoConsumerNumPendingMessages :: Integer -- ^ The number of entries in the PEL (pending elemeent list): pending messages for the consumer, which are messages that were delivered but are yet to be acknowledged
+    , xinfoConsumerIdleTime :: Integer -- ^ The number of milliseconds that have passed since the consumer's last attempted interaction (Examples: 'xreadGroup', 'xclam', 'xautoclaim')
+    , xinfoConsumerInactive :: Maybe Integer
+    {- ^ The number of milliseconds that have passed since the consumer's last successful interaction (Examples: 'xreadGroup' that actually read some entries into the PEL, 'xclaim'/'xautoclaim' that actually claimed some entries)
+
+    @since Redis 7.0: always @Nothing@ for previous versions.
+    -}
     } deriving (Show, Eq)
 
 instance RedisResult XInfoConsumersResponse where
-    decode (MultiBulk (Just [
-        Bulk (Just "name"),
-        Bulk (Just xinfoConsumerName),
-        Bulk (Just "pending"),
-        Integer xinfoConsumerNumPendingMessages,
-        Bulk (Just "idle"),
-        Integer xinfoConsumerIdleTime])) = Right XInfoConsumersResponse{..}
-    decode a = Left a
+    decode = decodeRedis6 <> decodeRedis7
+      where decodeRedis6 (MultiBulk (Just [
+                Bulk (Just "name"),
+                Bulk (Just xinfoConsumerName),
+                Bulk (Just "pending"),
+                Integer xinfoConsumerNumPendingMessages,
+                Bulk (Just "idle"),
+                Integer xinfoConsumerIdleTime])) = Right XInfoConsumersResponse{xinfoConsumerInactive = Nothing, ..}
+            decodeRedis6 a = Left a
 
+            decodeRedis7 (MultiBulk (Just [
+                Bulk (Just "name"),
+                Bulk (Just xinfoConsumerName),
+                Bulk (Just "pending"),
+                Integer xinfoConsumerNumPendingMessages,
+                Bulk (Just "idle"),
+                Integer xinfoConsumerIdleTime,
+                Bulk (Just "inactive"),
+                Integer xinfoConsumerInactive])) = Right XInfoConsumersResponse{xinfoConsumerInactive = Just xinfoConsumerInactive, ..}
+            decodeRedis7 a = Left a
+
+-- | /O(1)/
+-- Returns information about the list of the consumers beloging to the consumer group.
+--
+-- Available since Redis 5.0.0
+--
+-- Wrapper over @XINFO CONSUMERS \<stream name\> \<group name\>@
 xinfoConsumers
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Group name.
     -> m (f [XInfoConsumersResponse])
 xinfoConsumers stream group = sendRequest $ ["XINFO", "CONSUMERS", stream, group]
 
+-- | Result of the 'xinfoGroups' call.
 data XInfoGroupsResponse = XInfoGroupsResponse
-    { xinfoGroupsGroupName :: ByteString
-    , xinfoGroupsNumConsumers :: Integer
-    , xinfoGroupsNumPendingMessages :: Integer
-    , xinfoGroupsLastDeliveredMessageId :: ByteString
+    { xinfoGroupsGroupName :: ByteString -- ^ Name of the consumer group.
+    , xinfoGroupsNumConsumers :: Integer -- ^ The number of consumers in the group.
+    , xinfoGroupsNumPendingMessages :: Integer -- ^ The length of the group's pending entries list (PEL), which are messages that were delivered but are yet to be acknowledged.
+    , xinfoGroupsLastDeliveredMessageId :: ByteString -- ^ The ID of the last entry delivered to the group's consumers.
+    , xinfoGroupsEntriesRead :: Maybe Integer
+    {- ^ The logical "read counter" of the last entry delivered to group's consumers.
+
+    Since Redis 7.0: always @Nothing@ on the previous versions.
+    -}
+    , xinfoGroupsLag :: Maybe Integer
+    {- ^ the number of entries in the stream that are still waiting to be delivered to the group's consumers, or a Nothing when that number can't be determined.
+
+    Since Redis 7.0: always @Nothing@ on the previous versions.
+    -}
     } deriving (Show, Eq)
 
 instance RedisResult XInfoGroupsResponse where
-    decode (MultiBulk (Just [
-        Bulk (Just "name"),Bulk (Just xinfoGroupsGroupName),
-        Bulk (Just "consumers"),Integer xinfoGroupsNumConsumers,
-        Bulk (Just "pending"),Integer xinfoGroupsNumPendingMessages,
-        Bulk (Just "last-delivered-id"),Bulk (Just xinfoGroupsLastDeliveredMessageId)])) = Right XInfoGroupsResponse{..}
-    decode a = Left a
+    decode = decodeRedis6 <> decodeRedis7
+      where decodeRedis6 (MultiBulk (Just [
+              Bulk (Just "name"),      Bulk (Just xinfoGroupsGroupName),
+              Bulk (Just "consumers"), Integer xinfoGroupsNumConsumers,
+              Bulk (Just "pending"),   Integer xinfoGroupsNumPendingMessages,
+              Bulk (Just "last-delivered-id"),
+              Bulk (Just xinfoGroupsLastDeliveredMessageId)])) =
+                Right XInfoGroupsResponse{
+                      xinfoGroupsEntriesRead = Nothing
+                    , xinfoGroupsLag         = Nothing
+                    , ..}
+            decodeRedis6 a = Left a
 
+            decodeRedis7 (MultiBulk (Just [
+              Bulk (Just "name"),              Bulk (Just xinfoGroupsGroupName),
+              Bulk (Just "consumers"),         Integer xinfoGroupsNumConsumers,
+              Bulk (Just "pending"),           Integer xinfoGroupsNumPendingMessages,
+              Bulk (Just "last-delivered-id"), Bulk (Just xinfoGroupsLastDeliveredMessageId),
+              Bulk (Just "entries-read"),      Integer xinfoGroupsEntriesRead,
+              Bulk (Just "lag"),               Integer xinfoGroupsLag])) =
+                Right XInfoGroupsResponse{
+                      xinfoGroupsEntriesRead = Just xinfoGroupsEntriesRead
+                    , xinfoGroupsLag         = Just xinfoGroupsLag
+                    , ..}
+            decodeRedis7 a = Left a
+
+-- | /O(1)/ Returns information about the groups.
+--
+-- Available since: Redis 5.0.0
+--
+-- Wrapper around @XINFO GROUPS \<stream name\>@ call.
 xinfoGroups
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
+    => ByteString -- ^ Stream name.
     -> m (f [XInfoGroupsResponse])
 xinfoGroups stream = sendRequest ["XINFO", "GROUPS", stream]
 
-data XInfoStreamResponse 
+data XInfoStreamResponse
     = XInfoStreamResponse
-    { xinfoStreamLength :: Integer
-    , xinfoStreamRadixTreeKeys :: Integer
-    , xinfoStreamRadixTreeNodes :: Integer
-    , xinfoStreamNumGroups :: Integer
-    , xinfoStreamLastEntryId :: ByteString
-    , xinfoStreamFirstEntry :: StreamsRecord
-    , xinfoStreamLastEntry :: StreamsRecord
-    } 
+    { xinfoStreamLength :: Integer -- ^ The number of entries in the stream.
+    , xinfoStreamRadixTreeKeys :: Integer -- ^ The number of keys in the underlying radix data structure.
+    , xinfoStreamRadixTreeNodes :: Integer -- ^ The number of nodes in the underlying radix data structure.
+    , xinfoMaxDeletedEntryId :: Maybe ByteString
+    {- ^ The maximal entry ID that was deleted from the stream
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoEntriesAdded :: Maybe Integer
+    {- ^ The count of all entries added to the stream during its lifetime
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoRecordedFirstEntryId :: Maybe ByteString
+    {- ^ ID of first recorded entry.
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoStreamNumGroups :: Integer -- ^ The number of consumer groups defined for the stream.
+    , xinfoStreamLastEntryId :: ByteString -- ^ ID of the last entry in the stream.
+    , xinfoStreamFirstEntry :: StreamsRecord -- ^ ID and field-value tuples of the first entry in the stream.
+    , xinfoStreamLastEntry :: StreamsRecord -- ^ ID and field-value tuples of the last entry in the stream.
+    }
     | XInfoStreamEmptyResponse
-    { xinfoStreamLength :: Integer
-    , xinfoStreamRadixTreeKeys :: Integer
-    , xinfoStreamRadixTreeNodes :: Integer
-    , xinfoStreamNumGroups :: Integer
-    , xinfoStreamLastEntryId :: ByteString
+    { xinfoStreamLength :: Integer -- ^ The number of entries in the stream.
+    , xinfoStreamRadixTreeKeys :: Integer -- ^ The number of keys in the underlying radix data structure.
+    , xinfoStreamRadixTreeNodes :: Integer -- ^ The number of nodes in the underlying radix data structure.
+    , xinfoMaxDeletedEntryId :: Maybe ByteString
+    {- ^ The maximal entry ID that was deleted from the stream.
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoEntriesAdded :: Maybe Integer
+    {- ^ The count of all entries added to the stream during its lifetime
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoRecordedFirstEntryId :: Maybe ByteString
+    {- ^ ID of first recorded entry.
+
+    Since Redis 7.0: always returns @Nothing@ on the previous versions.
+    -}
+    , xinfoStreamNumGroups :: Integer -- ^ The number of consumer groups defined for the stream.
+    , xinfoStreamLastEntryId :: ByteString -- ^ The ID of the last entry in the stream.
     }
     deriving (Show, Eq)
 
 instance RedisResult XInfoStreamResponse where
-    decode = decodeRedis5 <> decodeRedis6
+    decode = decodeRedis5 <> decodeRedis6 <> decodeRedis7
         where
             decodeRedis5 (MultiBulk (Just [
-                 Bulk (Just "length"),Integer xinfoStreamLength,
-                 Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-                 Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-                 Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-                 Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-                 Bulk (Just "first-entry"), Bulk Nothing ,
-                 Bulk (Just "last-entry"), Bulk Nothing ])) = do
-                     return XInfoStreamEmptyResponse{..}
+                 Bulk (Just "length"),            Integer xinfoStreamLength,
+                 Bulk (Just "radix-tree-keys"),   Integer xinfoStreamRadixTreeKeys,
+                 Bulk (Just "radix-tree-nodes"),  Integer xinfoStreamRadixTreeNodes,
+                 Bulk (Just "groups"),            Integer xinfoStreamNumGroups,
+                 Bulk (Just "last-generated-id"), Bulk (Just xinfoStreamLastEntryId),
+                 Bulk (Just "first-entry"),       Bulk Nothing ,
+                 Bulk (Just "last-entry"),        Bulk Nothing ])) = do
+                    return XInfoStreamEmptyResponse{
+                          xinfoMaxDeletedEntryId    = Nothing
+                        , xinfoEntriesAdded         = Nothing
+                        , xinfoRecordedFirstEntryId = Nothing
+                        , ..}
             decodeRedis5 (MultiBulk (Just [
-                Bulk (Just "length"),Integer xinfoStreamLength,
-                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-                Bulk (Just "first-entry"), rawFirstEntry ,
-                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                Bulk (Just "length"),            Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),   Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),  Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "groups"),            Integer xinfoStreamNumGroups,
+                Bulk (Just "last-generated-id"), Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "first-entry"),       rawFirstEntry ,
+                Bulk (Just "last-entry"),        rawLastEntry ])) = do
                     xinfoStreamFirstEntry <- decode rawFirstEntry
-                    xinfoStreamLastEntry <- decode rawLastEntry
-                    return XInfoStreamResponse{..}
+                    xinfoStreamLastEntry  <- decode rawLastEntry
+                    return XInfoStreamResponse{
+                          xinfoMaxDeletedEntryId    = Nothing
+                        , xinfoEntriesAdded         = Nothing
+                        , xinfoRecordedFirstEntryId = Nothing
+                        , ..}
             decodeRedis5 a = Left a
 
             decodeRedis6 (MultiBulk (Just [
-                Bulk (Just "length"),Integer xinfoStreamLength,
-                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-                Bulk (Just "first-entry"), Bulk Nothing ,
-                Bulk (Just "last-entry"), Bulk Nothing ])) = do
-                    return XInfoStreamEmptyResponse{..}
+                Bulk (Just "length"),            Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),   Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),  Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"), Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "groups"),            Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"),       Bulk Nothing ,
+                Bulk (Just "last-entry"),        Bulk Nothing ])) = do
+                    return XInfoStreamEmptyResponse{
+                          xinfoMaxDeletedEntryId    = Nothing
+                        , xinfoEntriesAdded         = Nothing
+                        , xinfoRecordedFirstEntryId = Nothing
+                        , ..}
             decodeRedis6 (MultiBulk (Just [
-                Bulk (Just "length"),Integer xinfoStreamLength,
-                Bulk (Just "radix-tree-keys"),Integer xinfoStreamRadixTreeKeys,
-                Bulk (Just "radix-tree-nodes"),Integer xinfoStreamRadixTreeNodes,
-                Bulk (Just "last-generated-id"),Bulk (Just xinfoStreamLastEntryId),
-                Bulk (Just "groups"),Integer xinfoStreamNumGroups,
-                Bulk (Just "first-entry"), rawFirstEntry ,
-                Bulk (Just "last-entry"), rawLastEntry ])) = do
+                Bulk (Just "length"),            Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),   Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),  Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"), Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "groups"),            Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"),       rawFirstEntry ,
+                Bulk (Just "last-entry"),        rawLastEntry ])) = do
                     xinfoStreamFirstEntry <- decode rawFirstEntry
-                    xinfoStreamLastEntry <- decode rawLastEntry
-                    return XInfoStreamResponse{..}
+                    xinfoStreamLastEntry  <- decode rawLastEntry
+                    return XInfoStreamResponse{
+                          xinfoMaxDeletedEntryId    = Nothing
+                        , xinfoEntriesAdded         = Nothing
+                        , xinfoRecordedFirstEntryId = Nothing
+                        , ..}
             decodeRedis6 a = Left a
+
+            decodeRedis7 (MultiBulk (Just [
+                Bulk (Just "length"),                  Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),         Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),        Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"),       Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "max-deleted-entry-id"),    Bulk (Just xinfoMaxDeletedEntryId),
+                Bulk (Just "entries-added"),           Integer xinfoEntriesAdded,
+                Bulk (Just "recorded-first-entry-id"), Bulk (Just xinfoRecordedFirstEntryId),
+                Bulk (Just "groups"),                  Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"),             Bulk Nothing ,
+                Bulk (Just "last-entry"),              Bulk Nothing ])) = do
+                    return XInfoStreamEmptyResponse{
+                          xinfoMaxDeletedEntryId    = Just xinfoMaxDeletedEntryId
+                        , xinfoEntriesAdded         = Just xinfoEntriesAdded
+                        , xinfoRecordedFirstEntryId = Just xinfoRecordedFirstEntryId
+                        , ..}
+
+            decodeRedis7 (MultiBulk (Just [
+                Bulk (Just "length"),                  Integer xinfoStreamLength,
+                Bulk (Just "radix-tree-keys"),         Integer xinfoStreamRadixTreeKeys,
+                Bulk (Just "radix-tree-nodes"),        Integer xinfoStreamRadixTreeNodes,
+                Bulk (Just "last-generated-id"),       Bulk (Just xinfoStreamLastEntryId),
+                Bulk (Just "max-deleted-entry-id"),    Bulk (Just xinfoMaxDeletedEntryId),
+                Bulk (Just "entries-added"),           Integer xinfoEntriesAdded,
+                Bulk (Just "recorded-first-entry-id"), Bulk (Just xinfoRecordedFirstEntryId),
+                Bulk (Just "groups"),                  Integer xinfoStreamNumGroups,
+                Bulk (Just "first-entry"),          rawFirstEntry ,
+                Bulk (Just "last-entry"),           rawLastEntry ])) = do
+                    xinfoStreamFirstEntry <- decode rawFirstEntry
+                    xinfoStreamLastEntry  <- decode rawLastEntry
+                    return XInfoStreamResponse{
+                          xinfoMaxDeletedEntryId    = Just xinfoMaxDeletedEntryId
+                        , xinfoEntriesAdded         = Just xinfoEntriesAdded
+                        , xinfoRecordedFirstEntryId = Just xinfoRecordedFirstEntryId
+                        , ..}
+            decodeRedis7 a = Left a
 
 xinfoStream
     :: (RedisCtx m f)
@@ -1238,12 +1722,7 @@ xtrim
     => ByteString -- ^ stream
     -> TrimOpts
     -> m (f Integer)
-xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ optArgs
-    where
-        optArgs = case opts of
-            NoArgs -> []
-            Maxlen max -> ["MAXLEN", encode max]
-            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ internalTrimArgToList opts
 
 inf :: RealFloat a => a
 inf = 1 / 0
@@ -1425,3 +1904,4 @@ clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (enco
 
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]
+

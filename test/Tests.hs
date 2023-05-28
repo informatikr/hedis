@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
 module Tests where
 
+
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 import Data.Monoid (mappend)
@@ -16,8 +17,10 @@ import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
+import qualified Test.HUnit.Lang as HUnit.Lang
 
 import Database.Redis
+import Data.Either (fromRight)
 
 ------------------------------------------------------------------------------
 -- helpers
@@ -36,11 +39,30 @@ testCase name r conn = Test.testCase name $ do
             putStrLn $ name ++ ": " ++ show deltaT
 
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
-redis >>=? expected = do
+redis >>=? expected = redis >>@? (expected HUnit.@=?)
+
+(>>@?) :: (Eq a, Show a) => Redis (Either Reply a) -> (a -> HUnit.Assertion) -> Redis ()
+redis >>@? predicate = do
     a <- redis
     liftIO $ case a of
-        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right actual -> expected HUnit.@=? actual
+        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right actual -> predicate actual
+
+(<|?>) :: HUnit.Assertion -> HUnit.Assertion -> HUnit.Assertion
+a <|?> b = do
+    resultA <- HUnit.Lang.performTestCase a
+    case resultA of
+        HUnit.Lang.Success        -> a
+        HUnit.Lang.Failure _ errA -> tryB errA
+        HUnit.Lang.Error   _ errA -> tryB errA
+        where tryB errA = do
+                        resultB <- HUnit.Lang.performTestCase b
+                        case resultB of
+                            HUnit.Lang.Success        -> b
+                            HUnit.Lang.Failure _ errB -> concatErrors errA errB
+                            HUnit.Lang.Error   _ errB -> concatErrors errA errB
+              concatErrors errA errB = HUnit.Lang.assertFailure ("{" ++ errA ++ "\nOR\n" ++ errB ++ "\n}: Failed")
+
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
@@ -450,6 +472,50 @@ testTransaction = testCase "transaction" $ do
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
+testSet7 :: Test
+testSet7 = testCase "Set" $ do
+    set "hello" "hi" >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Just 2000,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Just 20000,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = True
+    } >>=? Ok
+    setGet "hello" "henlo" >>=? "hi"
+    setGetOpts "hello" "henlo2" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Just Nx,
+        setKeepTTL           = False
+    } >>=? "henlo"
+    return ()
+
+testZAdd7 :: Test
+testZAdd7 = testCase "ZADD" $ do
+    zadd "set" [(42, "2")] >>=? 1
+    zaddOpts "set" [(44, "6")] (defaultZaddOpts {zaddSizeCondition = Just CGT}) >>=? 1
+    zaddOpts "set" [(46, "7")] (defaultZaddOpts {zaddSizeCondition = Just CLT}) >>=? 1
+    return ()
 
 ------------------------------------------------------------------------------
 -- Scripting
@@ -593,13 +659,15 @@ testSlowlog = testCase "slowlog" $ do
     slowlogGet 5 >>=? []
     slowlogLen   >>=? 0
 
+-- |Starting with Redis 7.0.0, the DEBUG command is disabled by default and must be enabled manually in the Redis Config file
 testDebugObject :: Test
 testDebugObject = testCase "debugObject/debugSegfault" $ do
-    set "key" "value" >>=? Ok
-    debugObject "key" >>= \case
-      Left _ -> error "error"
-      _ -> return ()
     return ()
+    -- set "key" "value" >>=? Ok
+    -- debugObject "key" >>= \case
+      -- Left _ -> error "error"
+      -- _ -> return ()
+    -- return ()
 
 testScans :: Test
 testScans = testCase "scans" $ do
@@ -638,8 +706,10 @@ testXAddRead ::Test
 testXAddRead = testCase "xadd/xread" $ do
     xadd "{same}somestream" "123" [("key", "value"), ("key2", "value2")]
     xadd "{same}otherstream" "456" [("key1", "value1")]
-    xaddOpts "{same}thirdstream" "*" [("k", "v")] (Maxlen 1)
-    xaddOpts "{same}thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")]
+        $ xaddTrimOpt (Just $ trimOpts (TrimMaxlen 1) TrimExact)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")]
+        $ xaddTrimOpt (Just $ trimOpts (TrimMaxlen 1) (TrimApprox Nothing))
     xread [("{same}somestream", "0"), ("{same}otherstream", "0")] >>=? Just [
         XReadResponse {
             stream = "{same}somestream",
@@ -650,6 +720,9 @@ testXAddRead = testCase "xadd/xread" $ do
             records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
         }]
     xlen "{same}somestream" >>=? 1
+    where xaddTrimOpt a = XAddOpts{
+        xAddTrimOpts = a,
+        xAddnoMkStream = False}
 
 testXReadGroup ::Test
 testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
@@ -665,6 +738,12 @@ testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
     xgroupSetId "somestream" "somegroup" "0" >>=? Ok
     xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
     xgroupDestroy "somestream" "somegroup" >>=? True
+
+testXCreateGroup7 ::Test
+testXCreateGroup7 = testCase "XGROUP CREATE" $ do
+    xgroupCreateOpts "somestream" "somegroup" "0" XGroupCreateOpts {xGroupCreateMkStream    = True,
+                                                                    xGroupCreateEntriesRead = Just "1234"} >>=? Ok
+    return ()
 
 testXRange ::Test
 testXRange = testCase "xrange/xrevrange" $ do
@@ -689,18 +768,35 @@ testXpending = testCase "xpending" $ do
     xadd "somestream" "124" [("key4", "value4")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroup "somegroup" "consumer1" [("somestream", ">")]
-    xpendingSummary "somestream" "somegroup" Nothing >>=? XPendingSummaryResponse {
+    xpendingSummary "somestream" "somegroup" >>=? XPendingSummaryResponse {
         numPendingMessages = 4,
         smallestPendingMessageId = "121-0",
         largestPendingMessageId = "124-0",
         numPendingMessagesByconsumer = [("consumer1", 4)]
     }
-    detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
-    liftIO $ case detail of
-        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XPendingDetailRecord{..}] -> do
-            messageId HUnit.@=? "121-0"
-        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    xpendingDetail "somestream" "somegroup" "121" "121" 10 defaultXPendingDetailOpts >>@? (\case
+            [XPendingDetailRecord{..}] -> do
+                messageId HUnit.@=? "121-0"
+            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+            )
+
+testXpending7 ::Test
+testXpending7 = testCase "xpending" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xgroupCreate "somestream" "somegroup2" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    xreadGroup "somegroup2" "consumer2" [("somestream", ">")]
+    xack "somestream" "somegroup" ["121", "122", "123"] >>=? 3
+    xpendingDetail "somestream" "somegroup2" "123" "123" 10 XPendingDetailOpts
+                    {xPendingDetailIdle     = Just 0,
+                     xPendingDetailConsumer = Just "consumer2" } >>@? (\case
+                            [XPendingDetailRecord{..}] -> do
+                                messageId HUnit.@=? "123-0"
+                            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
 
 testXClaim ::Test
 testXClaim =
@@ -735,41 +831,84 @@ testXClaim =
       ["122-0"] >>=?
       ["122-0"]
 
+testXAutoClaim7 ::Test
+testXAutoClaim7 =
+  testCase "xautoclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
+    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
+    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts {recordCount = Just 2})
+
+    let opts = XAutoclaimOpts {
+        xAutoclaimCount = Just 1
+    }
+    xautoclaimJustIdsOpts "somestream" "somegroup" "consumer2" 0 "0-0" opts  >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? ["121-0"]
+            xAutoclaimDeletedMessages HUnit.@=? []
+            return ())
+
+    xtrim "somestream" (trimOpts (TrimMaxlen 1) TrimExact) >>=? 1
+    xautoclaim "somestream" "somegroup" "consumer2" 0 "0-0" >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? [StreamsRecord {
+                recordId = "122-0",
+                keyValues = [("key2", "value2")]
+            }]
+            xAutoclaimDeletedMessages HUnit.@=? ["121-0"]
+            return ()
+        )
+    return ()
+
 testXInfo ::Test
 testXInfo = testCase "xinfo" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
-    consumerInfos <- xinfoConsumers "somestream" "somegroup"
-    liftIO $ case consumerInfos of
-        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XInfoConsumersResponse{..}] -> do
+
+    xinfoConsumers "somestream" "somegroup" >>@? (\case
+        [XInfoConsumersResponse{..}] -> do
             xinfoConsumerName HUnit.@=? "consumer1"
             xinfoConsumerNumPendingMessages HUnit.@=? 2
-        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
-    xinfoGroups "somestream" >>=? [
-        XInfoGroupsResponse{
-            xinfoGroupsGroupName = "somegroup",
-            xinfoGroupsNumConsumers = 1,
-            xinfoGroupsNumPendingMessages = 2,
-            xinfoGroupsLastDeliveredMessageId = "122-0"
-        }]
-    xinfoStream "somestream" >>=? XInfoStreamResponse
-        { xinfoStreamLength = 2
-        , xinfoStreamRadixTreeKeys = 1
-        , xinfoStreamRadixTreeNodes = 2
-        , xinfoStreamNumGroups = 1
-        , xinfoStreamLastEntryId = "122-0"
-        , xinfoStreamFirstEntry = StreamsRecord
-            { recordId = "121-0"
-            , keyValues = [("key1", "value1")]
-            }
-        , xinfoStreamLastEntry = StreamsRecord
-            { recordId = "122-0"
-            , keyValues = [("key2", "value2")]
-            }
-        }
+
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+
+    xinfoGroups "somestream" >>@? (\case
+        [XInfoGroupsResponse{..}] -> do
+            xinfoGroupsGroupName              HUnit.@=? "somegroup"
+            xinfoGroupsNumConsumers           HUnit.@=? 1
+            xinfoGroupsNumPendingMessages     HUnit.@=? 2
+            xinfoGroupsLastDeliveredMessageId HUnit.@=? "122-0"
+
+            (do xinfoGroupsEntriesRead          HUnit.@=? Nothing -- Redis 6
+                xinfoGroupsLag                  HUnit.@=? Nothing) <|?>
+                (do xinfoGroupsEntriesRead          HUnit.@=? Just 2 -- Redis 7
+                    xinfoGroupsLag                  HUnit.@=? Just 0)
+
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+
+
+    xinfoStream "somestream" >>@? (\case
+        XInfoStreamResponse{..} -> do
+            xinfoStreamLength         HUnit.@=? 2
+            xinfoStreamRadixTreeKeys  HUnit.@=? 1
+            xinfoStreamRadixTreeNodes HUnit.@=? 2
+            xinfoStreamNumGroups      HUnit.@=? 1
+            xinfoStreamLastEntryId    HUnit.@=? "122-0"
+            xinfoStreamFirstEntry     HUnit.@=? StreamsRecord {
+                                                      recordId = "121-0"
+                                                    , keyValues = [("key1", "value1")]}
+            xinfoStreamLastEntry      HUnit.@=? StreamsRecord {
+                                                      recordId = "122-0"
+                                                    , keyValues = [("key2", "value2")] }
+            (do xinfoMaxDeletedEntryId    HUnit.@=? Nothing -- Redis 6.0
+                xinfoEntriesAdded         HUnit.@=? Nothing
+                xinfoRecordedFirstEntryId HUnit.@=? Nothing) <|?> -- Redis 7.0
+                (do xinfoMaxDeletedEntryId    HUnit.@=? Just "0-0"
+                    xinfoEntriesAdded         HUnit.@=? Just 2
+                    xinfoRecordedFirstEntryId HUnit.@=? Just "121-0")
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
 
 testXDel ::Test
 testXDel = testCase "xdel" $ do
@@ -783,6 +922,8 @@ testXTrim = testCase "xtrim" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
     xadd "somestream" "123" [("key3", "value3")]
-    xadd "somestream" "124" [("key4", "value4")]
+    streamId <- fromRight "" <$> xadd "somestream" "124" [("key4", "value4")]
     xadd "somestream" "125" [("key5", "value5")]
-    xtrim "somestream" (Maxlen 2) >>=? 3
+    xtrim "somestream" (trimOpts (TrimMaxlen 3) TrimExact) >>=? 2
+    xtrim "somestream" (trimOpts (TrimMinId streamId) TrimExact) >>=? 1
+
