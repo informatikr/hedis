@@ -244,10 +244,16 @@ xgroupDelConsumer, -- |Delete a consumer. The redis command @XGROUP@ is split up
 xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
 xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
 xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0
+
+-- *** XPENDING
+-- $xpending
+xpendingSummary,
 XPendingSummaryResponse(..),
-xpendingSummary, -- |Get information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+XPendingDetailOpts(..),
+defaultXPendingDetailOpts,
 XPendingDetailRecord(..),
-xpendingDetail, -- |Get detailed information about pending messages (https://redis.io/commands/xpending). The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. Since Redis 5.0.0
+xpendingDetail,
+
 XClaimOpts(..),
 defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
@@ -1118,3 +1124,6 @@ sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode mem
 -- `xautoclaimJustIdsOpt` functions.
 --
 -- All commands are available since Redis 7.0
+
+-- $xpending
+-- The Redis @XPENDING@ command is split into 'xpendingSummary' and 'xpendingDetail'. 

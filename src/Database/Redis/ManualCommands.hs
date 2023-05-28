@@ -1140,15 +1140,19 @@ instance RedisResult XPendingSummaryResponse where
                 chunksOfTwo _ = []
     decode a = Left a
 
+-- | /O(N)/ N - number of message beign returned.
+--
+-- Get information about pending messages (https://redis.io/commands/xpending). 
+--
+-- Since Redis 5.0.
 xpendingSummary
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> Maybe ByteString -- ^ consumer
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Stream consumer group.
     -> m (f XPendingSummaryResponse)
-xpendingSummary stream group consumer = sendRequest $ ["XPENDING", stream, group] ++ consumerArg
-    where consumerArg = maybe [] (\c -> [c]) consumer
+xpendingSummary stream group = sendRequest $ ["XPENDING", stream, group]
 
+-- | Details about message returned by the 'xpendingDetails'
 data XPendingDetailRecord = XPendingDetailRecord
     { messageId :: ByteString
     , consumer :: ByteString
@@ -1164,18 +1168,43 @@ instance RedisResult XPendingDetailRecord where
         Integer numTimesDelivered])) = Right XPendingDetailRecord{..}
     decode a = Left a
 
+-- | Additional parameters of the xpending call family
+data XPendingDetailOpts = XPendingDetailOpts
+  {
+    xPendingDetailConsumer :: Maybe ByteString, -- ^ Fetch the messages having a specific owner.
+    xPendingDetailIdle :: Maybe Integer
+    {- ^  Filter pending stream entries by their idle-time, ms
+
+    Since Redis 6.2: Just values will fail
+    -}
+  }
+
+-- | Default 'XPendingOpts' values.
+--
+-- Prefer this method over use of the constructor in order to preserve
+-- backwards compatibility.
+defaultXPendingDetailOpts :: XPendingDetailOpts
+defaultXPendingDetailOpts = XPendingDetailOpts {
+    xPendingDetailConsumer = Nothing,
+    xPendingDetailIdle     = Nothing
+}
+
+-- | /O(N)/ N - number of messages returned.
+-- 
+-- Get detailed information about pending messages (https://redis.io/commands/xpending). 
 xpendingDetail
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ startId
-    -> ByteString -- ^ endId
-    -> Integer -- ^ count
-    -> Maybe ByteString -- ^ consumer
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the first interesting message.
+    -> ByteString -- ^ ID of the last intersting message.
+    -> Integer -- ^ Limits the numbere of messages returned from the call.
+    -> XPendingDetailOpts
     -> m (f [XPendingDetailRecord])
-xpendingDetail stream group startId endId count consumer = sendRequest $
-    ["XPENDING", stream, group, startId, endId, encode count] ++ consumerArg
-    where consumerArg = maybe [] (\c -> [c]) consumer
+xpendingDetail stream group startId endId count opts = sendRequest $
+    ["XPENDING", stream, group] ++ idleArg ++ [startId, endId, encode count] ++ consumerArg
+    where consumerArg = maybeToList (xPendingDetailConsumer opts)
+          idleArg = maybe [] (("IDLE":) . (:[]) . encode) (xPendingDetailIdle opts)
 
 data XClaimOpts = XClaimOpts
     { xclaimIdle :: Maybe Integer

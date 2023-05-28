@@ -711,18 +711,35 @@ testXpending = testCase "xpending" $ do
     xadd "somestream" "124" [("key4", "value4")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroup "somegroup" "consumer1" [("somestream", ">")]
-    xpendingSummary "somestream" "somegroup" Nothing >>=? XPendingSummaryResponse {
+    xpendingSummary "somestream" "somegroup" >>=? XPendingSummaryResponse {
         numPendingMessages = 4,
         smallestPendingMessageId = "121-0",
         largestPendingMessageId = "124-0",
         numPendingMessagesByconsumer = [("consumer1", 4)]
     }
-    detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
-    liftIO $ case detail of
-        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XPendingDetailRecord{..}] -> do
-            messageId HUnit.@=? "121-0"
-        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    xpendingDetail "somestream" "somegroup" "121" "121" 10 defaultXPendingDetailOpts >>@? (\case
+            [XPendingDetailRecord{..}] -> do
+                messageId HUnit.@=? "121-0"
+            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+            )
+
+testXpending7 ::Test
+testXpending7 = testCase "xpending" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xgroupCreate "somestream" "somegroup2" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    xreadGroup "somegroup2" "consumer2" [("somestream", ">")]
+    xack "somestream" "somegroup" ["121", "122", "123"] >>=? 3
+    xpendingDetail "somestream" "somegroup2" "123" "123" 10 XPendingDetailOpts
+                    {xPendingDetailIdle     = Just 0,
+                     xPendingDetailConsumer = Just "consumer2" } >>@? (\case
+                            [XPendingDetailRecord{..}] -> do
+                                messageId HUnit.@=? "123-0"
+                            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
 
 testXClaim ::Test
 testXClaim =
