@@ -835,6 +835,131 @@ xadd
     -> m (f ByteString)
 xadd key entryId fieldValues = xaddOpts key entryId fieldValues NoArgs
 
+-- | Additional parameters.
+newtype XAutoclaimOpts = XAutoclaimOpts {
+    xAutoclaimCount :: Maybe Integer -- ^  The upper limit of the number of entries that the command attempts to claim (default: 100).
+}
+
+-- | Default 'XAutoclaimOpts' value.
+--
+-- Prefer to use this function over direct use of constructor to preserve
+-- backwards compatibility.
+--
+-- Defaults to @[Count 100)@
+defaultXAutoclaimOpts :: XAutoclaimOpts
+defaultXAutoclaimOpts = XAutoclaimOpts {
+    xAutoclaimCount = Nothing
+}
+
+-- | Result of the 'xautoclaim' family of calls
+data XAutoclaimResult resultFormat = XAutoclaimResult {
+    xAutoclaimResultId :: ByteString,
+    -- ^ ID of message that should be used in the next 'xautoclaim' call as a start parameter.
+    xAutoclaimClaimedMessages :: [resultFormat],
+    -- ^ List of succesfully claimed messages.
+    xAutoclaimDeletedMessages :: [ByteString]
+    -- ^ List of the messages that are available in the PEL but already deleted from the stream.
+} deriving (Show, Eq)
+
+instance RedisResult a => RedisResult (XAutoclaimResult a) where
+    decode (MultiBulk (Just [
+        Bulk (Just xAutoclaimResultId) ,
+        claimedMsg,
+        deletedMsg])) = do
+            xAutoclaimClaimedMessages <- decode claimedMsg
+            xAutoclaimDeletedMessages <- decode deletedMsg
+            Right XAutoclaimResult{..}
+    decode a = Left a
+
+-- | Version of the autoclaim result that contains data of the messages.
+type XAutoclaimStreamsResult = XAutoclaimResult StreamsRecord
+-- | Version of the autoclaim result that contains only IDs.
+type XAutoclaimJustIdsResult = XAutoclaimResult ByteString
+
+-- | /O(1)/ Transfers ownership of pending stream entries that match
+-- the specified criteria. The message should be pending for more than \<min-idle-time\>
+-- milliseconds and ID should be greater than \<start\>.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\>@
+--
+-- This version of function  claims no more than 100 mesages, use 'xautoclaimOpt' to
+-- override this behavior.
+--
+-- Since Redis 7.0: fails on ealier versions.
+xautoclaim
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ Min idle time (ms).
+    -> ByteString -- ^ ID of the message to start.
+    -> m (f XAutoclaimStreamsResult)
+xautoclaim key group consumer min_idle_time start = xautoclaimOpts key group consumer min_idle_time start defaultXAutoclaimOpts
+
+-- | /O(1) if count is small/. Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for details.
+--
+-- Allows to pass additional optional parameters to set limit.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> COUNT \<count\>@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ min idle time (ms).
+    -> ByteString -- ^ start ID.
+    -> XAutoclaimOpts -- ^ Additional parameters.
+    -> m (f XAutoclaimStreamsResult)
+xautoclaimOpts key group consumer min_idle_time start opts = sendRequest $
+    ["XAUTOCLAIM", key, group, consumer, encode min_idle_time, start] ++ count
+    where count  = maybe [] (("COUNT":) . (:[]) . encode) (xAutoclaimCount opts)
+
+-- | /O(1)/ Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for more details about criteria.
+--
+-- This variant returns only id of the messages without data. This method
+-- claims no more than 100 messages, see 'xautoclaimJustIdsOpts' for changing
+-- this default.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> JUSTID@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimJustIds
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> Integer -- ^ Min idle time (ms).
+    -> ByteString -- ^ start ID.
+    -> m (f XAutoclaimJustIdsResult)
+xautoclaimJustIds key group consumer min_idle_time start =
+  xautoclaimJustIdsOpts key group consumer min_idle_time start defaultXAutoclaimOpts
+
+-- | /O(1) if count is small/ Transfers ownership of pending stream entries that match
+-- the specified criteria. See 'xautoclaim' for more details about criteria.
+--
+-- This variant returns only id of the messages without data and allows to set the maximum
+-- number of messages to be claimed.
+--
+-- @XAUTOCLAIM \<stream name\> \<consumer group name\> \<min idle time\> \<start\> COUNT \<count\> JUSTID@
+--
+-- Since Redis 7.0: fails on the ealier versions.
+xautoclaimJustIdsOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumers group name.
+    -> ByteString -- ^ Consumer namee.
+    -> Integer -- ^ min idle time (ms).
+    -> ByteString -- ^ Start ID.
+    -> XAutoclaimOpts -- ^ Additional parametres.
+    -> m (f XAutoclaimJustIdsResult)
+xautoclaimJustIdsOpts key group consumer min_idle_time start opts = sendRequest $
+    ["XAUTOCLAIM", key, group, consumer, encode min_idle_time, start] ++ count ++ ["JUSTID"]
+    where count  = maybe [] (("COUNT":) . (:[]) . encode) (xAutoclaimCount opts)
+
 data StreamsRecord = StreamsRecord
     { recordId :: ByteString
     , keyValues :: [(ByteString, ByteString)]

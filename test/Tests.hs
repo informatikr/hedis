@@ -757,6 +757,35 @@ testXClaim =
       ["122-0"] >>=?
       ["122-0"]
 
+testXAutoClaim7 ::Test
+testXAutoClaim7 =
+  testCase "xautoclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
+    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
+    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts {recordCount = Just 2})
+
+    let opts = XAutoclaimOpts {
+        xAutoclaimCount = Just 1
+    }
+    xautoclaimJustIdsOpts "somestream" "somegroup" "consumer2" 0 "0-0" opts  >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? ["121-0"]
+            xAutoclaimDeletedMessages HUnit.@=? []
+            return ())
+
+    xtrim "somestream" (Maxlen 1) >>=? 1
+    xautoclaim "somestream" "somegroup" "consumer2" 0 "0-0" >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? [StreamsRecord {
+                recordId = "122-0",
+                keyValues = [("key2", "value2")]
+            }]
+            xAutoclaimDeletedMessages HUnit.@=? ["121-0"]
+            return ()
+        )
+    return ()
+
 testXInfo ::Test
 testXInfo = testCase "xinfo" $ do
     xadd "somestream" "121" [("key1", "value1")]

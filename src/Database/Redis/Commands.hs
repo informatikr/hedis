@@ -252,6 +252,17 @@ XClaimOpts(..),
 defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
+
+-- *** Autoclaim
+-- $autoclaim
+xautoclaim,
+xautoclaimOpts,
+XAutoclaimOpts(..),
+XAutoclaimStreamsResult,
+XAutoclaimResult(..),
+xautoclaimJustIds,
+xautoclaimJustIdsOpts,
+XAutoclaimJustIdsResult,
 XInfoConsumersResponse(..),
 xinfoConsumers, -- |Get info about consumers in a group. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
 XInfoGroupsResponse(..),
@@ -1093,3 +1104,17 @@ sismember
     -> ByteString -- ^ member
     -> m (f Bool)
 sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
+
+-- $autoclaim
+--
+-- Family of the commands related to the autoclaim command in redis, they provide an
+-- ability to claim messages that are not processed for a long time.
+--
+-- Transfers ownership of pending stream entries that match
+-- the specified criteria. The message should be pending for more than \<min-idle-time\>
+-- milliseconds and ID should be greater than \<start\>.
+--
+-- Redis @xautoclaim@ command is split info `xautoclaim`, `xautoclaimOpts`, `xautoclaimJustIds`
+-- `xautoclaimJustIdsOpt` functions.
+--
+-- All commands are available since Redis 7.0
