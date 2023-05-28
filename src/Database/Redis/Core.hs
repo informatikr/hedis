@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RecordWildCards,
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP,
-    DeriveDataTypeable, StandaloneDeriving #-}
+    DeriveDataTypeable, StandaloneDeriving, UndecidableInstances #-}
 
 module Database.Redis.Core (
     Redis(), unRedis, reRedis,
@@ -40,6 +40,12 @@ class (MonadRedis m) => RedisCtx m f | m -> f where
 class (Monad m) => MonadRedis m where
     liftRedis :: Redis a -> m a
 
+instance {-# OVERLAPPABLE #-}
+  ( MonadTrans t
+  , MonadRedis m
+  , Monad (t m)
+  ) => MonadRedis (t m) where
+  liftRedis = lift . liftRedis
 
 instance RedisCtx Redis (Either Reply) where
     returnDecode = return . decode
