@@ -688,6 +688,12 @@ testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
     xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
     xgroupDestroy "somestream" "somegroup" >>=? True
 
+testXCreateGroup7 ::Test
+testXCreateGroup7 = testCase "XGROUP CREATE" $ do
+    xgroupCreateOpts "somestream" "somegroup" "0" XGroupCreateOpts {xGroupCreateMkStream    = True,
+                                                                    xGroupCreateEntriesRead = Just "1234"} >>=? Ok
+    return ()
+
 testXRange ::Test
 testXRange = testCase "xrange/xrevrange" $ do
     xadd "somestream" "121" [("key1", "value1")]

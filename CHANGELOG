@@ -2,6 +2,9 @@
 
 ## 0.16
 
+- Extended Redis 6 and 7 support.
+  - add xgroupCreate, xgroupCreateConsumer, xgroupSetId.
+  
 Breaking changes:
 - **xpendingDetail** instead of 'Maybe ByteString' for a consumer name the method
 receives XPendingOpts structure that can take number of milliseconds and consumer name.

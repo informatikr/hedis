@@ -1047,35 +1047,115 @@ xreadGroup
     -> m (f (Maybe [XReadResponse]))
 xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
 
+-- | Additional parameters of the XGroupCreate
+data XGroupCreateOpts = XGroupCreateOpts
+    { xGroupCreateMkStream :: Bool -- ^ If a stream does not exist, create it automatically with length of 0
+    , xGroupCreateEntriesRead :: Maybe ByteString
+    {- ^ Enable consumer group lag tracking, specify an arbitrary ID.
+     An arbitrary ID is any ID that isn't the ID of the stream's first entry,
+     last entry, or zero (@"0-0"@) ID. Use it to find out how many entries
+     are between the arbitrary ID (excluding it) and the stream's last entry.
+
+     Since Redis 7.0, fails if set on the ealier versions.
+    -}
+    } deriving (Show, Eq)
+
+-- | Specifies default group opts.
+--
+-- Prefer using this method over use of constructor to preserve backwards compatibility.
+defaultXGroupCreateOpts :: XGroupCreateOpts
+defaultXGroupCreateOpts = XGroupCreateOpts{
+    xGroupCreateEntriesRead = Nothing,
+    xGroupCreateMkStream = False
+}
+
+-- | /O(1)/ Creates consumer group.
+--
+-- Fails if called on with the stream name that does not exist, use 'xgroupCreateOpts'
+-- to override this behavior.
 xgroupCreate
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group name
-    -> ByteString -- ^ start ID
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the message to start reading with.
     -> m (f Status)
-xgroupCreate stream groupName startId = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId]
+xgroupCreate stream groupName startId = xgroupCreateOpts stream groupName startId defaultXGroupCreateOpts
 
+-- | /O(1)/ Creates consumer group, accepts additional parameters.
+xgroupCreateOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ ID of the message to start reading with.
+    -> XGroupCreateOpts -- ^ Additional parameters.
+    -> m (f Status)
+xgroupCreateOpts stream groupName startId opts = sendRequest $ ["XGROUP", "CREATE", stream, groupName, startId] ++ args
+    where args = mkstream ++ entriesRead
+          mkstream    = ["MKSTREAM" | xGroupCreateMkStream opts]
+          entriesRead = maybe []  (("ENTRIESREAD":) . (:[])) (xGroupCreateEntriesRead opts)
+
+-- | /O(1)/ Creates new consumer in the consumers group.
+--
+-- Since redis 6.2.0: fails on the ealier versions.
+xgroupCreateConsumer
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name. 
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> m (f Bool) -- ^ Returns if the consumer was created or not.
+xgroupCreateConsumer key group consumer = sendRequest ["XGROUP", "CREATECONSUMER", key, group, consumer]
+
+-- | /O(1)/ Sets last delivered id for a consumer group.
 xgroupSetId
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ id
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumr group name.
+    -> ByteString -- ^ Message ID or @$@
     -> m (f Status)
-xgroupSetId stream group messageId = sendRequest ["XGROUP", "SETID", stream, group, messageId]
+xgroupSetId stream group messageId = xgroupSetIdOpts stream group messageId defaultXGroupSetIdOpts
 
+-- | Additional parameters for the 'xgroupSetId' method
+newtype XGroupSetIdOpts = XGroupSetIdOpts {
+    xGroupSetIdEntriesRead :: Maybe ByteString
+    {- ^ Enable consumer group lag tracking for an arbitrary ID. An arbitrary ID is any ID that isn't the ID of the stream's first entry, its last entry or the zero (@"0-0"@) ID
+
+    @since Redis 7.0, fails if set to Just on ealier versions.
+    -}
+}
+
+-- | Default value for the 'XGroupSetIdOpts'.
+--
+-- Prefer use this method over the raw constructor in order to preserve
+-- backwards compatibility.
+defaultXGroupSetIdOpts :: XGroupSetIdOpts
+defaultXGroupSetIdOpts = XGroupSetIdOpts {xGroupSetIdEntriesRead = Nothing}
+
+-- | /O(1)/ a variant of the 'xgroupSetId' that allowes to pass additional parameters.
+xgroupSetIdOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Message id or @$S
+    -> XGroupSetIdOpts -- ^ Additional parameters.
+    -> m (f Status)
+xgroupSetIdOpts stream group messageId opts = sendRequest $ ["XGROUP", "SETID", stream, group, messageId] ++ entriesRead
+    where entriesRead = maybe [] (("ENTRIESREAD":) . (:[])) (xGroupSetIdEntriesRead opts)
+
+-- | /O(1)/ Delete consumer.
 xgroupDelConsumer
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> ByteString -- ^ consumer
-    -> m (f Integer)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> ByteString -- ^ Consumer name.
+    -> m (f Integer) -- ^ The number of pending messages owned by the consumer.
 xgroupDelConsumer stream group consumer = sendRequest ["XGROUP", "DELCONSUMER", stream, group, consumer]
 
+-- | /O(1)/ destroys a group.
 xgroupDestroy
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ group
-    -> m (f Bool)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> m (f Bool)  -- ^ Tells if the group was destroyed or not.
 xgroupDestroy stream group = sendRequest ["XGROUP", "DESTROY", stream, group]
 
 xack
