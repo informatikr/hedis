@@ -152,6 +152,32 @@ test-suite hedis-test
     if flag(dev)
       ghc-prof-options: -auto-all
 
+test-suite redis7
+    default-language: Haskell2010
+    type: exitcode-stdio-1.0
+    hs-source-dirs: test
+    main-is: MainRedis7.hs
+    other-modules: PubSubTest
+                   Tests
+    build-depends:
+        base == 4.*,
+        bytestring >= 0.10,
+        hedis,
+        HUnit,
+        async,
+        stm,
+        text,
+        mtl == 2.*,
+        test-framework,
+        test-framework-hunit,
+        time
+    -- We use -O0 here, since GHC takes *very* long to compile so many constants
+    ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
+    if flag(dev)
+      ghc-options: -Werror
+    if flag(dev)
+      ghc-prof-options: -auto-all
+
 test-suite hedis-test-cluster
     default-language: Haskell2010
     type: exitcode-stdio-1.0

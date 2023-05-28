@@ -230,8 +230,14 @@ defaultXreadOpts,
 XReadResponse(..),
 StreamsRecord(..),
 TrimOpts(..),
-xadd, -- |Add a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
-xaddOpts, -- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
+xadd,
+xaddOpts, 
+XAddOpts(..),
+defaultXAddOpts,
+TrimStrategy(..),
+TrimType(..),
+TrimOpts(..),
+trimOpts,
 xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0

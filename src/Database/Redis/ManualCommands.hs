@@ -10,6 +10,7 @@ import Data.Maybe (maybeToList, catMaybes)
 #if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup ((<>))
 #endif
+
 import Database.Redis.Core
 import Database.Redis.Protocol
 import Database.Redis.Types
@@ -809,31 +810,84 @@ zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
 
-data TrimOpts = NoArgs | Maxlen Integer | ApproxMaxlen Integer
+-- |
+-- @since 0.16.0
+data TrimStrategy
+  = TrimMaxlen Integer
+    -- ^ Evicts entries as long as the stream's length exceeds the specified threshold, where threshold is a positive integer.
+  | TrimMinId ByteString
+   {- ^  Evicts entries with IDs lower than threshold, where threshold is a stream ID.
 
+   Since Redis 6.2: will fail if used on ealier versions.
+   -}
+
+-- | Type of the trimming.
+--
+-- @since 0.16.0
+data TrimType
+  = TrimExact {- ^ Exact trimming -}
+  | TrimApprox (Maybe Integer) {- ^ Approximate trimming. Is faster, but may leave slightly more
+    elements in the stream if they can't be immediately deleted.
+
+    Additional parameter Specifies the maximal count of entries that will be evicted. When LIMIT and count aren't specified, the default value of 100 * the number of entries in a macro node will be implicitly used as the count, @Just 0@ removes the limit entirely.
+    -}
+
+data TrimOpts = TrimOpts
+  { trimOptsStrategy :: TrimStrategy
+  , trimOptsType :: TrimType
+  }
+
+-- | Converts trim options to the low level parameters
+internalTrimArgToList :: TrimOpts -> [ByteString]
+internalTrimArgToList TrimOpts{..} = trimArg ++ limitArg
+  where trimArg = case trimOptsStrategy of
+           TrimMaxlen max -> ("MAXLEN":approxArg:encode max:[])
+           TrimMinId i -> ("MINID":approxArg:i:[])
+        (approxArg, limitArg) = case trimOptsType of
+            TrimExact -> ("=", [])
+            TrimApprox limit -> ("~",  maybe [] (("LIMIT":) . (:[]) . encode) limit)
+
+trimOpts :: TrimStrategy -> TrimType -> TrimOpts
+trimOpts = TrimOpts
+
+data XAddOpts = XAddOpts {
+    xAddTrimOpts :: Maybe TrimOpts, -- ^ Call XTRIM right after XADD
+    xAddnoMkStream :: Bool
+    {- ^ Don't create a new stream if it doesn't exist
+
+    @since Redis 6.2
+    -}
+}
+
+defaultXAddOpts :: XAddOpts
+defaultXAddOpts = XAddOpts {
+    xAddTrimOpts = Nothing,
+    xAddnoMkStream = False
+}
+
+-- |Add a value to a stream (<https://redis.io/commands/xadd>). The Redis command @XADD@ is split up into 'xadd', 'xaddOpts'. Since Redis 5.0.0
 xaddOpts
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ id
-    -> [(ByteString, ByteString)] -- ^ (field, value)
-    -> TrimOpts
-    -> m (f ByteString)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Message ID
+    -> [(ByteString, ByteString)] -- ^ Message data (field, value)
+    -> XAddOpts -- ^ Additional parameteers
+    -> m (f ByteString) -- ^ ID of the added entry.
 xaddOpts key entryId fieldValues opts = sendRequest $
-    ["XADD", key] ++ optArgs ++ [entryId] ++ fieldArgs
+    ["XADD", key] ++ noMkStreamArgs ++ trimArgs ++ [entryId] ++ fieldArgs
     where
         fieldArgs = concatMap (\(x,y) -> [x,y]) fieldValues
-        optArgs = case opts of
-            NoArgs -> []
-            Maxlen max -> ["MAXLEN", encode max]
-            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+        noMkStreamArgs = ["NOMKSTREAM" | xAddnoMkStream opts]
+        trimArgs = maybe [] (internalTrimArgToList) (xAddTrimOpts opts)
 
+-- | /O(1)/ Adds a value to a stream (<https://redis.io/commands/xadd>). Since Redis 5.0.0
 xadd
     :: (RedisCtx m f)
-    => ByteString -- ^ stream
-    -> ByteString -- ^ id
-    -> [(ByteString, ByteString)] -- ^ (field, value)
+    => ByteString -- ^ Stream name
+    -> ByteString -- ^ Message id
+    -> [(ByteString, ByteString)] -- ^ Message data (field, value)
     -> m (f ByteString)
-xadd key entryId fieldValues = xaddOpts key entryId fieldValues NoArgs
+xadd key entryId fieldValues = xaddOpts key entryId fieldValues defaultXAddOpts
 
 -- | Additional parameters.
 newtype XAutoclaimOpts = XAutoclaimOpts {
@@ -1099,7 +1153,7 @@ xgroupCreateOpts stream groupName startId opts = sendRequest $ ["XGROUP", "CREAT
 -- Since redis 6.2.0: fails on the ealier versions.
 xgroupCreateConsumer
     :: (RedisCtx m f)
-    => ByteString -- ^ Stream name. 
+    => ByteString -- ^ Stream name.
     -> ByteString -- ^ Consumer group name.
     -> ByteString -- ^ Consumer name.
     -> m (f Bool) -- ^ Returns if the consumer was created or not.
@@ -1222,7 +1276,7 @@ instance RedisResult XPendingSummaryResponse where
 
 -- | /O(N)/ N - number of message beign returned.
 --
--- Get information about pending messages (https://redis.io/commands/xpending). 
+-- Get information about pending messages (https://redis.io/commands/xpending).
 --
 -- Since Redis 5.0.
 xpendingSummary
@@ -1270,8 +1324,8 @@ defaultXPendingDetailOpts = XPendingDetailOpts {
 }
 
 -- | /O(N)/ N - number of messages returned.
--- 
--- Get detailed information about pending messages (https://redis.io/commands/xpending). 
+--
+-- Get detailed information about pending messages (https://redis.io/commands/xpending).
 xpendingDetail
     :: (RedisCtx m f)
     => ByteString -- ^ Stream name.
@@ -1614,12 +1668,7 @@ xtrim
     => ByteString -- ^ stream
     -> TrimOpts
     -> m (f Integer)
-xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ optArgs
-    where
-        optArgs = case opts of
-            NoArgs -> []
-            Maxlen max -> ["MAXLEN", encode max]
-            ApproxMaxlen max -> ["MAXLEN", "~", encode max]
+xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ internalTrimArgToList opts
 
 inf :: RealFloat a => a
 inf = 1 / 0

@@ -21,6 +21,7 @@ tests conn = map ($conn) $ concat
     , [testQuit]
     ]
 
+
 testsServer :: [Test]
 testsServer =
     [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
