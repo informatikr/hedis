@@ -162,10 +162,10 @@ module Database.Redis (
     RedisCtx(..), MonadRedis(..),
 
     -- * Connection
-    Connection, ConnectError(..), connect, checkedConnect, disconnect,
-    withConnect, withCheckedConnect,
-    ConnectInfo(..), defaultConnectInfo, parseConnectInfo, connectCluster,
-    PortID(..),
+    Connection, ConnectError(..), connect, checkedConnect,
+    ClusterConnectError (..), connectCluster, checkedConnectCluster,
+    disconnect, withConnect, withCheckedConnect,
+    ConnectInfo(..), defaultConnectInfo, parseConnectInfo, PortID(..),
 
     -- * Commands
     module Database.Redis.Commands,
@@ -197,13 +197,15 @@ module Database.Redis (
 import Database.Redis.Core
 import Database.Redis.Connection
     ( runRedis
-    , connectCluster
     , defaultConnectInfo
     , ConnectInfo(..)
     , disconnect
     , checkedConnect
     , connect
+    , checkedConnectCluster
+    , connectCluster
     , ConnectError(..)
+    , ClusterConnectError(..)
     , Connection(..)
     , withConnect
     , withCheckedConnect)

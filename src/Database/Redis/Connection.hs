@@ -30,8 +30,11 @@ import Database.Redis.Commands
     ( ping
     , select
     , auth
+    , clusterInfo
     , clusterSlots
     , command
+    , ClusterInfoResponseState (..)
+    , ClusterInfoResponse (..)
     , ClusterSlotsResponse(..)
     , ClusterSlotsResponseEntry(..)
     , ClusterSlotsNode(..))
@@ -158,6 +161,25 @@ checkedConnect connInfo = do
     conn <- connect connInfo
     runRedis conn $ void ping
     return conn
+
+-- |Constructs a 'Connection' pool to a Redis cluster designated by the
+--  given 'ConnectInfo', then tests if the server is actually there.
+--  Throws an exception if the connection to the Redis server can't be
+--  established.
+checkedConnectCluster :: ConnectInfo -> IO Connection
+checkedConnectCluster connInfo = do
+  conn <- connectCluster connInfo
+  res <- runRedis conn clusterInfo
+  case res of
+    Right r -> case clusterInfoResponseState r of
+      OK -> pure conn
+      Down -> throwIO $ ClusterDownError r
+    Left e -> throwIO $ ClusterConnectError e
+
+newtype ClusterDownError = ClusterDownError ClusterInfoResponse
+  deriving (Eq, Show, Typeable)
+
+instance Exception ClusterDownError
 
 -- |Destroy all idle resources in the pool.
 disconnect :: Connection -> IO ()
