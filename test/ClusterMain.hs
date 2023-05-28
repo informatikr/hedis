@@ -21,11 +21,14 @@ tests :: Connection -> [Test.Test]
 tests conn = map ($conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
-    , testsConnection, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
+    , testsConnection, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
       -- should always be run last as connection gets closed after it
     , [testQuit]
     ]
+
+testsClient :: [Test]
+testsClient = [testClientId, testClientName]
 
 testsServer :: [Test]
 testsServer =
