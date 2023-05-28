@@ -2,6 +2,7 @@
 
 ## 0.16
 
+- PR #176. Exposed RedisArg type class so it's possible to (de)serialize application data structures.
 - PR #182. Add MonadTrans instance for MonadRedis.
 - PR #198. Extended Redis 6 and 7 support.
   - add xgroupCreate, xgroupCreateConsumer, xgroupSetId;
