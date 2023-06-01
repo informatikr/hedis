@@ -31,7 +31,7 @@ testsServer =
     ,testSlowlog, testDebugObject]
 
 testsConnection :: [Test]
-testsConnection = [ testConnectAuth, testConnectAuthUnexpected, testConnectDb
+testsConnection = [ testConnectAuth, testConnectAuthUnexpected, testConnectAuthAcl,testConnectDb
                   , testConnectDbUnexisting, testEcho, testPing, testSelect ]
 
 testsKeys :: [Test]

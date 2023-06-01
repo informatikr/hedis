@@ -1727,11 +1727,46 @@ xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ internalTrimArgToList opt
 inf :: RealFloat a => a
 inf = 1 / 0
 
+-- | Additional parameters for the auth command.
+data AuthOpts = AuthOpts
+  { authOptsUsername
+    :: Maybe ByteString
+    {- ^ Username.
+
+      Since Redis 6.0: fails on earlier 
+     -}
+  }
+
+-- | Default options for AuthOpts
+--
+-- >>> defaultAuthOpts
+-- AuthOpts { authOptsUsername = Nothing }
+defaultAuthOpts :: AuthOpts
+defaultAuthOpts = AuthOpts
+  { authOptsUsername = Nothing
+  }
+
+-- | /O(N)/ where N is the number of passwords defined for the user.
+--
+-- Authenticates client to the server.
 auth
     :: RedisCtx m f
-    => ByteString -- ^ password
+    => ByteString -- ^ Password.
     -> m (f Status)
-auth password = sendRequest ["AUTH", password]
+auth password = authOpts password defaultAuthOpts
+
+-- | /O(N)/ where N is the number of passwords defined for the user.
+--
+-- Authenticates client to the server.
+--
+-- This method allows passing additional options.
+authOpts
+    :: RedisCtx m f
+    => ByteString -- ^ Password.
+    -> AuthOpts -- ^ Additional options.
+    -> m (f Status)
+authOpts password AuthOpts{..} = sendRequest $
+  ["AUTH"] <> maybe [] (:[]) authOptsUsername <> [password]
 
 -- the select command. used in 'connect'.
 select

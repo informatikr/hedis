@@ -3,7 +3,14 @@
 module Database.Redis.Commands (
 
 -- ** Connection
-auth, -- |Authenticate to the server (<http://redis.io/commands/auth>). Since Redis 1.0.0
+
+-- *** auth
+-- $auth
+auth, 
+authOpts,
+AuthOpts(..),
+defaultAuthOpts,
+-- *** Other commands
 echo, -- |Echo the given string (<http://redis.io/commands/echo>). Since Redis 1.0.0
 ping, -- |Ping the server (<http://redis.io/commands/ping>). Since Redis 1.0.0
 quit, -- |Close the connection (<http://redis.io/commands/quit>). Since Redis 1.0.0
@@ -1167,3 +1174,7 @@ sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode mem
 
 -- $xgroupSetId
 -- Sets last delivered ID for a consumer group. The redis command @XGROUP SETID@ is split up into 'xgroupSetId' and 'xgroupSetIdOpts' methods.
+
+
+-- $auth
+-- Authenticate to the server (<http://redis.io/commands/auth>). Since Redis 1.0.0

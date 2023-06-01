@@ -573,6 +573,22 @@ testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
           err = Left $ ConnectAuthError $
                   Error "ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?"
 
+
+testConnectAuthAcl :: Test
+testConnectAuthAcl = testCase "connect/auth/acl" $ do
+   liftIO $ do
+      c <- checkedConnect defaultConnectInfo
+      runRedis c $ sendRequest  ["ACL", "SETUSER", "test", "on", ">pass", "~*", "&*", "+@all"] >>=? Ok
+   liftIO $ do
+      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test"}
+      runRedis c (ping >>=? Pong)
+   liftIO $ do
+      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1"}
+      HUnit.assertEqual "" err res
+   where
+     err = Left $ ConnectAuthError $
+             Error "WRONGPASS invalid username-password pair or user is disabled."
+
 testConnectDb :: Test
 testConnectDb = testCase "connect/db" $ do
     set "connect" "value" >>=? Ok
