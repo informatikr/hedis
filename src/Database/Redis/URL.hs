@@ -15,6 +15,8 @@ import Database.Redis.Connection (ConnectInfo(..), defaultConnectInfo)
 import qualified Database.Redis.ConnectionContext as CC
 import Network.HTTP.Base
 import Network.URI (parseURI, uriPath, uriScheme)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import Text.Read (readMaybe)
 
 import qualified Data.ByteString.Char8 as C8
@@ -24,7 +26,7 @@ import qualified Data.ByteString.Char8 as C8
 -- Username is ignored, path is used to specify the database:
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password",connectUsername=Just "username", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/db"
 -- Left "Invalid port: db"
@@ -38,7 +40,7 @@ import qualified Data.ByteString.Char8 as C8
 -- @'defaultConnectInfo'@:
 --
 -- >>> parseConnectInfo "redis://"
--- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername=Nothing, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
 --
 parseConnectInfo :: String -> Either String ConnectInfo
 parseConnectInfo url = do
@@ -61,5 +63,6 @@ parseConnectInfo url = do
             else h
         , connectPort = maybe (connectPort defaultConnectInfo) (CC.PortNumber . fromIntegral) (port uriAuth)
         , connectAuth = C8.pack <$> password uriAuth
+        , connectUsername = T.encodeUtf8 . T.pack <$> user uriAuth
         , connectDatabase = db
         }
