@@ -1736,11 +1736,12 @@ data AuthOpts = AuthOpts
       Since Redis 6.0: fails on earlier 
      -}
   }
+  deriving Show
 
 -- | Default options for AuthOpts
 --
 -- >>> defaultAuthOpts
--- AuthOpts { authOptsUsername = Nothing }
+-- AuthOpts {authOptsUsername = Nothing}
 defaultAuthOpts :: AuthOpts
 defaultAuthOpts = AuthOpts
   { authOptsUsername = Nothing

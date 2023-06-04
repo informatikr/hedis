@@ -1,0 +1,21 @@
+on: [push]
+name: build
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        ghc: ['8.6.5', '9.6.2']
+        cabal: ['3.10.1.0']
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    name: GHC ${{ matrix.ghc }} / Cabal ${{ matrix.cabal }} / ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Haskell
+        uses: haskell/actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+      - run: cabal build --enable-tests --enable-benchmarks
+      - run: cabal install doctest
+      - run: cabal repl --with-ghc=doctest

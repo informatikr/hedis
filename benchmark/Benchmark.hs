@@ -40,7 +40,8 @@ main = do
             action
             liftIO $ putMVar done ()
 
-    let timeAction name nActions action = do
+    let
+      timeAction name nActions action = do
         startT <- getCurrentTime
         -- each clients runs ACTION nRepetitions times
         let nRepetitions = nRequests `div` nClients `div` nActions
