@@ -41,17 +41,17 @@ main = do
             liftIO $ putMVar done ()
 
     let timeAction name nActions action = do
-        startT <- getCurrentTime
-        -- each clients runs ACTION nRepetitions times
-        let nRepetitions = nRequests `div` nClients `div` nActions
-        replicateM_ nClients $ putMVar start (replicateM_ nRepetitions action)
-        replicateM_ nClients $ takeMVar done
-        stopT <- getCurrentTime
-        let deltaT     = realToFrac $ diffUTCTime stopT startT
-            -- the real # of reqs send. We might have lost some due to 'div'.
-            actualReqs = nRepetitions * nActions * nClients
-            rqsPerSec  = fromIntegral actualReqs / deltaT :: Double
-        putStrLn $ printf "%-20s %10.2f Req/s" (name :: String) rqsPerSec
+          startT <- getCurrentTime
+          -- each clients runs ACTION nRepetitions times
+          let nRepetitions = nRequests `div` nClients `div` nActions
+          replicateM_ nClients $ putMVar start (replicateM_ nRepetitions action)
+          replicateM_ nClients $ takeMVar done
+          stopT <- getCurrentTime
+          let deltaT     = realToFrac $ diffUTCTime stopT startT
+              -- the real # of reqs send. We might have lost some due to 'div'.
+              actualReqs = nRepetitions * nActions * nClients
+              rqsPerSec  = fromIntegral actualReqs / deltaT :: Double
+          putStrLn $ printf "%-20s %10.2f Req/s" (name :: String) rqsPerSec
 
     ----------------------------------------------------------------------
     -- Benchmarks
