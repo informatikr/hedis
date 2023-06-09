@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Database.Redis.URL
     ( parseConnectInfo
     ) where
@@ -63,6 +64,9 @@ parseConnectInfo url = do
             else h
         , connectPort = maybe (connectPort defaultConnectInfo) (CC.PortNumber . fromIntegral) (port uriAuth)
         , connectAuth = C8.pack <$> password uriAuth
-        , connectUsername = T.encodeUtf8 . T.pack <$> user uriAuth
+        , connectUsername = toNothingOnEmpty $ T.encodeUtf8 . T.pack <$> user uriAuth
         , connectDatabase = db
         }
+    where toNothingOnEmpty :: Maybe C8.ByteString -> Maybe C8.ByteString
+          toNothingOnEmpty (Just "") = Nothing
+          toNothingOnEmpty a = a
