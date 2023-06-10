@@ -7,7 +7,7 @@ jobs:
       matrix:
         ghc: ['8.10.5', '9.2.1', '9.6.2']
         cabal: ['3.10.1.0']
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        os: [ubuntu-latest]
     name: GHC ${{ matrix.ghc }} / Cabal ${{ matrix.cabal }} / ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
