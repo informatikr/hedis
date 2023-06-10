@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase, OverloadedLists, TypeApplications #-}
 module Tests where
 
 
@@ -11,6 +11,7 @@ import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Data.ByteString (ByteString)
 import Data.Either (isRight)
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -139,11 +140,11 @@ testKeys = testCase "keys" $ do
     ttl "{same}key" >>= \case
       Left _ -> error "error"
       Right t -> do
-        assert $ t `elem` [0..1]
+        assert $ elem @[] t [0..1]
         pttl "{same}key" >>= \case
           Left _ -> error "error"
           Right pt -> do
-            assert $ pt `elem` [990..1000]
+            assert $ elem @[] pt [990..1000]
             persist "{same}key"         >>=? True
             dump "{same}key" >>= \case
               Left _ -> error "impossible"
@@ -196,15 +197,15 @@ testSort = testCase "sort" $ do
 testGetType :: Test
 testGetType = testCase "getType" $ do
     getType "key"     >>=? None
-    forM_ ts $ \(setKey, typ) -> do
+    forM_ @[] ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? typ
         del (NE.fromList ["key"])   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
-         , (hset "key" "field" "value"                >>=? 1,    Hash)
+         , (hset "key" [("field"::ByteString, "value"::ByteString)] >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
-         , (sadd "key" (NE.fromList ["member"])       >>=? 1,    Set)
+         , (sadd "key" ["member"]                     >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
          ]
 
@@ -261,9 +262,9 @@ testBitops = testCase "bitops" $ do
 --
 testHashes :: Test
 testHashes = testCase "hashes" $ do
-    hset "key" "field" "another" >>=? 1
-    hset "key" "field" "another" >>=? 0
-    hset "key" "field" "value"   >>=? 0
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 1
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 0
+    hset "key" [("field"::ByteString, "value"::ByteString)]   >>=? 0
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
@@ -286,8 +287,8 @@ testsLists =
 
 testLists :: Test
 testLists = testCase "lists" $ do
-    lpushx "notAKey" "-"          >>=? 0
-    rpushx "notAKey" "-"          >>=? 0
+    lpushx "notAKey" ["-" :: ByteString] >>=? 0
+    rpushx "notAKey" ["-" :: ByteString] >>=? 0
     lpush "key" ["value"]         >>=? 1
     lpop "key"                    >>=? Just "value"
     rpush "key" ["value"]         >>=? 1
@@ -373,9 +374,14 @@ testZSets = testCase "sorted sets" $ do
     zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
     zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
 
-    zrem "key" ["v2"]                                 >>=? 1
+    zrem "key" (NE.fromList ["v2"])                   >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
+
+--  testZSets7 :: Test
+--  testZSets7 = testCase "sorted sets: redis 7" $ do
+--      zadd "key" [(2,"v1"),(0,"v2"),(40,"v3")]          >>=? 3
+--      zrankWithScore "key" "v1"                         >>=? Just  (1, 2)
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
@@ -664,7 +670,7 @@ testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
 
 testConfig :: Test
 testConfig = testCase "config/auth" $ do
-    configGet "requirepass"        >>=? [("requirepass", "")]
+    configGet ["requirepass"]      >>=? [("requirepass", "")]
     configSet "requirepass" "pass" >>=? Ok
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
@@ -705,8 +711,8 @@ testScans :: Test
 testScans = testCase "scans" $ do
     set "key" "value"       >>=? Ok
     scan cursor0            >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts1 >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts2 >>=? (cursor0, [])
+    scanOpts cursor0 sOpts1 Nothing >>=? (cursor0, ["key"])
+    scanOpts cursor0 sOpts2 Nothing >>=? (cursor0, [])
     where sOpts1 = defaultScanOpts { scanMatch = Just "k*" }
           sOpts2 = defaultScanOpts { scanMatch = Just "not*"}
 
@@ -717,8 +723,8 @@ testSScan = testCase "sscan" $ do
 
 testHScan :: Test
 testHScan = testCase "hscan" $ do
-    hset "hash" "k" "v"     >>=? 1
-    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+    hset "hash" [("k"::ByteString, "v"::ByteString)] >>=? 1
+    hscan "hash" cursor0     >>=? (cursor0, [("k", "v")])
 
 testZScan :: Test
 testZScan = testCase "zscan" $ do

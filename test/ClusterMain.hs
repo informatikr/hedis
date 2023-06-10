@@ -1,9 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main (main) where
 
 import qualified Test.Framework as Test
+import Data.ByteString (ByteString)
 import Database.Redis
 import Tests
 
@@ -18,7 +21,7 @@ main = do
     Test.defaultMain (tests conn)
 
 tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
+tests conn = map ($conn) $ concat @[]
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
     , testsConnection, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
@@ -43,7 +46,7 @@ testsKeys = [ testKeys, testExpireAt, testSortCluster, testGetType, testObject ]
 
 testSortCluster :: Test
 testSortCluster = testCase "sort" $ do
-    lpush "{same}ids"     ["1","2","3"]                      >>=? 3
+    lpush "{same}ids"     ["1"::ByteString,"2","3"]          >>=? 3
     sort "{same}ids" defaultSortOpts                         >>=? ["1","2","3"]
     sortStore "{same}ids" "{same}anotherKey" defaultSortOpts >>=? 3
     let opts = defaultSortOpts { sortOrder = Desc, sortAlpha = True

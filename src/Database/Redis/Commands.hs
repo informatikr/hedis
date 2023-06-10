@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts, OverloadedLists #-}
 
 module Database.Redis.Commands (
 
@@ -6,232 +6,249 @@ module Database.Redis.Commands (
 
 -- *** auth
 -- $auth
-auth, 
+auth,
 authOpts,
 AuthOpts(..),
 defaultAuthOpts,
 -- *** Other commands
-echo, -- |Echo the given string (<http://redis.io/commands/echo>). Since Redis 1.0.0
-ping, -- |Ping the server (<http://redis.io/commands/ping>). Since Redis 1.0.0
-quit, -- |Close the connection (<http://redis.io/commands/quit>). Since Redis 1.0.0
-select, -- |Change the selected database for the current connection (<http://redis.io/commands/select>). Since Redis 1.0.0
+echo,
+ping,
+quit,
+select,
 
 -- ** Keys
 del,
-dump, -- |Return a serialized version of the value stored at the specified key (<http://redis.io/commands/dump>). Since Redis 2.6.0
-exists, -- |Determine if a key exists (<http://redis.io/commands/exists>). Since Redis 1.0.0
-expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>). Since Redis 1.0.0
-expireat, -- |Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>). Since Redis 1.2.0
-keys, -- |Find all keys matching the given pattern (<http://redis.io/commands/keys>). Since Redis 1.0.0
+dump,
+exists,
+expire,
+ExpireOpts(..),
+expireOpts,
+expireat,
+expireatOpts,
+keys,
 MigrateOpts(..),
 defaultMigrateOpts,
-migrate, -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
-migrateMultiple, -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
-move, -- |Move a key to another database (<http://redis.io/commands/move>). Since Redis 1.0.0
-objectRefcount, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
-objectEncoding, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
-objectIdletime, -- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
-persist, -- |Remove the expiration from a key (<http://redis.io/commands/persist>). Since Redis 2.2.0
-pexpire, -- |Set a key's time to live in milliseconds (<http://redis.io/commands/pexpire>). Since Redis 2.6.0
-pexpireat, -- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>). Since Redis 2.6.0
-pttl, -- |Get the time to live for a key in milliseconds (<http://redis.io/commands/pttl>). Since Redis 2.6.0
-randomkey, -- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>). Since Redis 1.0.0
-rename, -- |Rename a key (<http://redis.io/commands/rename>). Since Redis 1.0.0
-renamenx, -- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>). Since Redis 1.0.0
-restore, -- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
-restoreReplace, -- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
+migrate,
+migrateMultiple,
+move,
+objectRefcount,
+objectEncoding,
+objectIdletime,
+persist,
+pexpire,
+pexpireat,
+pexpireatOpts,
+pttl,
+randomkey,
+rename,
+renamenx,
+restore,
+restoreReplace,
 Cursor,
 cursor0,
 ScanOpts(..),
 defaultScanOpts,
-scan, -- |Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
-scanOpts, -- |Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
+scan,
+scanOpts,
 SortOpts(..),
 defaultSortOpts,
 SortOrder(..),
-sort, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
-sortStore, -- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
-ttl, -- |Get the time to live for a key (<http://redis.io/commands/ttl>). Since Redis 1.0.0
+sort,
+sortStore,
+ttl,
 RedisType(..),
-getType, -- |Determine the type stored at key (<http://redis.io/commands/type>). Since Redis 1.0.0
-wait, -- |Wait for the synchronous replication of all the write commands sent in the context of the current connection (<http://redis.io/commands/wait>). Since Redis 3.0.0
+getType,
+wait,
 
 -- ** Hashes
-hdel, -- |Delete one or more hash fields (<http://redis.io/commands/hdel>). Since Redis 2.0.0
-hexists, -- |Determine if a hash field exists (<http://redis.io/commands/hexists>). Since Redis 2.0.0
-hget, -- |Get the value of a hash field (<http://redis.io/commands/hget>). Since Redis 2.0.0
-hgetall, -- |Get all the fields and values in a hash (<http://redis.io/commands/hgetall>). Since Redis 2.0.0
-hincrby, -- |Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>). Since Redis 2.0.0
-hincrbyfloat, -- |Increment the float value of a hash field by the given amount (<http://redis.io/commands/hincrbyfloat>). Since Redis 2.6.0
-hkeys, -- |Get all the fields in a hash (<http://redis.io/commands/hkeys>). Since Redis 2.0.0
-hlen, -- |Get the number of fields in a hash (<http://redis.io/commands/hlen>). Since Redis 2.0.0
-hmget, -- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>). Since Redis 2.0.0
-hmset, -- |Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>). Since Redis 2.0.0
-hscan, -- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
-hscanOpts, -- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
-hset, -- |Set the string value of a hash field (<http://redis.io/commands/hset>). Since Redis 2.0.0
-hsetnx, -- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>). Since Redis 2.0.0
-hstrlen, -- |Get the length of the value of a hash field (<http://redis.io/commands/hstrlen>). Since Redis 3.2.0
-hvals, -- |Get all the values in a hash (<http://redis.io/commands/hvals>). Since Redis 2.0.0
+hdel,
+hexists,
+hget,
+hgetall,
+hincrby,
+hincrbyfloat,
+hkeys,
+hlen,
+hmget,
+hmset,
+hscan,
+hscanOpts,
+hset,
+hsetnx,
+hstrlen,
+hvals,
 
 -- ** HyperLogLogs
-pfadd, -- |Adds all the elements arguments to the HyperLogLog data structure stored at the variable name specified as first argument (<http://redis.io/commands/pfadd>). Since Redis 2.8.9
-pfcount, -- |Return the approximated cardinality of the set(s) observed by the HyperLogLog at key(s) (<http://redis.io/commands/pfcount>). Since Redis 2.8.9
-pfmerge, -- |Merge N different HyperLogLogs into a single one (<http://redis.io/commands/pfmerge>). Since Redis 2.8.9
+pfadd, 
+pfcount,
+pfmerge,
 
 -- ** Lists
-blpop, -- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>). Since Redis 2.0.0
-brpop, -- |Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>). Since Redis 2.0.0
-brpoplpush, -- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>). Since Redis 2.2.0
-lindex, -- |Get an element from a list by its index (<http://redis.io/commands/lindex>). Since Redis 1.0.0
-linsertBefore, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
-linsertAfter, -- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
-llen, -- |Get the length of a list (<http://redis.io/commands/llen>). Since Redis 1.0.0
-lpop, -- |Remove and get the first element in a list (<http://redis.io/commands/lpop>). Since Redis 1.0.0
-lpush, -- |Prepend one or multiple values to a list (<http://redis.io/commands/lpush>). Since Redis 1.0.0
-lpushx, -- |Prepend a value to a list, only if the list exists (<http://redis.io/commands/lpushx>). Since Redis 2.2.0
-lrange, -- |Get a range of elements from a list (<http://redis.io/commands/lrange>). Since Redis 1.0.0
-lrem, -- |Remove elements from a list (<http://redis.io/commands/lrem>). Since Redis 1.0.0
-lset, -- |Set the value of an element in a list by its index (<http://redis.io/commands/lset>). Since Redis 1.0.0
-ltrim, -- |Trim a list to the specified range (<http://redis.io/commands/ltrim>). Since Redis 1.0.0
-rpop, -- |Remove and get the last element in a list (<http://redis.io/commands/rpop>). Since Redis 1.0.0
-rpoplpush, -- |Remove the last element in a list, prepend it to another list and return it (<http://redis.io/commands/rpoplpush>). Since Redis 1.2.0
-rpush, -- |Append one or multiple values to a list (<http://redis.io/commands/rpush>). Since Redis 1.0.0
-rpushx, -- |Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>). Since Redis 2.2.0
+blpop, 
+blpopFloat,
+brpop,
+brpopFloat,
+brpoplpush,
+lindex,
+linsertBefore,
+linsertAfter,
+llen,
+lpop,
+lpopCount,
+lpush,
+lpushx,
+lrange,
+lrem,
+lset,
+ltrim,
+rpop, 
+rpopCount,
+rpoplpush,
+rpush,
+rpushx,
 
 -- ** Scripting
-eval, -- |Execute a Lua script server side (<http://redis.io/commands/eval>). Since Redis 2.6.0
-evalsha, -- |Execute a Lua script server side (<http://redis.io/commands/evalsha>). Since Redis 2.6.0
+eval,
+evalsha,
 DebugMode,
-scriptDebug, -- |Set the debug mode for executed scripts (<http://redis.io/commands/script-debug>). Since Redis 3.2.0
-scriptExists, -- |Check existence of scripts in the script cache (<http://redis.io/commands/script-exists>). Since Redis 2.6.0
-scriptFlush, -- |Remove all the scripts from the script cache (<http://redis.io/commands/script-flush>). Since Redis 2.6.0
-scriptKill, -- |Kill the script currently in execution (<http://redis.io/commands/script-kill>). Since Redis 2.6.0
-scriptLoad, -- |Load the specified Lua script into the script cache (<http://redis.io/commands/script-load>). Since Redis 2.6.0
+scriptDebug,
+scriptExists,
+scriptFlush,
+scriptKill,
+scriptLoad,
 
 -- ** Server
-bgrewriteaof, -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>). Since Redis 1.0.0
-bgsave, -- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>). Since Redis 1.0.0
-clientGetname, -- |Get the current connection name (<http://redis.io/commands/client-getname>). Since Redis 2.6.9
-clientId, -- |Get the current connection ID (<http://redis.io/commands/client-id>). Since Redis 5.0.0
-clientList, -- |Get the list of client connections (<http://redis.io/commands/client-list>). Since Redis 2.4.0
-clientPause, -- |Stop processing commands from clients for some time (<http://redis.io/commands/client-pause>). Since Redis 2.9.50
+bgrewriteaof,
+bgsave,
+bgsaveSchedule,
+clientGetname,
+clientId,
+clientList,
+clientPause,
 ReplyMode,
-clientReply, -- |Instruct the server whether to reply to commands (<http://redis.io/commands/client-reply>). Since Redis 3.2
-clientSetname, -- |Set the current connection name (<http://redis.io/commands/client-setname>). Since Redis 2.6.9
-commandCount, -- |Get total number of Redis commands (<http://redis.io/commands/command-count>). Since Redis 2.8.13
-commandInfo, -- |Get array of specific Redis command details (<http://redis.io/commands/command-info>). Since Redis 2.8.13
-configGet, -- |Get the value of a configuration parameter (<http://redis.io/commands/config-get>). Since Redis 2.0.0
-configResetstat, -- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>). Since Redis 2.0.0
-configRewrite, -- |Rewrite the configuration file with the in memory configuration (<http://redis.io/commands/config-rewrite>). Since Redis 2.8.0
-configSet, -- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>). Since Redis 2.0.0
-dbsize, -- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>). Since Redis 1.0.0
-debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>). Since Redis 1.0.0
-flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>). Since Redis 1.0.0
-flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>). Since Redis 1.0.0
+clientReply,
+clientSetname,
+commandCount,
+commandInfo,
+configGet,
+configResetstat,
+configRewrite,
+configSet,
+dbsize,
+debugObject,
+flushall,
+flushallOpts,
+FlushOpts(..),
+flushdb,
+flushdbOpts,
 info, -- |Get information and statistics about the server (<http://redis.io/commands/info>). The Redis command @INFO@ is split up into 'info', 'infoSection'. Since Redis 1.0.0
 infoSection, -- |Get information and statistics about the server (<http://redis.io/commands/info>). The Redis command @INFO@ is split up into 'info', 'infoSection'. Since Redis 1.0.0
 lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>). Since Redis 1.0.0
-save, -- |Synchronously save the dataset to disk (<http://redis.io/commands/save>). Since Redis 1.0.0
-slaveof, -- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>). Since Redis 1.0.0
+save,
+slaveof,
 Slowlog(..),
 slowlogGet, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
 slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
 slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
-time, -- |Return the current server time (<http://redis.io/commands/time>). Since Redis 2.6.0
+time,
 
 -- ** Sets
 sadd,
-scard, -- |Get the number of members in a set (<http://redis.io/commands/scard>). Since Redis 1.0.0
-sdiff, -- |Subtract multiple sets (<http://redis.io/commands/sdiff>). Since Redis 1.0.0
-sdiffstore, -- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>). Since Redis 1.0.0
-sinter, -- |Intersect multiple sets (<http://redis.io/commands/sinter>). Since Redis 1.0.0
-sinterstore, -- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>). Since Redis 1.0.0
-sismember, -- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>). Since Redis 1.0.0
-smembers, -- |Get all the members in a set (<http://redis.io/commands/smembers>). Since Redis 1.0.0
-smove, -- |Move a member from one set to another (<http://redis.io/commands/smove>). Since Redis 1.0.0
-spop, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
-spopN, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
-srandmember, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
-srandmemberN, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
+scard,
+sdiff,
+sdiffstore,
+sinter,
+sinterstore,
+sismember,
+smembers,
+smove,
+spop,
+spopN,
+srandmember,
+srandmemberN,
 srem,
-sscan, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
-sscanOpts, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
-sunion, -- |Add multiple sets (<http://redis.io/commands/sunion>). Since Redis 1.0.0
-sunionstore, -- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>). Since Redis 1.0.0
+sscan,
+sscanOpts,
+sunion,
+sunionstore,
 
 -- ** Sorted Sets
 ZaddOpts(..),
 defaultZaddOpts,
-zadd, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
-zaddOpts, -- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
+zadd,
+zaddOpts,
 SizeCondition(..),
-zcard, -- |Get the number of members in a sorted set (<http://redis.io/commands/zcard>). Since Redis 1.2.0
-zcount, -- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>). Since Redis 2.0.0
-zincrby, -- |Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>). Since Redis 1.2.0
+zcard,
+zcount,
+zincrby,
 Aggregate(..),
-zinterstore, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
-zinterstoreWeights, -- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
-zlexcount, -- |Count the number of members in a sorted set between a given lexicographical range (<http://redis.io/commands/zlexcount>). Since Redis 2.8.9
-zrange, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
-zrangeWithscores, -- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
+zinterstore,
+zinterstoreWeights,
+zlexcount,
+zrange,
+zrangeWithscores,
 RangeLex(..),
-zrangebylex, zrangebylexLimit, -- |Return a range of members in a sorted set, by lexicographical range (<http://redis.io/commands/zrangebylex>). Since Redis 2.8.9
+zrangebylex, zrangebylexLimit,
 zrangebyscore, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
 zrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
 zrangebyscoreLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
 zrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
-zrank, -- |Determine the index of a member in a sorted set (<http://redis.io/commands/zrank>). Since Redis 2.0.0
-zrem, -- |Remove one or more members from a sorted set (<http://redis.io/commands/zrem>). Since Redis 1.2.0
-zremrangebylex, -- |Remove all members in a sorted set between the given lexicographical range (<http://redis.io/commands/zremrangebylex>). Since Redis 2.8.9
-zremrangebyrank, -- |Remove all members in a sorted set within the given indexes (<http://redis.io/commands/zremrangebyrank>). Since Redis 2.0.0
-zremrangebyscore, -- |Remove all members in a sorted set within the given scores (<http://redis.io/commands/zremrangebyscore>). Since Redis 1.2.0
+zrank,
+zrankWithScore,
+zrem,
+zremrangebylex,
+zremrangebyrank,
+zremrangebyscore,
 zrevrange, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'. Since Redis 1.2.0
 zrevrangeWithscores, -- |Return a range of members in a sorted set, by index, with scores ordered from high to low (<http://redis.io/commands/zrevrange>). The Redis command @ZREVRANGE@ is split up into 'zrevrange', 'zrevrangeWithscores'. Since Redis 1.2.0
 zrevrangebyscore, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
 zrevrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
 zrevrangebyscoreLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
 zrevrangebyscoreWithscoresLimit, -- |Return a range of members in a sorted set, by score, with scores ordered from high to low (<http://redis.io/commands/zrevrangebyscore>). The Redis command @ZREVRANGEBYSCORE@ is split up into 'zrevrangebyscore', 'zrevrangebyscoreWithscores', 'zrevrangebyscoreLimit', 'zrevrangebyscoreWithscoresLimit'. Since Redis 2.2.0
-zrevrank, -- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>). Since Redis 2.0.0
+zrevrank,
+zrevrankWithScore,
 zscan, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
 zscanOpts, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
-zscore, -- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>). Since Redis 1.2.0
+zscore,
 zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 
 -- ** Strings
-append, -- |Append a value to a key (<http://redis.io/commands/append>). Since Redis 2.0.0
+append,
 bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
 bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
 bitopAnd, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
 bitopOr, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
 bitopXor, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
 bitopNot, -- |Perform bitwise operations between strings (<http://redis.io/commands/bitop>). The Redis command @BITOP@ is split up into 'bitopAnd', 'bitopOr', 'bitopXor', 'bitopNot'. Since Redis 2.6.0
-bitpos, -- |Find first bit set or clear in a string (<http://redis.io/commands/bitpos>). Since Redis 2.8.7
-decr, -- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>). Since Redis 1.0.0
-decrby, -- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>). Since Redis 1.0.0
-get, -- |Get the value of a key (<http://redis.io/commands/get>). Since Redis 1.0.0
-getbit, -- |Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>). Since Redis 2.2.0
-getrange, -- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>). Since Redis 2.4.0
-getset, -- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>). Since Redis 1.0.0
-incr, -- |Increment the integer value of a key by one (<http://redis.io/commands/incr>). Since Redis 1.0.0
-incrby, -- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>). Since Redis 1.0.0
-incrbyfloat, -- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>). Since Redis 2.6.0
-mget, -- |Get the values of all the given keys (<http://redis.io/commands/mget>). Since Redis 1.0.0
-mset, -- |Set multiple keys to multiple values (<http://redis.io/commands/mset>). Since Redis 1.0.1
-msetnx, -- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>). Since Redis 1.0.1
-psetex, -- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>). Since Redis 2.6.0
+bitpos,
+bitposOpts,
+BitposOpts(..),
+BitposType(..),
+decr,
+decrby,
+get,
+getbit,
+getrange,
+getset,
+incr,
+incrby,
+incrbyfloat,
+mget,
+mset,
+msetnx,
+psetex,
 Condition(..),
 SetOpts(..),
 set, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
 setOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
 setGet, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
 setGetOpts, -- |Set the string value of a key (<http://redis.io/commands/set>). The Redis command @SET@ is split up into 'set', 'setOpts', 'setGet', 'setGetOpts'. Since Redis 1.0.0
-setbit, -- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>). Since Redis 2.2.0
-setex, -- |Set the value and expiration of a key (<http://redis.io/commands/setex>). Since Redis 2.0.0
-setnx, -- |Set the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>). Since Redis 1.0.0
-setrange, -- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>). Since Redis 2.2.0
-strlen, -- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
+setbit,
+setex,
+setnx,
+setrange,
+strlen,
 
 
 -- ** Streams
@@ -241,7 +258,7 @@ XReadResponse(..),
 StreamsRecord(..),
 TrimOpts(..),
 xadd,
-xaddOpts, 
+xaddOpts,
 XAddOpts(..),
 defaultXAddOpts,
 TrimStrategy(..),
@@ -305,14 +322,14 @@ xautoclaimJustIds,
 xautoclaimJustIdsOpts,
 XAutoclaimJustIdsResult,
 XInfoConsumersResponse(..),
-xinfoConsumers, -- |Get info about consumers in a group. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+xinfoConsumers,
 XInfoGroupsResponse(..),
-xinfoGroups, -- |Get info about groups consuming from a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
+xinfoGroups,
 XInfoStreamResponse(..),
-xinfoStream, -- |Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'. Since Redis 5.0.0
-xdel, -- |Delete messages from a stream. Since Redis 5.0.0
-xtrim, -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
-inf, -- |Constructor for `inf` Redis argument values
+xinfoStream,
+xdel,
+xtrim,
+inf,
 ClusterNodesResponse(..),
 ClusterNodesResponseEntry(..),
 ClusterNodesResponseSlotSpec(..),
@@ -368,160 +385,287 @@ command
 ) where
 
 import Prelude hiding (min,max)
+import Data.Int
 import Data.ByteString (ByteString)
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core(sendRequest, RedisCtx)
 
+-- | /O(1)/
+-- Get the time to live for a key (<http://redis.io/commands/ttl>).
+-- Since Redis 1.0.0
+--
+-- This command returns:
+--   * -2 if the key does not exist
+--   * -1 if the key exists but has no associated value
+--
 ttl
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => ByteString -- ^ Key to check.
     -> m (f Integer)
-ttl key = sendRequest (["TTL"] ++ [encode key] )
+ttl key = sendRequest ["TTL", encode key]
 
+-- | /O(1)/
+-- Sets the value of a key, only if the key does not exist (<http://redis.io/commands/setnx>).
+--
+-- Returns a result if a value was set.
+--
+-- Since Redis 1.0.0
 setnx
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ value
+    => ByteString -- ^ Key to set.
+    -> ByteString -- ^ Value to set.
     -> m (f Bool)
-setnx key value = sendRequest (["SETNX"] ++ [encode key] ++ [encode value] )
+setnx key value = sendRequest ["SETNX", encode key, encode value]
 
+-- | /O(1)/
+-- Get the time to live for a key in milliseconds (<http://redis.io/commands/pttl>).
+-- Since Redis 2.6.0
+--
+-- This command returns @-2@ if the key does not exist.
+-- This command returns @-1@ if the key exists but has no associated value
 pttl
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => ByteString -- ^ Key.
     -> m (f Integer)
-pttl key = sendRequest (["PTTL"] ++ [encode key] )
+pttl key = sendRequest ["PTTL", encode key]
 
+-- | /O(1)/
+-- Get total number of Redis commands (<http://redis.io/commands/command-count>).
+-- Since Redis 2.8.13
 commandCount
     :: (RedisCtx m f)
     => m (f Integer)
-commandCount  = sendRequest (["COMMAND","COUNT"] )
+commandCount  = sendRequest ["COMMAND","COUNT"]
 
+-- | Set the current connection name (<http://redis.io/commands/client-setname>).
+-- Since Redis 2.6.9
 clientSetname
     :: (RedisCtx m f)
-    => ByteString -- ^ connectionName
+    => ByteString -- ^ Connection Name.
     -> m (f Status)
-clientSetname connectionName = sendRequest (["CLIENT","SETNAME"] ++ [encode connectionName] )
+clientSetname connectionName = sendRequest ["CLIENT","SETNAME",encode connectionName]
 
+-- | Determine the index of a member in a sorted set (<http://redis.io/commands/zrank>).
+--
+-- Since Redis 2.0.0
 zrank
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+    => ByteString -- ^ Key.of the set.
+    -> ByteString -- ^ Member
     -> m (f (Maybe Integer))
-zrank key member = sendRequest (["ZRANK"] ++ [encode key] ++ [encode member] )
+zrank key member = sendRequest ["ZRANK", encode key, encode member]
 
+-- |
+-- Since  Redis 7.2.0: fails on earlier versions
+zrankWithScore
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the set.
+    -> ByteString -- ^ Member.
+    -> m (f (Maybe (Integer,Double)))
+zrankWithScore key member = sendRequest ["ZRANK", encode key, encode member, "WITHSCORE"]
+
+-- | /O(log(N)+M)/ with @N@ number of elements in the set, @M@ number of elements to be removed.
+--
+-- Remove all members in a sorted set within the given scores (<http://redis.io/commands/zremrangebyscore>).
+--
+-- Returns a number of elements that were removed.
+--
+-- Since Redis 1.2.0
 zremrangebyscore
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> m (f Integer)
-zremrangebyscore key min max = sendRequest (["ZREMRANGEBYSCORE"] ++ [encode key] ++ [encode min] ++ [encode max] )
+zremrangebyscore key min max =
+  sendRequest ["ZREMRANGEBYSCORE",encode key,encode min,encode max]
 
+-- | /O(N)/ where @N@ is size of the hash.
+-- Get all the fields in a hash (<http://redis.io/commands/hkeys>).
+-- Since Redis 2.0.0
 hkeys
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f [ByteString])
-hkeys key = sendRequest (["HKEYS"] ++ [encode key] )
+hkeys key = sendRequest ["HKEYS",encode key]
 
+-- |Make the server a slave of another instance, or promote it as master (<http://redis.io/commands/slaveof>).
+-- Deprecated in Redis, can be replaced by replicaif since redis 5.0
+-- Since Redis 1.0.0
 slaveof
     :: (RedisCtx m f)
     => ByteString -- ^ host
     -> ByteString -- ^ port
     -> m (f Status)
-slaveof host port = sendRequest (["SLAVEOF"] ++ [encode host] ++ [encode port] )
+slaveof host port = sendRequest ["SLAVEOF",encode host,encode port]
 
+-- | /O(1)/ for each element added.
+-- Append a value to a list, only if the list exists (<http://redis.io/commands/rpushx>).
+-- Since Redis 2.2.0
 rpushx
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> ByteString -- ^ value
+    -> NonEmpty ByteString -- ^ value
     -> m (f Integer)
-rpushx key value = sendRequest (["RPUSHX"] ++ [encode key] ++ [encode value] )
+rpushx key (value:|values) = sendRequest ("RPUSHX":encode key:value:values)
 
+-- |Get debugging information about a key (<http://redis.io/commands/debug-object>). Since Redis 1.0.0
 debugObject
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f ByteString)
-debugObject key = sendRequest (["DEBUG","OBJECT"] ++ [encode key] )
+debugObject key = sendRequest ["DEBUG","OBJECT",encode key]
 
+-- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>).
+--
+-- Since Redis 1.0.0
 bgsave
     :: (RedisCtx m f)
     => m (f Status)
-bgsave  = sendRequest (["BGSAVE"] )
+bgsave  = sendRequest ["BGSAVE"]
 
+-- |Asynchronously save the dataset to disk (<http://redis.io/commands/bgsave>).
+--
+-- Immediately returns OK when an AOF rewrite is in progress and schedule the background save
+-- to run at the next opportunity.
+--
+-- A client may bee able to check if the operation succeeded using the 'lastsave' command
+--
+-- Since Redis 3.2.2
+bgsaveSchedule
+    :: (RedisCtx m f)
+    => m (f Status)
+bgsaveSchedule = sendRequest ["BGSAVE", "SCHEDULE"]
+
+
+-- | /O(1)/ Get the number of fields in a hash (<http://redis.io/commands/hlen>).
+--
+-- Since Redis 2.0.0
 hlen
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-hlen key = sendRequest (["HLEN"] ++ [encode key] )
+hlen key = sendRequest ["HLEN", key]
 
+-- |Remove the last element in a list, prepend it to another list and return that
+-- element f it existed (<http://redis.io/commands/rpoplpush>).
+-- Since Redis 1.2.0
 rpoplpush
     :: (RedisCtx m f)
     => ByteString -- ^ source
     -> ByteString -- ^ destination
     -> m (f (Maybe ByteString))
-rpoplpush source destination = sendRequest (["RPOPLPUSH"] ++ [encode source] ++ [encode destination] )
+rpoplpush source destination = sendRequest ["RPOPLPUSH",encode source,encode destination]
 
+-- | /O(N)/
+-- Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
+--
+-- Since Redis 2.0.0
 brpop
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ key
     -> Integer -- ^ timeout
     -> m (f (Maybe (ByteString,ByteString)))
-brpop key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout] )
+brpop (key:|rest) timeout = sendRequest (("BRPOP":key:rest)  ++ [encode timeout])
 
+-- | /O(N)/
+-- Remove and get the last element in a list, or block until one is available (<http://redis.io/commands/brpop>).
+--
+-- Since Redis 2.0.0
+brpopFloat
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> Double -- ^ timeout
+    -> m (f (Maybe (ByteString,ByteString)))
+brpopFloat key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout])
+
+-- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>). Since Redis 1.0.0
 bgrewriteaof
     :: (RedisCtx m f)
     => m (f Status)
-bgrewriteaof  = sendRequest (["BGREWRITEAOF"] )
+bgrewriteaof  = sendRequest ["BGREWRITEAOF"]
 
+-- | /O(log(N))/
+--
+-- Increment the score of a member in a sorted set (<http://redis.io/commands/zincrby>).
+--
+-- Returns new score of the element.
+--
+-- Since Redis 1.2.0
 zincrby
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ increment
     -> ByteString -- ^ member
     -> m (f Double)
-zincrby key increment member = sendRequest (["ZINCRBY"] ++ [encode key] ++ [encode increment] ++ [encode member] )
+zincrby key increment member = sendRequest ["ZINCRBY",encode key,encode increment,encode member]
 
+-- | Get all the fields and values in a hash (<http://redis.io/commands/hgetall>).
+--
+-- Since Redis 2.0.0.
 hgetall
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f [(ByteString,ByteString)])
-hgetall key = sendRequest (["HGETALL"] ++ [encode key] )
+hgetall key = sendRequest ["HGETALL", encode key]
 
+
+-- | Set multiple hash fields to multiple values (<http://redis.io/commands/hmset>).
+--
+-- Deprecated by Redis, consider using 'hset' with multiple field-value pairs.
+--
+-- Since Redis 2.0.0
 hmset
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [(ByteString,ByteString)] -- ^ fieldValue
+    -> NonEmpty (ByteString,ByteString) -- ^ fieldValue
     -> m (f Status)
-hmset key fieldValue = sendRequest (["HMSET"] ++ [encode key] ++ concatMap (\(x,y) -> [encode x,encode y])fieldValue )
+hmset key ((field,value):|fieldValues) =
+  sendRequest ("HMSET":key:field:value: concatMap (\(x,y) -> [x,y]) fieldValues)
 
+-- |Intersect multiple sets (<http://redis.io/commands/sinter>).
+-- Since Redis 1.0.0
 sinter
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ Keys.
     -> m (f [ByteString])
-sinter key = sendRequest (["SINTER"] ++ map encode key )
+sinter (key:|keys_) = sendRequest ("SINTER":key:keys_)
 
+-- | /O(1)/
+-- Adds all the elements arguments to the HyperLogLog data structure stored at the variable name specified as first argument (<http://redis.io/commands/pfadd>).
+-- Since Redis 2.8.9
 pfadd
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ value
+    => ByteString -- ^ Key.
+    -> NonEmpty ByteString -- ^ Value.
     -> m (f Integer)
-pfadd key value = sendRequest (["PFADD"] ++ [encode key] ++ map encode value )
+pfadd key (value:|values) = sendRequest ("PFADD":key:value:values)
 
+-- | /O(log(N)+M/ with @N@ being the number of elements in the sorted set and @M@ the number of elemnts removed by the operation.
+--
+-- Remove all members in a sorted set within the given indexes (<http://redis.io/commands/zremrangebyrank>).
+--
+-- Returns a number of elements that were removed.
+--
+-- Since Redis 2.0.0
 zremrangebyrank
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f Integer)
-zremrangebyrank key start stop = sendRequest (["ZREMRANGEBYRANK"] ++ [encode key] ++ [encode start] ++ [encode stop] )
+zremrangebyrank key start stop =
+  sendRequest ["ZREMRANGEBYRANK",encode key,encode start,encode stop]
 
+-- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
+-- Since Redis 1.0.0
 flushdb
     :: (RedisCtx m f)
     => m (f Status)
-flushdb  = sendRequest (["FLUSHDB"] )
+flushdb = sendRequest ["FLUSHDB"]
 
 -- | /O(1)/ for each element added.
 -- Add one or more members to a set (<http://redis.io/commands/sadd>).
@@ -531,176 +675,242 @@ sadd
     => ByteString -- ^ Key where set is stored.
     -> NonEmpty ByteString -- ^ Member to add to the set.
     -> m (f Integer)
-sadd key member = sendRequest (["SADD"] ++ [encode key] ++ NE.toList (fmap encode member))
+sadd key member = sendRequest ("SADD":encode key:NE.toList (fmap encode member))
 
+-- |Get an element from a list by its index (<http://redis.io/commands/lindex>).
+-- Since Redis 1.0.0
 lindex
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ index
+    => ByteString -- ^ Key.
+    -> Integer -- ^ Index
     -> m (f (Maybe ByteString))
-lindex key index = sendRequest (["LINDEX"] ++ [encode key] ++ [encode index] )
+lindex key index = sendRequest ["LINDEX",encode key,encode index]
 
+-- | Prepend one or multiple values to a list (<http://redis.io/commands/lpush>).
+-- Since Redis 1.0.0
 lpush
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ value
+    => ByteString -- ^ Key
+    -> NonEmpty ByteString -- ^ Value
     -> m (f Integer)
-lpush key value = sendRequest (["LPUSH"] ++ [encode key] ++ map encode value )
+lpush key (value:|values) = sendRequest ("LPUSH":key:value:values)
 
+-- |Get the length of the value of a hash field (<http://redis.io/commands/hstrlen>).
+-- Since Redis 3.2.0
 hstrlen
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> m (f Integer)
-hstrlen key field = sendRequest (["HSTRLEN"] ++ [encode key] ++ [encode field] )
+hstrlen key field = sendRequest ["HSTRLEN", key, field]
 
+-- |
+-- Move a member from one set to another (<http://redis.io/commands/smove>).
+-- Since Redis 1.0.0
 smove
     :: (RedisCtx m f)
     => ByteString -- ^ source
     -> ByteString -- ^ destination
     -> ByteString -- ^ member
     -> m (f Bool)
-smove source destination member = sendRequest (["SMOVE"] ++ [encode source] ++ [encode destination] ++ [encode member] )
+smove source destination member =
+  sendRequest ["SMOVE", source, destination, member]
 
+-- |Get the score associated with the given member in a sorted set (<http://redis.io/commands/zscore>).
+-- Since Redis 1.2.0
 zscore
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> ByteString -- ^ member
+    => ByteString -- ^ Key.
+    -> ByteString -- ^ Member.
     -> m (f (Maybe Double))
-zscore key member = sendRequest (["ZSCORE"] ++ [encode key] ++ [encode member] )
+zscore key member = sendRequest ["ZSCORE",encode key,encode member]
 
+-- |Reset the stats returned by INFO (<http://redis.io/commands/config-resetstat>).
+-- Since Redis 2.0.0
 configResetstat
     :: (RedisCtx m f)
     => m (f Status)
-configResetstat  = sendRequest (["CONFIG","RESETSTAT"] )
+configResetstat  = sendRequest ["CONFIG","RESETSTAT"]
 
+-- |
+-- Return the approximated cardinality of the set(s) observed by the HyperLogLog at key(s) (<http://redis.io/commands/pfcount>).
+-- Since Redis 2.8.9
 pfcount
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ key
     -> m (f Integer)
-pfcount key = sendRequest (["PFCOUNT"] ++ map encode key )
+pfcount (key:|keys_) = sendRequest ("PFCOUNT": key: keys_)
 
+-- | Delete one or more hash fields (<http://redis.io/commands/hdel>).
+-- Since Redis 2.0.0
 hdel
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ field
+    -> NonEmpty ByteString -- ^ field
     -> m (f Integer)
-hdel key field = sendRequest (["HDEL"] ++ [encode key] ++ map encode field )
+hdel key (field:|fields) = sendRequest ("HDEL":key:field:fields)
 
+-- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>). 
+-- Since Redis 2.6.0
 incrbyfloat
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Double -- ^ increment
+    => ByteString -- ^ Key.
+    -> Double -- ^ Increment.
     -> m (f Double)
-incrbyfloat key increment = sendRequest (["INCRBYFLOAT"] ++ [encode key] ++ [encode increment] )
+incrbyfloat key increment = sendRequest ["INCRBYFLOAT", key, encode increment]
 
+-- |Sets or clears the bit at offset in the string value stored at key (<http://redis.io/commands/setbit>).
+-- Since Redis 2.2.0
 setbit
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ offset
     -> ByteString -- ^ value
     -> m (f Integer)
-setbit key offset value = sendRequest (["SETBIT"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+setbit key offset value = sendRequest ["SETBIT", key, encode offset, value]
 
+-- | Remove all keys from all databases (<http://redis.io/commands/flushall>). Since Redis 1.0.0
 flushall
     :: (RedisCtx m f)
     => m (f Status)
-flushall  = sendRequest (["FLUSHALL"] )
+flushall  = sendRequest ["FLUSHALL"]
 
+-- |Increment the integer value of a key by the given amount (<http://redis.io/commands/incrby>).
+-- Since Redis 1.0.0
 incrby
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ increment
     -> m (f Integer)
-incrby key increment = sendRequest (["INCRBY"] ++ [encode key] ++ [encode increment] )
+incrby key increment = sendRequest ["INCRBY", key, encode increment]
 
+-- | Return the current server time (<http://redis.io/commands/time>).
+-- Since Redis 2.6.0
 time
     :: (RedisCtx m f)
     => m (f (Integer,Integer))
-time  = sendRequest (["TIME"] )
+time  = sendRequest ["TIME"]
 
+-- |Get all the members in a set (<http://redis.io/commands/smembers>). Since Redis 1.0.0
 smembers
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f [ByteString])
-smembers key = sendRequest (["SMEMBERS"] ++ [encode key] )
+smembers key = sendRequest ["SMEMBERS", key]
 
+-- |Count the number of members in a sorted set between a given lexicographical range (<http://redis.io/commands/zlexcount>).
+-- Since Redis 2.8.9
 zlexcount
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ min
     -> ByteString -- ^ max
     -> m (f Integer)
-zlexcount key min max = sendRequest (["ZLEXCOUNT"] ++ [encode key] ++ [encode min] ++ [encode max] )
+zlexcount key min max = sendRequest ["ZLEXCOUNT", key, min, max]
 
+-- |Add multiple sets (<http://redis.io/commands/sunion>).
+-- Since Redis 1.0.0
 sunion
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ key
     -> m (f [ByteString])
-sunion key = sendRequest (["SUNION"] ++ map encode key )
+sunion (key:|keys_) = sendRequest ("SUNION":key:keys_)
 
+-- |Intersect multiple sets and store the resulting set in a key (<http://redis.io/commands/sinterstore>).
+-- Since Redis 1.0.0
 sinterstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+    -> NonEmpty ByteString -- ^ key
     -> m (f Integer)
-sinterstore destination key = sendRequest (["SINTERSTORE"] ++ [encode destination] ++ map encode key )
+sinterstore destination (key:|keys_) =
+  sendRequest ("SINTERSTORE":destination:key:keys_)
 
+-- | Get all the values in a hash (<http://redis.io/commands/hvals>).
+-- Since Redis 2.0.0
 hvals
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f [ByteString])
-hvals key = sendRequest (["HVALS"] ++ [encode key] )
+hvals key = sendRequest ["HVALS", key]
 
+-- |Set a configuration parameter to the given value (<http://redis.io/commands/config-set>).
+-- Since Redis 2.0.0
 configSet
     :: (RedisCtx m f)
     => ByteString -- ^ parameter
     -> ByteString -- ^ value
     -> m (f Status)
-configSet parameter value = sendRequest (["CONFIG","SET"] ++ [encode parameter] ++ [encode value] )
+configSet parameter value = sendRequest ["CONFIG","SET", parameter, value]
 
+-- |Remove all the scripts from the script cache (<http://redis.io/commands/script-flush>).
+-- Since Redis 2.6.0
 scriptFlush
     :: (RedisCtx m f)
     => m (f Status)
-scriptFlush  = sendRequest (["SCRIPT","FLUSH"] )
+scriptFlush  = sendRequest ["SCRIPT","FLUSH"]
 
+-- |Return the number of keys in the selected database (<http://redis.io/commands/dbsize>).
+-- Since Redis 1.0.0
 dbsize
     :: (RedisCtx m f)
     => m (f Integer)
-dbsize  = sendRequest (["DBSIZE"] )
+dbsize  = sendRequest ["DBSIZE"]
 
+-- |Wait for the synchronous replication of all the write commands sent in the context of the current connection (<http://redis.io/commands/wait>).
+-- Since Redis 3.0.0
 wait
     :: (RedisCtx m f)
     => Integer -- ^ numslaves
     -> Integer -- ^ timeout
     -> m (f Integer)
-wait numslaves timeout = sendRequest (["WAIT"] ++ [encode numslaves] ++ [encode timeout] )
+wait numslaves timeout = sendRequest ["WAIT", encode numslaves, encode timeout]
 
+-- |Remove and get the first element in a list (<http://redis.io/commands/lpop>). Since Redis 1.0.0
 lpop
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
-lpop key = sendRequest (["LPOP"] ++ [encode key] )
+lpop key = sendRequest ["LPOP", encode key]
 
+-- |
+-- Remove and get the first element in a list (<http://redis.io/commands/lpop>).
+-- The reply will consist of up to count elements, depending on the list's length.
+-- Since Redis 1.0.0
+lpopCount 
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer
+    -> m (f [ByteString])
+lpopCount key count = sendRequest ["LPOP", key, encode count]
+
+-- |Stop processing commands from clients for some time (<http://redis.io/commands/client-pause>).
+-- Since Redis 2.9.50
 clientPause
     :: (RedisCtx m f)
     => Integer -- ^ timeout
     -> m (f Status)
-clientPause timeout = sendRequest (["CLIENT","PAUSE"] ++ [encode timeout] )
+clientPause timeout = sendRequest ["CLIENT","PAUSE", encode timeout]
 
+-- |Set a key's time to live in seconds (<http://redis.io/commands/expire>). Since Redis 1.0.0
 expire
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ seconds
     -> m (f Bool)
-expire key seconds = sendRequest (["EXPIRE"] ++ [encode key] ++ [encode seconds] )
+expire key seconds = sendRequest ["EXPIRE", key, encode seconds]
 
+-- |Get the values of all the given keys (<http://redis.io/commands/mget>).
+-- Since Redis 1.0.0
 mget
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ key
     -> m (f [Maybe ByteString])
-mget key = sendRequest (["MGET"] ++ map encode key )
+mget (key:|keys_) = sendRequest ("MGET":key:keys_)
 
+-- |
+-- Find first bit set or clear in a string (<http://redis.io/commands/bitpos>).
+-- Since Redis 2.8.7
 bitpos
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -708,228 +918,290 @@ bitpos
     -> Integer -- ^ start
     -> Integer -- ^ end
     -> m (f Integer)
-bitpos key bit start end = sendRequest (["BITPOS"] ++ [encode key] ++ [encode bit] ++ [encode start] ++ [encode end] )
+bitpos key bit start end = sendRequest ["BITPOS", key, encode bit, encode start, encode end]
 
 lastsave
     :: (RedisCtx m f)
     => m (f Integer)
 lastsave  = sendRequest (["LASTSAVE"] )
 
+-- | Set a key's time to live in milliseconds (<http://redis.io/commands/pexpire>).
+-- Since Redis 2.6.0
 pexpire
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ milliseconds
     -> m (f Bool)
-pexpire key milliseconds = sendRequest (["PEXPIRE"] ++ [encode key] ++ [encode milliseconds] )
+pexpire key milliseconds = sendRequest ["PEXPIRE", key, encode milliseconds]
 
+-- |Get the list of client connections (<http://redis.io/commands/client-list>). Since Redis 2.4.0
 clientList
     :: (RedisCtx m f)
     => m (f [ByteString])
 clientList  = sendRequest (["CLIENT","LIST"] )
 
+-- |Rename a key, only if the new key does not exist (<http://redis.io/commands/renamenx>). Since Redis 1.0.0
 renamenx
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ newkey
     -> m (f Bool)
-renamenx key newkey = sendRequest (["RENAMENX"] ++ [encode key] ++ [encode newkey] )
+renamenx key newkey = sendRequest ["RENAMENX", key, newkey]
 
+-- |Merge N different HyperLogLogs into a single one (<http://redis.io/commands/pfmerge>). Since Redis 2.8.9
 pfmerge
     :: (RedisCtx m f)
     => ByteString -- ^ destkey
     -> [ByteString] -- ^ sourcekey
     -> m (f ByteString)
-pfmerge destkey sourcekey = sendRequest (["PFMERGE"] ++ [encode destkey] ++ map encode sourcekey )
+pfmerge destkey sourcekey = sendRequest ("PFMERGE": destkey: sourcekey)
 
+-- | Remove elements from a list (<http://redis.io/commands/lrem>). Since Redis 1.0.0
 lrem
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ count
     -> ByteString -- ^ value
     -> m (f Integer)
-lrem key count value = sendRequest (["LREM"] ++ [encode key] ++ [encode count] ++ [encode value] )
+lrem key count value = sendRequest ["LREM", key, encode count, value]
 
+-- |Subtract multiple sets (<http://redis.io/commands/sdiff>). Since Redis 1.0.0
 sdiff
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ key
     -> m (f [ByteString])
-sdiff key = sendRequest (["SDIFF"] ++ map encode key )
+sdiff (key_:|keys_) = sendRequest ("SDIFF":key_:keys_)
 
+-- |Get the value of a key (<http://redis.io/commands/get>). Since Redis 1.0.0
 get
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
 get key = sendRequest (["GET"] ++ [encode key] )
 
+-- |Get a substring of the string stored at a key (<http://redis.io/commands/getrange>).
+-- Since Redis 2.4.0
 getrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ end
     -> m (f ByteString)
-getrange key start end = sendRequest (["GETRANGE"] ++ [encode key] ++ [encode start] ++ [encode end] )
+getrange key start end = sendRequest ["GETRANGE", key, encode start, encode end]
 
+-- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>). Since Redis 1.0.0
 sdiffstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+    -> NonEmpty ByteString -- ^ key
     -> m (f Integer)
-sdiffstore destination key = sendRequest (["SDIFFSTORE"] ++ [encode destination] ++ map encode key )
+sdiffstore destination (key_:|keys_) = sendRequest ("SDIFFSTORE": destination: key_: keys_)
 
+-- |Count the members in a sorted set with scores within the given values (<http://redis.io/commands/zcount>). Since Redis 2.0.0
 zcount
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Double -- ^ min
     -> Double -- ^ max
     -> m (f Integer)
-zcount key min max = sendRequest (["ZCOUNT"] ++ [encode key] ++ [encode min] ++ [encode max] )
+zcount key min max = sendRequest ["ZCOUNT", key, encode min, encode max]
 
+-- |Load the specified Lua script into the script cache (<http://redis.io/commands/script-load>). Since Redis 2.6.0
 scriptLoad
     :: (RedisCtx m f)
     => ByteString -- ^ script
     -> m (f ByteString)
-scriptLoad script = sendRequest (["SCRIPT","LOAD"] ++ [encode script] )
+scriptLoad script = sendRequest ["SCRIPT","LOAD", encode script]
 
+-- |Set the string value of a key and return its old value (<http://redis.io/commands/getset>). Since Redis 1.0.0
 getset
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ value
     -> m (f (Maybe ByteString))
-getset key value = sendRequest (["GETSET"] ++ [encode key] ++ [encode value] )
+getset key value = sendRequest ["GETSET", key, value]
 
+-- |Return a serialized version of the value stored at the specified key (<http://redis.io/commands/dump>). Since Redis 2.6.0
 dump
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f ByteString)
-dump key = sendRequest (["DUMP"] ++ [encode key] )
+dump key = sendRequest ["DUMP", key]
 
+-- |Find all keys matching the given pattern (<http://redis.io/commands/keys>). Since Redis 1.0.0
 keys
     :: (RedisCtx m f)
     => ByteString -- ^ pattern
     -> m (f [ByteString])
-keys pattern = sendRequest (["KEYS"] ++ [encode pattern] )
+keys pattern = sendRequest ["KEYS", pattern]
 
+-- |Get the value of a configuration parameter (<http://redis.io/commands/config-get>). Since Redis 2.0.0
 configGet
     :: (RedisCtx m f)
-    => ByteString -- ^ parameter
+    => NonEmpty ByteString -- ^ parameter
     -> m (f [(ByteString,ByteString)])
-configGet parameter = sendRequest (["CONFIG","GET"] ++ [encode parameter] )
+configGet (parameter:|parameters) = sendRequest ("CONFIG":"GET":parameter:parameters)
 
+-- |Append one or multiple values to a list (<http://redis.io/commands/rpush>). Since Redis 1.0.0
 rpush
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ value
+    -> NonEmpty ByteString -- ^ value
     -> m (f Integer)
-rpush key value = sendRequest (["RPUSH"] ++ [encode key] ++ map encode value )
+rpush key (value:|values) = sendRequest ("RPUSH": encode key:value:values)
 
+-- |Return a random key from the keyspace (<http://redis.io/commands/randomkey>). Since Redis 1.0.0
 randomkey
     :: (RedisCtx m f)
     => m (f (Maybe ByteString))
-randomkey  = sendRequest (["RANDOMKEY"] )
+randomkey  = sendRequest ["RANDOMKEY"]
 
+-- |Set the value of a hash field, only if the field does not exist (<http://redis.io/commands/hsetnx>). Since Redis 2.0.0
 hsetnx
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> ByteString -- ^ value
     -> m (f Bool)
-hsetnx key field value = sendRequest (["HSETNX"] ++ [encode key] ++ [encode field] ++ [encode value] )
+hsetnx key field value = sendRequest ["HSETNX", key, field, value]
 
+-- |Set multiple keys to multiple values (<http://redis.io/commands/mset>). Since Redis 1.0.1
 mset
     :: (RedisCtx m f)
-    => [(ByteString,ByteString)] -- ^ keyValue
+    => NonEmpty (ByteString,ByteString) -- ^ keyValue
     -> m (f Status)
-mset keyValue = sendRequest (["MSET"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
+mset ((key_,value):|keyValue) =
+  sendRequest ("MSET":key_:value: concatMap (\(x,y) -> [encode x,encode y]) keyValue)
 
+-- |Set the value and expiration of a key (<http://redis.io/commands/setex>).
+-- Regarded as deprected since 2.6 as it can be replaced by SET with the EX argument when
+-- migrating or writing new code.
+-- Since Redis 2.0.0
 setex
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ seconds
     -> ByteString -- ^ value
     -> m (f Status)
-setex key seconds value = sendRequest (["SETEX"] ++ [encode key] ++ [encode seconds] ++ [encode value] )
+setex key seconds value = sendRequest ["SETEX", key, encode seconds, value]
 
+-- |Set the value and expiration in milliseconds of a key (<http://redis.io/commands/psetex>).
+-- Condidered deprecated since it can be replaced by SET with the PX argument when migrating or writing new code
+-- Since Redis 2.6.0
 psetex
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ milliseconds
     -> ByteString -- ^ value
     -> m (f Status)
-psetex key milliseconds value = sendRequest (["PSETEX"] ++ [encode key] ++ [encode milliseconds] ++ [encode value] )
+psetex key milliseconds value = sendRequest ["PSETEX", key, encode milliseconds, value]
 
+-- |Get the number of members in a set (<http://redis.io/commands/scard>). Since Redis 1.0.0
 scard
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-scard key = sendRequest (["SCARD"] ++ [encode key] )
+scard key = sendRequest ["SCARD", key]
 
+-- |Check existence of scripts in the script cache (<http://redis.io/commands/script-exists>). Since Redis 2.6.0
 scriptExists
     :: (RedisCtx m f)
-    => [ByteString] -- ^ script
+    => NonEmpty ByteString -- ^ script
     -> m (f [Bool])
-scriptExists script = sendRequest (["SCRIPT","EXISTS"] ++ map encode script )
+scriptExists (script:|scripts) = sendRequest ("SCRIPT":"EXISTS":script:scripts)
 
+-- |Add multiple sets and store the resulting set in a key (<http://redis.io/commands/sunionstore>). Since Redis 1.0.0
 sunionstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ key
+    -> NonEmpty ByteString -- ^ key
     -> m (f Integer)
-sunionstore destination key = sendRequest (["SUNIONSTORE"] ++ [encode destination] ++ map encode key )
+sunionstore destination (key_:|keys_) =
+  sendRequest ("SUNIONSTORE":destination:key_:keys_)
 
+-- |Remove the expiration from a key (<http://redis.io/commands/persist>). Since Redis 2.2.0
 persist
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Bool)
-persist key = sendRequest (["PERSIST"] ++ [encode key] )
+persist key = sendRequest ["PERSIST", key]
 
+-- |Get the length of the value stored in a key (<http://redis.io/commands/strlen>). Since Redis 2.2.0
 strlen
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-strlen key = sendRequest (["STRLEN"] ++ [encode key] )
+strlen key = sendRequest ["STRLEN", encode key]
 
+-- |Prepend a value to a list, only if the list exists (<http://redis.io/commands/lpushx>). Since Redis 2.2.0
 lpushx
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> ByteString -- ^ value
+    -> NonEmpty ByteString -- ^ value
     -> m (f Integer)
-lpushx key value = sendRequest (["LPUSHX"] ++ [encode key] ++ [encode value] )
+lpushx key (value:|values) = sendRequest ("LPUSHX":key:value:values)
 
+-- |Set the string value of a hash field (<http://redis.io/commands/hset>).
+--
+-- This command oveerides keys if they exist in the hash.
+--
+-- Since Redis 2.0.0
 hset
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> ByteString -- ^ field
-    -> ByteString -- ^ value
+    -> NonEmpty (ByteString, ByteString) -- ^ Values.
     -> m (f Integer)
-hset key field value = sendRequest (["HSET"] ++ [encode key] ++ [encode field] ++ [encode value] )
+hset key ((field,value):|fieldValues) =
+  sendRequest ("HSET":encode key:encode field:encode value:concatMap (\(f,v) ->[f,v]) fieldValues)
 
+-- |Pop a value from a list, push it to another list and return it; or block until one is available (<http://redis.io/commands/brpoplpush>).
+--
+-- Since Redis 6.0 this command considered deprecated: it can be replaced by BLMOVE with the RIGHT and LEFT arguments when migrating or writing new code.
+--
+-- Since Redis 2.2.0
 brpoplpush
     :: (RedisCtx m f)
     => ByteString -- ^ source
     -> ByteString -- ^ destination
     -> Integer -- ^ timeout
     -> m (f (Maybe ByteString))
-brpoplpush source destination timeout = sendRequest (["BRPOPLPUSH"] ++ [encode source] ++ [encode destination] ++ [encode timeout] )
+brpoplpush source destination timeout =
+  sendRequest ["BRPOPLPUSH", source, destination, encode timeout]
 
+-- |Determine the index of a member in a sorted set, with scores ordered from high to low (<http://redis.io/commands/zrevrank>).
+-- Since Redis 2.0.0
 zrevrank
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ member
     -> m (f (Maybe Integer))
-zrevrank key member = sendRequest (["ZREVRANK"] ++ [encode key] ++ [encode member] )
+zrevrank key member = sendRequest ["ZREVRANK", key, member]
 
+zrevrankWithScore
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> ByteString -- ^ member
+    -> m (f (Maybe (Integer, Double)))
+zrevrankWithScore key member = sendRequest ["ZREVRANK", key, member]
+
+-- |Kill the script currently in execution (<http://redis.io/commands/script-kill>). Since Redis 2.6.0
 scriptKill
     :: (RedisCtx m f)
     => m (f Status)
-scriptKill  = sendRequest (["SCRIPT","KILL"] )
+scriptKill  = sendRequest ["SCRIPT","KILL"]
 
+-- |Overwrite part of a string at key starting at the specified offset (<http://redis.io/commands/setrange>).
+--
+-- Returns the lenght of the string after it was modified.
+--
+-- Since Redis 2.2.0
 setrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ offset
     -> ByteString -- ^ value
     -> m (f Integer)
-setrange key offset value = sendRequest (["SETRANGE"] ++ [encode key] ++ [encode offset] ++ [encode value] )
+setrange key offset value = sendRequest ["SETRANGE", key, encode offset, value]
 
 -- | Delete a key (<http://redis.io/commands/del>).
 -- Returns a number of keys that were removed.
@@ -938,24 +1210,35 @@ del
     :: (RedisCtx m f)
     => NonEmpty ByteString -- ^ List of keys to delete.
     -> m (f Integer)
-del key = sendRequest (["DEL"] ++ (NE.toList (fmap encode key)))
+del (key:|rest) = sendRequest ("DEL":key:rest)
 
+-- |Increment the float value of a hash field by the given amount (<http://redis.io/commands/hincrbyfloat>).
+-- Since Redis 2.6.0
 hincrbyfloat
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> Double -- ^ increment
     -> m (f Double)
-hincrbyfloat key field increment = sendRequest (["HINCRBYFLOAT"] ++ [encode key] ++ [encode field] ++ [encode increment] )
+hincrbyfloat key field increment = sendRequest ["HINCRBYFLOAT", key, field, encode increment]
 
+-- | Increment the integer value of a hash field by the given number (<http://redis.io/commands/hincrby>). Since Redis 2.0.0
 hincrby
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
-    -> Integer -- ^ increment
-    -> m (f Integer)
-hincrby key field increment = sendRequest (["HINCRBY"] ++ [encode key] ++ [encode field] ++ [encode increment] )
+    -> Int64 -- ^ increment
+    -> m (f Int64)
+hincrby key field increment = sendRequest ["HINCRBY", encode key, encode field, encode increment]
 
+-- | O(log(N)+M) with @N@ being thee number of elements in thee sorted set and @M@ the number
+-- of elements removed by the operation.
+--
+-- Remove all members in a sorted set between the given lexicographical range (<http://redis.io/commands/zremrangebylex>).
+--
+-- Returns number of elements that were removed.
+--
+-- Since Redis 2.8.9
 zremrangebylex
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -964,180 +1247,251 @@ zremrangebylex
     -> m (f Integer)
 zremrangebylex key min max = sendRequest (["ZREMRANGEBYLEX"] ++ [encode key] ++ [encode min] ++ [encode max] )
 
+-- |Remove and get the last element in a list (<http://redis.io/commands/rpop>).
+-- Since Redis 1.0.0
 rpop
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
-rpop key = sendRequest (["RPOP"] ++ [encode key] )
+rpop key = sendRequest ["RPOP", encode key]
 
+-- |Remove and get the last element in a list (<http://redis.io/commands/rpop>).
+--
+-- Result will have no more than @N@ arguments.
+--
+-- Since Redis 1.0.0
+rpopCount
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer
+    -> m (f (Maybe ByteString))
+rpopCount key count = sendRequest (["RPOP",key, encode count] )
+
+-- |Rename a key (<http://redis.io/commands/rename>). Since Redis 1.0.0
+--
+-- Does not return a error even if newkey existed.
 rename
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ newkey
     -> m (f Status)
-rename key newkey = sendRequest (["RENAME"] ++ [encode key] ++ [encode newkey] )
+rename key newkey = sendRequest ["RENAME",  encode key, encode newkey]
 
+-- | /O(M*log(N))/ with @N@ number of elements in the sorted set, @M@ number of elements to be
+-- removed.
+--
+-- Removes one or more members from a sorted set (<http://redis.io/commands/zrem>).
+--
+-- Since Redis 1.2.0
 zrem
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+    -> NonEmpty ByteString -- ^ member
     -> m (f Integer)
-zrem key member = sendRequest (["ZREM"] ++ [encode key] ++ map encode member )
+zrem key (member:|members) = sendRequest ("ZREM":encode key:encode member:members)
 
+-- |Determine if a hash field exists (<http://redis.io/commands/hexists>).
+-- Since Redis 2.0.0
 hexists
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> m (f Bool)
-hexists key field = sendRequest (["HEXISTS"] ++ [encode key] ++ [encode field] )
+hexists key field = sendRequest ["HEXISTS", key, field]
 
+-- |Get the current connection ID (<http://redis.io/commands/client-id>). Since Redis 5.0.0
 clientId
     :: (RedisCtx m f)
     => m (f Integer)
-clientId  = sendRequest (["CLIENT","ID"] )
+clientId  = sendRequest ["CLIENT","ID"]
 
+-- |Get the current connection name (<http://redis.io/commands/client-getname>). Since Redis 2.6.9
 clientGetname
     :: (RedisCtx m f)
     => m (f (Maybe ByteString))
-clientGetname  = sendRequest (["CLIENT","GETNAME"] )
+clientGetname  = sendRequest ["CLIENT","GETNAME"]
 
+-- |Rewrite the configuration file with the in memory configuration (<http://redis.io/commands/config-rewrite>). Since Redis 2.8.0
 configRewrite
     :: (RedisCtx m f)
     => m (f Status)
-configRewrite  = sendRequest (["CONFIG","REWRITE"] )
+configRewrite  = sendRequest ["CONFIG","REWRITE"]
 
+-- |Decrement the integer value of a key by one (<http://redis.io/commands/decr>).
+-- Since Redis 1.0.0
 decr
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-decr key = sendRequest (["DECR"] ++ [encode key] )
+decr key = sendRequest ["DECR", key]
 
+-- |Get the values of all the given hash fields (<http://redis.io/commands/hmget>).
+-- Since Redis 2.0.0
 hmget
     :: (RedisCtx m f)
     => ByteString -- ^ key
-    -> [ByteString] -- ^ field
+    -> NonEmpty ByteString -- ^ field
     -> m (f [Maybe ByteString])
-hmget key field = sendRequest (["HMGET"] ++ [encode key] ++ map encode field )
+hmget key (field:|fields) = sendRequest ("HMGET":key:field:fields)
 
+-- |Get a range of elements from a list (<http://redis.io/commands/lrange>). Since Redis 1.0.0
 lrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f [ByteString])
-lrange key start stop = sendRequest (["LRANGE"] ++ [encode key] ++ [encode start] ++ [encode stop] )
+lrange key start stop = sendRequest ["LRANGE", key, encode start, encode stop]
 
+-- |Decrement the integer value of a key by the given number (<http://redis.io/commands/decrby>).
+-- Since Redis 1.0.0
 decrby
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ decrement
     -> m (f Integer)
-decrby key decrement = sendRequest (["DECRBY"] ++ [encode key] ++ [encode decrement] )
+decrby key decrement = sendRequest ["DECRBY",key, encode decrement]
 
+-- |Get the length of a list (<http://redis.io/commands/llen>). Since Redis 1.0.0
 llen
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-llen key = sendRequest (["LLEN"] ++ [encode key] )
+llen key = sendRequest ["LLEN", encode key]
 
+-- | /O(1)/ Append a value to a key (<http://redis.io/commands/append>). Since Redis 2.0.0
 append
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ value
     -> m (f Integer)
-append key value = sendRequest (["APPEND"] ++ [encode key] ++ [encode value] )
+append key value = sendRequest ["APPEND", key, value]
 
+-- |Increment the integer value of a key by one (<http://redis.io/commands/incr>). Since Redis 1.0.0
 incr
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-incr key = sendRequest (["INCR"] ++ [encode key] )
+incr key = sendRequest ["INCR", key]
 
+-- |Get the value of a hash field (<http://redis.io/commands/hget>). Since Redis 2.0.0
 hget
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> ByteString -- ^ field
     -> m (f (Maybe ByteString))
-hget key field = sendRequest (["HGET"] ++ [encode key] ++ [encode field] )
+hget key field = sendRequest ["HGET",key,field]
 
+-- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>). Since Redis 2.6.0
 pexpireat
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ millisecondsTimestamp
     -> m (f Bool)
-pexpireat key millisecondsTimestamp = sendRequest (["PEXPIREAT"] ++ [encode key] ++ [encode millisecondsTimestamp] )
+pexpireat key millisecondsTimestamp = sendRequest ["PEXPIREAT", key, encode millisecondsTimestamp]
 
+-- | Trim a list to the specified range (<http://redis.io/commands/ltrim>).
+-- Since Redis 1.0.0
 ltrim
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ start
     -> Integer -- ^ stop
     -> m (f Status)
-ltrim key start stop = sendRequest (["LTRIM"] ++ [encode key] ++ [encode start] ++ [encode stop] )
+ltrim key start stop = sendRequest ["LTRIM", key, encode start, encode stop]
 
+-- | /O(1)/
+-- Get the number of members in a sorted set (<http://redis.io/commands/zcard>).
+-- Since Redis 1.2.0
 zcard
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-zcard key = sendRequest (["ZCARD"] ++ [encode key] )
+zcard key = sendRequest ["ZCARD", key]
 
+-- | Set the value of an element in a list by its index (<http://redis.io/commands/lset>).
+-- Since Redis 1.0.0
 lset
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ index
     -> ByteString -- ^ value
     -> m (f Status)
-lset key index value = sendRequest (["LSET"] ++ [encode key] ++ [encode index] ++ [encode value] )
+lset key index value = sendRequest ["LSET", key, encode index, value]
 
+-- | Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
+-- Since Redis 1.2.0
 expireat
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ timestamp
     -> m (f Bool)
-expireat key timestamp = sendRequest (["EXPIREAT"] ++ [encode key] ++ [encode timestamp] )
+expireat key timestamp = sendRequest ["EXPIREAT", key, encode timestamp]
 
+-- | Synchronously save the dataset to disk (<http://redis.io/commands/save>).
+-- Since Redis 1.0.0
 save
     :: (RedisCtx m f)
     => m (f Status)
-save  = sendRequest (["SAVE"] )
+save  = sendRequest ["SAVE"]
 
+-- |
+-- Move a key to another database (<http://redis.io/commands/move>).
+-- Since Redis 1.0.0
 move
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer -- ^ db
     -> m (f Bool)
-move key db = sendRequest (["MOVE"] ++ [encode key] ++ [encode db] )
+move key db = sendRequest ["MOVE", key, encode db]
 
+-- |
+-- Returns the bit value at offset in the string value stored at key (<http://redis.io/commands/getbit>). Since Redis 2.2.0
 getbit
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> Integer -- ^ offset
+    => ByteString -- ^ Key.
+    -> Integer -- ^ Offset.
     -> m (f Integer)
-getbit key offset = sendRequest (["GETBIT"] ++ [encode key] ++ [encode offset] )
+getbit key offset = sendRequest ["GETBIT", key, encode offset]
 
+-- |Set multiple keys to multiple values, only if none of the keys exist (<http://redis.io/commands/msetnx>).
+-- Since Redis 1.0.1
 msetnx
     :: (RedisCtx m f)
-    => [(ByteString,ByteString)] -- ^ keyValue
+    => NonEmpty (ByteString,ByteString) -- ^ keyValue
     -> m (f Bool)
-msetnx keyValue = sendRequest (["MSETNX"] ++ concatMap (\(x,y) -> [encode x,encode y])keyValue )
+msetnx ((key,value):|keysValues) =
+  sendRequest ("MSETNX":key:value:concatMap (\(x,y) -> [encode x,encode y]) keysValues)
 
+-- |Get array of specific Redis command details (<http://redis.io/commands/command-info>).
+-- Since Redis 2.8.13
 commandInfo
     :: (RedisCtx m f)
     => [ByteString] -- ^ commandName
     -> m (f [ByteString])
-commandInfo commandName = sendRequest (["COMMAND","INFO"] ++ map encode commandName )
+commandInfo commandName = sendRequest ("COMMAND":"INFO":map encode commandName )
 
+-- | Close the connection (<http://redis.io/commands/quit>). Since Redis 1.0.0
 quit
     :: (RedisCtx m f)
     => m (f Status)
-quit  = sendRequest (["QUIT"] )
+quit  = sendRequest ["QUIT"]
 
+-- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>). Since Redis 2.0.0
 blpop
     :: (RedisCtx m f)
     => [ByteString] -- ^ key
     -> Integer -- ^ timeout
     -> m (f (Maybe (ByteString,ByteString)))
-blpop key timeout = sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
+blpop keys_ timeout = sendRequest ("BLPOP":keys_ ++ [encode timeout] )
+
+-- |Remove and get the first element in a list, or block until one is available (<http://redis.io/commands/blpop>). Since Redis 6.0.0
+blpopFloat
+    :: (RedisCtx m f)
+    => [ByteString] -- ^ key
+    -> Integer -- ^ timeout
+    -> m (f (Maybe (ByteString,ByteString)))
+blpopFloat keys_ timeout = sendRequest ("BLPOP":keys_ ++ [encode timeout] )
 
 -- | /O(N)/ where @N@ is the number of members to be removed.
 -- Remove one or more members from a set (<http://redis.io/commands/srem>).
@@ -1151,20 +1505,23 @@ srem
     => ByteString -- ^ Key of the set.
     -> NonEmpty ByteString -- ^ List of members to be removed.
     -> m (f Integer)
-srem key member = sendRequest (["SREM"] ++ [encode key] ++ NE.toList (fmap encode member))
+srem key (member:|members) = sendRequest ("SREM":key:member:members)
 
+-- |Echo the given string (<http://redis.io/commands/echo>). Since Redis 1.0.0
 echo
     :: (RedisCtx m f)
     => ByteString -- ^ message
     -> m (f ByteString)
-echo message = sendRequest (["ECHO"] ++ [encode message] )
+echo message = sendRequest ["ECHO", encode message]
 
+-- |Determine if a given value is a member of a set (<http://redis.io/commands/sismember>).
+--  Since Redis 1.0.0
 sismember
     :: (RedisCtx m f)
-    => ByteString -- ^ key
+    => ByteString -- ^ Key.
     -> ByteString -- ^ member
     -> m (f Bool)
-sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode member] )
+sismember key member = sendRequest ["SISMEMBER",key, member]
 
 -- $autoclaim
 --
@@ -1192,3 +1549,4 @@ sismember key member = sendRequest (["SISMEMBER"] ++ [encode key] ++ [encode mem
 
 -- $auth
 -- Authenticate to the server (<http://redis.io/commands/auth>). Since Redis 1.0.0
+

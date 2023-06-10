@@ -6,6 +6,8 @@ import Prelude hiding (min, max)
 import Data.ByteString (ByteString, empty, append)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString as BS
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (maybeToList, catMaybes)
 #if __GLASGOW_HASKELL__ < 808
 import Data.Semigroup ((<>))
@@ -18,25 +20,27 @@ import Database.Redis.Protocol
 import Database.Redis.Types
 import qualified Database.Redis.Cluster.Command as CMD
 
-
+-- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
 objectRefcount
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-objectRefcount key = sendRequest ["OBJECT", "refcount", encode key]
+objectRefcount key = sendRequest ["OBJECT", "refcount", key]
 
 objectIdletime
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f Integer)
-objectIdletime key = sendRequest ["OBJECT", "idletime", encode key]
+objectIdletime key = sendRequest ["OBJECT", "idletime", key]
 
+-- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
 objectEncoding
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f ByteString)
-objectEncoding key = sendRequest ["OBJECT", "encoding", encode key]
+objectEncoding key = sendRequest ["OBJECT", "encoding", key]
 
+-- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
 linsertBefore
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -44,8 +48,9 @@ linsertBefore
     -> ByteString -- ^ value
     -> m (f Integer)
 linsertBefore key pivot value =
-    sendRequest ["LINSERT", encode key, "BEFORE", encode pivot, encode value]
+    sendRequest ["LINSERT", key, "BEFORE", pivot, value]
 
+-- |Insert an element before or after another element in a list (<http://redis.io/commands/linsert>). The Redis command @LINSERT@ is split up into 'linsertBefore', 'linsertAfter'. Since Redis 2.2.0
 linsertAfter
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -55,11 +60,12 @@ linsertAfter
 linsertAfter key pivot value =
         sendRequest ["LINSERT", encode key, "AFTER", encode pivot, encode value]
 
+-- |Determine the type stored at key (<http://redis.io/commands/type>). Since Redis 1.0.0
 getType
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f RedisType)
-getType key = sendRequest ["TYPE", encode key]
+getType key = sendRequest ["TYPE", key]
 
 -- |A single entry from the slowlog.
 data Slowlog = Slowlog
@@ -106,6 +112,7 @@ slowlogLen = sendRequest ["SLOWLOG", "LEN"]
 slowlogReset :: (RedisCtx m f) => m (f Status)
 slowlogReset = sendRequest ["SLOWLOG", "RESET"]
 
+-- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
 zrange
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -115,6 +122,7 @@ zrange
 zrange key start stop =
     sendRequest ["ZRANGE", encode key, encode start, encode stop]
 
+-- |Return a range of members in a sorted set, by index (<http://redis.io/commands/zrange>). The Redis command @ZRANGE@ is split up into 'zrange', 'zrangeWithscores'. Since Redis 1.2.0
 zrangeWithscores
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -261,6 +269,7 @@ defaultSortOpts = SortOpts
 
 data SortOrder = Asc | Desc deriving (Show, Eq)
 
+-- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
 sortStore
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -269,6 +278,7 @@ sortStore
     -> m (f Integer)
 sortStore key dest = sortInternal key (Just dest)
 
+-- |Sort the elements in a list, set or sorted set (<http://redis.io/commands/sort>). The Redis command @SORT@ is split up into 'sort', 'sortStore'. Since Redis 1.0.0
 sort
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -314,23 +324,25 @@ zunionstoreWeights dest kws =
     let (keys,weights) = unzip kws
     in zstoreInternal "ZUNIONSTORE" dest keys weights
 
+-- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
 zinterstore
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [ByteString] -- ^ keys
+    -> NonEmpty ByteString -- ^ keys
     -> Aggregate
     -> m (f Integer)
-zinterstore dest keys =
-    zstoreInternal "ZINTERSTORE" dest keys []
+zinterstore dest (key_:|keys_) =
+    zstoreInternal "ZINTERSTORE" dest (key_:keys_) []
 
+-- |Intersect multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zinterstore>). The Redis command @ZINTERSTORE@ is split up into 'zinterstore', 'zinterstoreWeights'. Since Redis 2.0.0
 zinterstoreWeights
     :: (RedisCtx m f)
     => ByteString -- ^ destination
-    -> [(ByteString,Double)] -- ^ weighted keys
+    -> NonEmpty (ByteString,Double) -- ^ weighted keys
     -> Aggregate
     -> m (f Integer)
 zinterstoreWeights dest kws =
-    let (keys,weights) = unzip kws
+    let (keys,weights) = unzip (NE.toList kws)
     in zstoreInternal "ZINTERSTORE" dest keys weights
 
 zstoreInternal
@@ -342,7 +354,7 @@ zstoreInternal
     -> Aggregate
     -> m (f Integer)
 zstoreInternal cmd dest keys weights aggregate = sendRequest $
-    concat [ [cmd, dest, encode . toInteger $ length keys], keys
+    concat [ [cmd, dest, encode . toInteger $ length keys ], keys
            , if null weights then [] else "WEIGHTS" : map encode weights
            , ["AGGREGATE", aggregate']
            ]
@@ -352,6 +364,7 @@ zstoreInternal cmd dest keys weights aggregate = sendRequest $
         Min -> "MIN"
         Max -> "MAX"
 
+-- |Execute a Lua script server side (<http://redis.io/commands/eval>). Since Redis 2.6.0
 eval
     :: (RedisCtx m f, RedisResult a)
     => ByteString -- ^ script
@@ -426,10 +439,7 @@ bitop
     -> m (f Integer)
 bitop op ks = sendRequest $ "BITOP" : op : ks
 
--- setRange
---   ::
--- setRange = sendRequest (["SET"] ++ [encode key] ++ [encode value] ++ )
-
+-- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
 migrate
     :: (RedisCtx m f)
     => ByteString -- ^ host
@@ -441,11 +451,16 @@ migrate
 migrate host port key destinationDb timeout =
   sendRequest ["MIGRATE", host, port, key, encode destinationDb, encode timeout]
 
+data MigrateAuth
+  = MigrateAuth ByteString
+  | MigrateAuth2 ByteString ByteString
+  deriving (Show, Eq)
 
 -- |Options for the 'migrate' command.
 data MigrateOpts = MigrateOpts
     { migrateCopy    :: Bool
     , migrateReplace :: Bool
+    , migrateAuth :: Maybe MigrateAuth
     } deriving (Show, Eq)
 
 -- |Redis default 'MigrateOpts'. Equivalent to omitting all optional parameters.
@@ -454,6 +469,7 @@ data MigrateOpts = MigrateOpts
 -- MigrateOpts
 --     { migrateCopy    = False -- remove the key from the local instance
 --     , migrateReplace = False -- don't replace existing key on the remote instance
+--     , migrateAuth = Nothing
 --     }
 -- @
 --
@@ -461,8 +477,10 @@ defaultMigrateOpts :: MigrateOpts
 defaultMigrateOpts = MigrateOpts
     { migrateCopy    = False
     , migrateReplace = False
+    , migrateAuth = Nothing
     }
 
+-- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
 migrateMultiple
     :: (RedisCtx m f)
     => ByteString   -- ^ host
@@ -475,12 +493,17 @@ migrateMultiple
 migrateMultiple host port destinationDb timeout MigrateOpts{..} keys =
     sendRequest $
     concat [["MIGRATE", host, port, empty, encode destinationDb, encode timeout],
-            copy, replace, keys]
+            auth_, copy, replace, keys]
   where
     copy = ["COPY" | migrateCopy]
     replace = ["REPLACE" | migrateReplace]
+    auth_ = case migrateAuth of
+     Nothing -> []
+     Just (MigrateAuth pass)  -> ["AUTH", pass]
+     Just (MigrateAuth2 user pass)  -> ["AUTH2", user, pass]
 
 
+-- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
 restore
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -490,6 +513,30 @@ restore
 restore key timeToLive serializedValue =
   sendRequest ["RESTORE", key, encode timeToLive, serializedValue]
 
+data RestoreOpts = RestoreOpts
+  { restoreOptsReplace :: Bool
+  , restoreOptsAbsTTL :: Bool
+  , restoreOptsIdle  :: Maybe Integer
+  , restoreOptsFreq :: Maybe Integer
+  }
+
+-- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
+restoreOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ timeToLive
+    -> ByteString -- ^ serializedValue
+    -> RestoreOpts -- ^ restore options
+    -> m (f Status)
+restoreOpts key timeToLive serializedValue RestoreOpts{..} =
+  sendRequest ("RESTORE": key: encode timeToLive: serializedValue:rest) where
+  rest =  replace <> absttl <> idle <> freq
+  replace = ["REPLACE" | restoreOptsReplace]
+  absttl  = ["ABSTTL" | restoreOptsAbsTTL]
+  idle    = maybe [] (\i -> ["IDLE", encode i]) restoreOptsIdle
+  freq    = maybe [] (\f -> ["FREQ", encode f]) restoreOptsFreq
+
+-- |Create a key using the provided serialized value, previously obtained using DUMP (<http://redis.io/commands/restore>). The Redis command @RESTORE@ is split up into 'restore', 'restoreReplace'. Since Redis 2.6.0
 
 restoreReplace
     :: (RedisCtx m f)
@@ -581,7 +628,7 @@ instance RedisArg DebugMode where
   encode Sync = "SYNC"
   encode No = "NO"
 
-
+-- |Set the debug mode for executed scripts (<http://redis.io/commands/script-debug>). Since Redis 3.2.0
 scriptDebug
     :: (RedisCtx m f)
     => DebugMode
@@ -589,7 +636,7 @@ scriptDebug
 scriptDebug mode =
     sendRequest ["SCRIPT DEBUG", encode mode]
 
-
+-- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 zadd
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -608,6 +655,7 @@ instance RedisArg SizeCondition where
   encode CGT = "GT"
   encode CLT = "LT"
 
+-- |Add one or more members to a sorted set, or update its score if it already exists (<http://redis.io/commands/zadd>). The Redis command @ZADD@ is split up into 'zadd', 'zaddOpts'. Since Redis 1.2.0
 data ZaddOpts = ZaddOpts
   { zaddCondition :: Maybe Condition -- ^ Add on condition
   , zaddSizeCondition :: Maybe SizeCondition
@@ -663,7 +711,7 @@ instance RedisArg ReplyMode where
   encode Off = "OFF"
   encode Skip = "SKIP"
 
-
+-- |Instruct the server whether to reply to commands (<http://redis.io/commands/client-reply>). Since Redis 3.2
 clientReply
     :: (RedisCtx m f)
     => ReplyMode
@@ -671,7 +719,7 @@ clientReply
 clientReply mode =
     sendRequest ["CLIENT REPLY", encode mode]
 
-
+-- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmember
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -679,6 +727,7 @@ srandmember
 srandmember key = sendRequest ["SRANDMEMBER", key]
 
 
+-- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmemberN
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -686,14 +735,14 @@ srandmemberN
     -> m (f [ByteString])
 srandmemberN key count = sendRequest ["SRANDMEMBER", key, encode count]
 
-
+-- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
 spop
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> m (f (Maybe ByteString))
 spop key = sendRequest ["SPOP", key]
 
-
+-- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
 spopN
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -714,7 +763,7 @@ infoSection
     -> m (f ByteString)
 infoSection section = sendRequest ["INFO", section]
 
-
+-- |Determine if a key exists (<http://redis.io/commands/exists>). Since Redis 1.0.0
 exists
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -736,12 +785,12 @@ instance RedisResult Cursor where
 cursor0 :: Cursor
 cursor0 = Cursor "0"
 
-
+-- |Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
 scan
     :: (RedisCtx m f)
     => Cursor
     -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
-scan cursor = scanOpts cursor defaultScanOpts
+scan cursor = scanOpts cursor defaultScanOpts Nothing
 
 
 data ScanOpts = ScanOpts
@@ -765,13 +814,15 @@ defaultScanOpts = ScanOpts
   , scanCount = Nothing
   }
 
-
+-- | Incrementally iterate the keys space (<http://redis.io/commands/scan>). The Redis command @SCAN@ is split up into 'scan', 'scanOpts'. Since Redis 2.8.0
 scanOpts
     :: (RedisCtx m f)
     => Cursor
     -> ScanOpts
+    -> Maybe ByteString -- ^ types of the object to  scan
     -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
-scanOpts cursor opts = sendRequest $ addScanOpts ["SCAN", encode cursor] opts
+scanOpts cursor opts mtype_  = sendRequest $ addScanOpts ["SCAN", encode cursor] opts
+    ++ maybe [] (\type_  -> ["TYPE", type_]) mtype_
 
 
 addScanOpts
@@ -785,6 +836,7 @@ addScanOpts cmd ScanOpts{..} =
     match       = maybe [] (prepend "MATCH") scanMatch
     count       = maybe [] ((prepend "COUNT").encode) scanCount
 
+-- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
 sscan
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -792,7 +844,7 @@ sscan
     -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
 sscan key cursor = sscanOpts key cursor defaultScanOpts
 
-
+-- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
 sscanOpts
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -801,7 +853,7 @@ sscanOpts
     -> m (f (Cursor, [ByteString])) -- ^ next cursor and values
 sscanOpts key cursor opts = sendRequest $ addScanOpts ["SSCAN", key, encode cursor] opts
 
-
+-- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
 hscan
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -809,7 +861,7 @@ hscan
     -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
 hscan key cursor = hscanOpts key cursor defaultScanOpts
 
-
+-- |Incrementally iterate hash fields and associated values (<http://redis.io/commands/hscan>). The Redis command @HSCAN@ is split up into 'hscan', 'hscanOpts'. Since Redis 2.8.0
 hscanOpts
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -843,6 +895,7 @@ instance RedisArg a => RedisArg (RangeLex a) where
   encode Minr      = "-"
   encode Maxr      = "+"
 
+-- |Return a range of members in a sorted set, by lexicographical range (<http://redis.io/commands/zrangebylex>). Since Redis 2.8.9
 zrangebylex::(RedisCtx m f) =>
     ByteString             -- ^ key
     -> RangeLex ByteString -- ^ min
@@ -1703,26 +1756,32 @@ instance RedisResult XInfoStreamResponse where
                         , ..}
             decodeRedis7 a = Left a
 
+-- | Get info about a stream. The Redis command @XINFO@ is split into 'xinfoConsumers', 'xinfoGroups', and 'xinfoStream'.
+-- Since Redis 5.0.0
 xinfoStream
     :: (RedisCtx m f)
     => ByteString -- ^ stream
     -> m (f XInfoStreamResponse)
 xinfoStream stream = sendRequest ["XINFO", "STREAM", stream]
 
+-- | Delete messages from a stream.
+-- Since Redis 5.0.0
 xdel
     :: (RedisCtx m f)
     => ByteString -- ^ stream
-    -> [ByteString] -- ^ message IDs
+    -> NonEmpty ByteString -- ^ message IDs
     -> m (f Integer)
-xdel stream messageIds = sendRequest $ ["XDEL", stream] ++ messageIds
+xdel stream (messageId:|messageIds) = sendRequest ("XDEL":stream:messageId: messageIds)
 
+-- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 xtrim
     :: (RedisCtx m f)
     => ByteString -- ^ stream
     -> TrimOpts
     -> m (f Integer)
-xtrim stream opts = sendRequest $ ["XTRIM", stream] ++ internalTrimArgToList opts
+xtrim stream opts = sendRequest ("XTRIM":stream:internalTrimArgToList opts)
 
+-- |Constructor for `inf` Redis argument values
 inf :: RealFloat a => a
 inf = 1 / 0
 
@@ -1768,14 +1827,14 @@ authOpts
 authOpts password AuthOpts{..} = sendRequest $
   ["AUTH"] <> maybe [] (:[]) authOptsUsername <> [password]
 
--- the select command. used in 'connect'.
+-- |Change the selected database for the current connection (<http://redis.io/commands/select>). Since Redis 1.0.0
 select
     :: RedisCtx m f
     => Integer -- ^ index
     -> m (f Status)
 select ix = sendRequest ["SELECT", encode ix]
 
--- the ping command. used in 'checkedconnect'.
+-- |Ping the server (<http://redis.io/commands/ping>). Since Redis 1.0.0
 ping
     :: (RedisCtx m f)
     => m (f Status)
@@ -1940,3 +1999,86 @@ clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (enco
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]
 
+
+data ExpireOpts
+  = ExpireOptsTime Condition 
+  | ExpireOptsValue SizeCondition
+
+instance RedisArg ExpireOpts where
+  encode (ExpireOptsTime c)  = encode c
+  encode (ExpireOptsValue c) = encode c
+
+-- |Set the expiration for a key as a UNIX timestamp specified in milliseconds (<http://redis.io/commands/pexpireat>).
+-- Since Redis 7.0
+pexpireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ millisecondsTimestamp
+    -> ExpireOpts
+    -> m (f Bool)
+pexpireatOpts key millisecondsTimestamp opts =
+  sendRequest ["PEXPIREAT", key, encode millisecondsTimestamp, encode opts]
+
+expireOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ seconds
+    -> ExpireOpts
+    -> m (f Bool)
+expireOpts key seconds opts = sendRequest ["EXPIRE", key, encode seconds, encode opts]
+
+-- | Set the expiration for a key as a UNIX timestamp (<http://redis.io/commands/expireat>).
+-- Since Redis 1.2.0
+expireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ timestamp
+    -> ExpireOpts
+    -> m (f Bool)
+expireatOpts key timestamp opts = sendRequest ["EXPIREAT", key, encode timestamp, encode opts]
+
+data FlushOpts
+  = FlushOptsSync
+  | FlushOptsAsync
+
+instance RedisArg FlushOpts where
+  encode FlushOptsSync = "SYNC"
+  encode FlushOptsAsync = "ASYNC"
+
+-- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
+-- Since Redis 6.2
+flushdbOpts
+    :: (RedisCtx m f)
+    => FlushOpts
+    -> m (f Status)
+flushdbOpts opts = sendRequest ["FLUSHDB", encode opts]
+
+-- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
+-- Since Redis 6.2
+flushallOpts
+    :: (RedisCtx m f)
+    => FlushOpts
+    -> m (f Status)
+flushallOpts opts = sendRequest ["FLUSHALL", encode opts]
+
+data BitposType = Byte | Bit
+
+instance RedisArg BitposType where
+  encode Byte = "BYTE"
+  encode Bit = "BIT"
+
+data BitposOpts
+  = BitposOptsStart Integer
+  | BitposOptsStartEnd Integer Integer (Maybe BitposType)
+
+bitposOpts 
+    :: (RedisCtx m f)
+    => ByteString
+    -> Integer
+    -> BitposOpts
+    -> m (f Integer)
+bitposOpts key_ bit opts = sendRequest ("BITPOS": key_:encode bit: rest) where
+  rest  = case opts of
+    BitposOptsStart s -> [encode s]
+    BitposOptsStartEnd start end bits ->
+      [encode start, encode end] ++ [ encode bits_ | Just bits_ <- pure bits]
