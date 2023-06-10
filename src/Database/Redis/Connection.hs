@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -153,7 +154,11 @@ createConnection ConnInfo{..} = do
 --  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
+#if MIN_VERSION_resource_pool(0,4,0)
     createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
+#else
+    newPool (defaultPoolConfig (createConnection cInfo) PP.disconnct connectMaxIdleTime connectMaxConnection)
+#endif
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
@@ -215,7 +220,11 @@ connectCluster bootstrapConnInfo = do
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
+#if MIN_VERSION_resource_pool(0,4,0)
             pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+#else
+            pool <- (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing) Cluster.disconnct (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
+#endif
             return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap

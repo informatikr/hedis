@@ -246,7 +246,6 @@ XAddOpts(..),
 defaultXAddOpts,
 TrimStrategy(..),
 TrimType(..),
-TrimOpts(..),
 trimOpts,
 xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
