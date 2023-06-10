@@ -13,6 +13,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Either (isRight)
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import Data.Time
 import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test)
@@ -150,7 +151,7 @@ testKeys = testCase "keys" $ do
                 restore "{same}key'" 0 s          >>=? Ok
                 rename "{same}key" "{same}key'"   >>=? Ok
                 renamenx "{same}key'" "{same}key" >>=? True
-                del ["{same}key"]                 >>=? 1
+                del (NE.fromList ["{same}key"])   >>=? 1
 
 testKeysNoncluster :: Test
 testKeysNoncluster = testCase "keysNoncluster" $ do
@@ -198,12 +199,12 @@ testGetType = testCase "getType" $ do
     forM_ ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? typ
-        del ["key"]   >>=? 1
+        del (NE.fromList ["key"])   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
          , (hset "key" "field" "value"                >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
-         , (sadd "key" ["member"]                     >>=? 1,    Set)
+         , (sadd "key" (NE.fromList ["member"])       >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
          ]
 
@@ -240,7 +241,7 @@ testStrings = testCase "strings" $ do
     incr "key"                                    >>=? 41
     incrby "key" 1                                >>=? 42
     incrbyfloat "key" 1                           >>=? 43
-    del ["key"]                                   >>=? 1
+    del (NE.fromList ["key"])                     >>=? 1
     setbit "key" 42 "1"                           >>=? 0
     getbit "key" 42                               >>=? 1
     bitcount "key"                                >>=? 1
@@ -318,7 +319,7 @@ testsSets = [testSets, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
+    sadd "set" (NE.fromList  ["member"]) >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
     smembers "set"              >>=? ["member"]
@@ -326,14 +327,14 @@ testSets = testCase "sets" $ do
     spop "set"                  >>=? Just "member"
     srem "set" ["member"]       >>=? 0
     smove "{same}set" "{same}set'" "member" >>=? False
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "{same}s1" ["member"]                      >>=? 1
+    sadd "{same}s1" (NE.fromList ["member"])        >>=? 1
     sdiff ["{same}s1", "{same}s2"]                  >>=? ["member"]
     sunion ["{same}s1", "{same}s2"]                 >>=? ["member"]
     sinter ["{same}s1", "{same}s2"]                 >>=? []
@@ -711,7 +712,7 @@ testScans = testCase "scans" $ do
 
 testSScan :: Test
 testSScan = testCase "sscan" $ do
-    sadd "set" ["1"]        >>=? 1
+    sadd "set" (NE.fromList ["1"]) >>=? 1
     sscan "set" cursor0     >>=? (cursor0, ["1"])
 
 testHScan :: Test

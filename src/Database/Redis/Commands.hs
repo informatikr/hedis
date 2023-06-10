@@ -17,7 +17,7 @@ quit, -- |Close the connection (<http://redis.io/commands/quit>). Since Redis 1.
 select, -- |Change the selected database for the current connection (<http://redis.io/commands/select>). Since Redis 1.0.0
 
 -- ** Keys
-del, -- |Delete a key (<http://redis.io/commands/del>). Since Redis 1.0.0
+del,
 dump, -- |Return a serialized version of the value stored at the specified key (<http://redis.io/commands/dump>). Since Redis 2.6.0
 exists, -- |Determine if a key exists (<http://redis.io/commands/exists>). Since Redis 1.0.0
 expire, -- |Set a key's time to live in seconds (<http://redis.io/commands/expire>). Since Redis 1.0.0
@@ -141,7 +141,7 @@ slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/
 time, -- |Return the current server time (<http://redis.io/commands/time>). Since Redis 2.6.0
 
 -- ** Sets
-sadd, -- |Add one or more members to a set (<http://redis.io/commands/sadd>). Since Redis 1.0.0
+sadd,
 scard, -- |Get the number of members in a set (<http://redis.io/commands/scard>). Since Redis 1.0.0
 sdiff, -- |Subtract multiple sets (<http://redis.io/commands/sdiff>). Since Redis 1.0.0
 sdiffstore, -- |Subtract multiple sets and store the resulting set in a key (<http://redis.io/commands/sdiffstore>). Since Redis 1.0.0
@@ -369,6 +369,8 @@ command
 
 import Prelude hiding (min,max)
 import Data.ByteString (ByteString)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core(sendRequest, RedisCtx)
@@ -521,12 +523,15 @@ flushdb
     => m (f Status)
 flushdb  = sendRequest (["FLUSHDB"] )
 
+-- | /O(1)/ for each element added.
+-- Add one or more members to a set (<http://redis.io/commands/sadd>).
+-- Since Redis 1.0.0
 sadd
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+    => ByteString -- ^ Key where set is stored.
+    -> NonEmpty ByteString -- ^ Member to add to the set.
     -> m (f Integer)
-sadd key member = sendRequest (["SADD"] ++ [encode key] ++ map encode member )
+sadd key member = sendRequest (["SADD"] ++ [encode key] ++ NE.toList (fmap encode member))
 
 lindex
     :: (RedisCtx m f)
@@ -926,11 +931,14 @@ setrange
     -> m (f Integer)
 setrange key offset value = sendRequest (["SETRANGE"] ++ [encode key] ++ [encode offset] ++ [encode value] )
 
+-- | Delete a key (<http://redis.io/commands/del>).
+-- Returns a number of keys that were removed.
+-- Since Redis 1.0.0
 del
     :: (RedisCtx m f)
-    => [ByteString] -- ^ key
+    => NonEmpty ByteString -- ^ List of keys to delete.
     -> m (f Integer)
-del key = sendRequest (["DEL"] ++ map encode key )
+del key = sendRequest (["DEL"] ++ (NE.toList (fmap encode key)))
 
 hincrbyfloat
     :: (RedisCtx m f)
