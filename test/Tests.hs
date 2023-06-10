@@ -325,7 +325,7 @@ testSets = testCase "sets" $ do
     smembers "set"              >>=? ["member"]
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
+    srem "set" (NE.fromList ["member"]) >>=? 0
     smove "{same}set" "{same}set'" "member" >>=? False
     _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]

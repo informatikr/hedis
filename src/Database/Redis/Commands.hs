@@ -154,7 +154,7 @@ spop, -- |Remove and return one or multiple random members from a set (<http://r
 spopN, -- |Remove and return one or multiple random members from a set (<http://redis.io/commands/spop>). The Redis command @SPOP@ is split up into 'spop', 'spopN'. Since Redis 1.0.0
 srandmember, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmemberN, -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
-srem, -- |Remove one or more members from a set (<http://redis.io/commands/srem>). Since Redis 1.0.0
+srem,
 sscan, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
 sscanOpts, -- |Incrementally iterate Set elements (<http://redis.io/commands/sscan>). The Redis command @SSCAN@ is split up into 'sscan', 'sscanOpts'. Since Redis 2.8.0
 sunion, -- |Add multiple sets (<http://redis.io/commands/sunion>). Since Redis 1.0.0
@@ -1139,12 +1139,19 @@ blpop
     -> m (f (Maybe (ByteString,ByteString)))
 blpop key timeout = sendRequest (["BLPOP"] ++ map encode key ++ [encode timeout] )
 
+-- | /O(N)/ where @N@ is the number of members to be removed.
+-- Remove one or more members from a set (<http://redis.io/commands/srem>).
+--
+-- Returns the number of members that were removed from the seet, not including non
+-- existing elements.
+--
+-- Since Redis 1.0.0
 srem
     :: (RedisCtx m f)
-    => ByteString -- ^ key
-    -> [ByteString] -- ^ member
+    => ByteString -- ^ Key of the set.
+    -> NonEmpty ByteString -- ^ List of members to be removed.
     -> m (f Integer)
-srem key member = sendRequest (["SREM"] ++ [encode key] ++ map encode member )
+srem key member = sendRequest (["SREM"] ++ [encode key] ++ NE.toList (fmap encode member))
 
 echo
     :: (RedisCtx m f)
