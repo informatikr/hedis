@@ -13,7 +13,17 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import Data.Functor(void)
 import qualified Data.IntMap.Strict as IntMap
-import Data.Pool(Pool, withResource, createPool, destroyAllResources)
+import Data.Pool
+    ( Pool
+    , withResource
+    , destroyAllResources
+#if MIN_VERSION_resource_pool(0,3,0)
+    , newPool
+    , defaultPoolConfig
+#else
+    , createPool
+#endif
+    )
 import Data.Typeable
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
@@ -154,10 +164,10 @@ createConnection ConnInfo{..} = do
 --  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
-#if MIN_VERSION_resource_pool(0,4,0)
-    createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
+#if MIN_VERSION_resource_pool(0,3,0)
+    newPool (defaultPoolConfig (createConnection cInfo) PP.disconnect (realToFrac connectMaxIdleTime) connectMaxConnections)
 #else
-    newPool (defaultPoolConfig (createConnection cInfo) PP.disconnct connectMaxIdleTime connectMaxConnection)
+    createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
 #endif
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
@@ -220,10 +230,10 @@ connectCluster bootstrapConnInfo = do
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
-#if MIN_VERSION_resource_pool(0,4,0)
-            pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+#if MIN_VERSION_resource_pool(0,3,0)
+            pool <- newPool (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
 #else
-            pool <- (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing) Cluster.disconnct (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
+            pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
 #endif
             return $ ClusteredConnection shardMapVar pool
 
