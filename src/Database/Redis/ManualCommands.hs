@@ -1030,6 +1030,13 @@ instance RedisResult a => RedisResult (XAutoclaimResult a) where
             xAutoclaimClaimedMessages <- decode claimedMsg
             xAutoclaimDeletedMessages <- decode deletedMsg
             Right XAutoclaimResult{..}
+    decode (MultiBulk (Just [
+        Bulk (Just xAutoclaimResultId) ,
+        MultiBulk (Just [])
+        ])) = do
+            let xAutoclaimClaimedMessages = []
+            let xAutoclaimDeletedMessages = []
+            Right XAutoclaimResult{..}
     decode a = Left a
 
 -- | Version of the autoclaim result that contains data of the messages.
