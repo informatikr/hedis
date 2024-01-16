@@ -90,7 +90,8 @@ library
                     HTTP,
                     errors,
                     network-uri,
-                    unliftio-core
+                    unliftio-core,
+                    hashable
   if !impl(ghc >= 8.0)
     build-depends:
       semigroups >= 0.11 && < 0.19
