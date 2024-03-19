@@ -17,7 +17,7 @@
 --
 module Database.Redis.ProtocolPipelining (
   Connection,
-  connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush, fromCtx
+  connect, enableTLS, beginReceiving, disconnect, request, send, recv, flush, fromCtx, hooks
 ) where
 
 import           Prelude
@@ -31,6 +31,7 @@ import           System.IO.Unsafe
 
 import           Database.Redis.Protocol
 import qualified Database.Redis.ConnectionContext as CC
+import           Database.Redis.Hooks
 
 data Connection = Conn
   { connCtx        :: CC.ConnectionContext -- ^ Connection socket-handle.
@@ -42,14 +43,15 @@ data Connection = Conn
     -- ^ Number of pending replies and thus the difference length between
     --   'connReplies' and 'connPending'.
     --   length connPending  - pendingCount = length connReplies
+  , hooks         :: Hooks
   }
 
 
 fromCtx :: CC.ConnectionContext -> IO Connection
-fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0
+fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0 <*> pure defaultHooks
 
-connect :: NS.HostName -> CC.PortID -> Maybe Int -> IO Connection
-connect hostName portId timeoutOpt = do
+connect :: NS.HostName -> CC.PortID -> Maybe Int -> Hooks -> IO Connection
+connect hostName portId timeoutOpt hooks = do
     connCtx <- CC.connect hostName portId timeoutOpt
     connReplies <- newIORef []
     connPending <- newIORef []
@@ -74,7 +76,7 @@ disconnect Conn{..} = CC.disconnect connCtx
 --  The 'Handle' is 'hFlush'ed when reading replies from the 'connCtx'.
 send :: Connection -> S.ByteString -> IO ()
 send Conn{..} s = do
-  CC.send connCtx s
+  sendHook hooks (CC.send connCtx) s
 
   -- Signal that we expect one more reply from Redis.
   n <- atomicModifyIORef' connPendingCnt $ \n -> let n' = n+1 in (n', n')
@@ -88,10 +90,11 @@ send Conn{..} s = do
 
 -- |Take a reply-thunk from the list of future replies.
 recv :: Connection -> IO Reply
-recv Conn{..} = do
-  (r:rs) <- readIORef connReplies
-  writeIORef connReplies rs
-  return r
+recv Conn{..} =
+  receiveHook hooks $ do
+    (r:rs) <- readIORef connReplies
+    writeIORef connReplies rs
+    return r
 
 -- | Flush the socket.  Normally, the socket is flushed in 'recv' (actually 'conGetReplies'), but
 -- for the multithreaded pub/sub code, the sending thread needs to explicitly flush the subscription

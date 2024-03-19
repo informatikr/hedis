@@ -31,7 +31,7 @@ import qualified Network.Socket as NS
 import qualified Data.HashMap.Strict as HM
 
 import qualified Database.Redis.ProtocolPipelining as PP
-import Database.Redis.Core(Redis, runRedisInternal, runRedisClusteredInternal)
+import Database.Redis.Core(Redis, Hooks, runRedisInternal, runRedisClusteredInternal, defaultHooks)
 import Database.Redis.Protocol(Reply(..))
 import Database.Redis.Cluster(ShardMap(..), Node, Shard(..))
 import qualified Database.Redis.Cluster as Cluster
@@ -97,6 +97,7 @@ data ConnectInfo = ConnInfo
     --   get connected in this interval of time.
     , connectTLSParams      :: Maybe ClientParams
     -- ^ Optional TLS parameters. TLS will be enabled if this is provided.
+    , connectHooks          :: Hooks
     } deriving Show
 
 data ConnectError = ConnectAuthError Reply
@@ -117,6 +118,7 @@ instance Exception ConnectError
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
 --  connectTimeout        = Nothing         -- Don't add timeout logic
 --  connectTLSParams      = Nothing         -- Do not use TLS
+--  connectHooks          = defaultHooks    -- Do nothing
 -- @
 --
 defaultConnectInfo :: ConnectInfo
@@ -130,13 +132,14 @@ defaultConnectInfo = ConnInfo
     , connectMaxIdleTime    = 30
     , connectTimeout        = Nothing
     , connectTLSParams      = Nothing
+    , connectHooks          = defaultHooks
     }
 
 createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    conn <- PP.connect connectHost connectPort timeoutOptUs
+    conn <- PP.connect connectHost connectPort timeoutOptUs connectHooks
     conn' <- case connectTLSParams of
                Nothing -> return conn
                Just tlsParams -> PP.enableTLS tlsParams conn
@@ -231,9 +234,9 @@ connectCluster bootstrapConnInfo = do
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
 #if MIN_VERSION_resource_pool(0,3,0)
-            pool <- newPool (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
+            pool <- newPool (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
 #else
-            pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+            pool <- createPool (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
 #endif
             return $ ClusteredConnection shardMapVar pool
 
@@ -255,7 +258,7 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _ _ _) = do
+refreshShardMap (Cluster.Connection nodeConns _ _ _ _) = do
     let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
     pipelineConn <- PP.fromCtx ctx
     _ <- PP.beginReceiving pipelineConn

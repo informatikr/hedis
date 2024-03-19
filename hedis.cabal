@@ -108,7 +108,8 @@ library
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands,
                     Database.Redis.URL,
-                    Database.Redis.ConnectionContext
+                    Database.Redis.ConnectionContext,
+                    Database.Redis.Hooks
   other-extensions: StrictData
 
 benchmark hedis-benchmark
