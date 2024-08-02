@@ -46,7 +46,6 @@ import           Control.Exception     (Exception, IOException, evaluate, throwI
 import           Control.Monad
 import           Control.Monad.Catch   (Handler (..), MonadCatch, catches, throwM)
 import           Control.Monad.Except
-import           Control.Monad.IO.Class(MonadIO(liftIO))
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
