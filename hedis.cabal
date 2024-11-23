@@ -108,7 +108,8 @@ library
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands,
                     Database.Redis.URL,
-                    Database.Redis.ConnectionContext
+                    Database.Redis.ConnectionContext,
+                    Database.Redis.Hooks
   other-extensions: StrictData
 
 benchmark hedis-benchmark
@@ -199,6 +200,24 @@ test-suite hedis-test-cluster
         time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
+    if flag(dev)
+      ghc-options: -Werror
+    if flag(dev)
+      ghc-prof-options: -auto-all
+
+test-suite hedis-test-hooks
+    default-language: Haskell2010
+    type: exitcode-stdio-1.0
+    hs-source-dirs: test
+    main-is: MainHooks.hs
+    build-depends:
+        base == 4.*,
+        hedis,
+        HUnit,
+        test-framework,
+        test-framework-hunit
+    -- We use -O0 here, since GHC takes *very* long to compile so many constants
+    ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind -Wunused-packages
     if flag(dev)
       ghc-options: -Werror
     if flag(dev)

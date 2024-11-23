@@ -28,6 +28,7 @@ import Control.Concurrent.Async (withAsync, waitEitherCatch, waitEitherCatchSTM)
 import Control.Concurrent.STM
 import Control.Exception (throwIO)
 import Control.Monad
+import Control.Monad.Reader (asks)
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
@@ -42,6 +43,8 @@ import qualified Database.Redis.Connection as Connection
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Protocol (Reply(..), renderRequest)
 import Database.Redis.Types
+import Control.Monad.IO.Unlift (MonadUnliftIO(withRunInIO))
+import Data.Functor (($>))
 
 -- |While in PubSub mode, we keep track of the number of current subscriptions
 --  (as reported by Redis replies) and the number of messages we expect to
@@ -111,8 +114,10 @@ class Command a where
 sendCmd :: (Command (Cmd a b)) => Cmd a b -> StateT PubSubState Core.Redis ()
 sendCmd DoNothing = return ()
 sendCmd cmd       = do
-    lift $ Core.send (redisCmd cmd : changes cmd)
-    modifyPending (updatePending cmd)
+  conn <- lift $ Core.reRedis $ asks Core.envConn
+  let hook = Core.sendPubSubHook $ PP.hooks conn
+  lift $ withRunInIO $ \runInIO -> hook (runInIO . Core.send) (redisCmd cmd : changes cmd)
+  modifyPending (updatePending cmd)
 
 cmdCount :: Cmd a b -> Int
 cmdCount DoNothing = 0
@@ -124,7 +129,10 @@ totalPendingChanges (PubSub{..}) =
 
 rawSendCmd :: (Command (Cmd a b)) => PP.Connection -> Cmd a b -> IO ()
 rawSendCmd _ DoNothing = return ()
-rawSendCmd conn cmd    = PP.send conn $ renderRequest $ redisCmd cmd : changes cmd
+rawSendCmd conn cmd    =
+  let hook = Core.sendPubSubHook $ PP.hooks conn
+      msg = redisCmd cmd : changes cmd
+  in hook (PP.send conn . renderRequest) msg
 
 plusChangeCnt :: Cmd a b -> Int -> Int
 plusChangeCnt DoNothing = id
@@ -246,9 +254,10 @@ pubSub initial callback
 
     recv :: StateT PubSubState Core.Redis ()
     recv = do
+        hook <- lift $ Core.reRedis $ asks $ Core.callbackHook . PP.hooks . Core.envConn
         reply <- lift Core.recv
         case decodeMsg reply of
-            Msg msg        -> liftIO (callback msg) >>= send
+            Msg msg        -> liftIO (hook callback msg) >>= send
             Subscribed     -> modifyPending (subtract 1) >> recv
             Unsubscribed n -> do
                 putSubCnt n
@@ -492,16 +501,16 @@ listenThread :: PubSubController -> PP.Connection -> IO ()
 listenThread ctrl rawConn = forever $ do
     msg <- PP.recv rawConn
     case decodeMsg msg of
-        Msg (Message channel msgCt) -> do
+        Msg message@(Message channel _) -> do
           cm <- atomically $ readTVar (callbacks ctrl)
           case HM.lookup channel cm of
             Nothing -> return ()
-            Just c -> mapM_ (\(_,x) -> x msgCt) c
-        Msg (PMessage pattern channel msgCt) -> do
+            Just c -> void $ Core.callbackHook (PP.hooks rawConn) (\m -> mapM_ (\(_,x) -> x $ msgMessage m) c $> mempty) message
+        Msg message@(PMessage pattern _ _) -> do
           pm <- atomically $ readTVar (pcallbacks ctrl)
           case HM.lookup pattern pm of
             Nothing -> return ()
-            Just c -> mapM_ (\(_,x) -> x channel msgCt) c
+            Just c -> void $ Core.callbackHook (PP.hooks rawConn) (\m -> mapM_ (\(_,x) -> x (msgChannel m) (msgMessage m)) c $> mempty) message
         Subscribed -> atomically $
           modifyTVar (pendingCnt ctrl) (\x -> x - 1)
         Unsubscribed _ -> atomically $
