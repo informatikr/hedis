@@ -578,7 +578,7 @@ pubSubForever :: Connection.Connection -- ^ The connection pool
                        -- the controller are now subscribed.  You can use this after an exception (such as
                        -- 'ConnectionLost') to signal that all subscriptions are now reactivated.
               -> IO ()
-pubSubForever (Connection.NonClusteredConnection _ pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
+pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
     -- get initial subscriptions and write them into the queue.
     atomically $ do
       let loop = tryReadTBQueue (sendChanges ctrl) >>=
@@ -609,7 +609,7 @@ pubSubForever (Connection.NonClusteredConnection _ pool) ctrl onInitialLoad = wi
           (Right (Left err)) -> throwIO err
           (Left (Left err)) -> throwIO err
           _ -> return ()  -- should never happen, since threads exit only with an error
-pubSubForever (Connection.ClusteredConnection _ _ _) _ _ = undefined
+pubSubForever (Connection.ClusteredConnection _ _) _ _ = undefined
 
 
 ------------------------------------------------------------------------------
