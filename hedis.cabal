@@ -48,6 +48,13 @@ homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
 extra-source-files: CHANGELOG
 
+tested-with:
+   GHC ==9.12.2
+    || ==9.10.2
+    || ==9.8.4
+    || ==9.6.7
+    || ==9.4.8
+
 source-repository head
   type:     git
   location: https://github.com/informatikr/hedis
