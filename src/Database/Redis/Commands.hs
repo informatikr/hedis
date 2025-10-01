@@ -1256,7 +1256,7 @@ rpop
 rpop key = sendRequest ["RPOP", encode key]
 
 -- |Remove and get the last element in a list (<http://redis.io/commands/rpop>).
---
+-- The reply will consist of up to count elements, depending on the list's length.
 -- Result will have no more than @N@ arguments.
 --
 -- Since Redis 1.0.0
@@ -1264,7 +1264,7 @@ rpopCount
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer
-    -> m (f (Maybe ByteString))
+    -> m (f [ByteString])
 rpopCount key count = sendRequest (["RPOP",key, encode count] )
 
 -- |Rename a key (<http://redis.io/commands/rename>). Since Redis 1.0.0
