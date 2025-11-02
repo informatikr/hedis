@@ -6,7 +6,7 @@ import Control.Monad
 import Control.Concurrent.Async
 import Control.Exception
 import qualified Data.List
-import Data.Text hiding (show)
+import Data.Text (Text)
 import Data.Typeable
 import Data.ByteString
 import Control.Concurrent.STM

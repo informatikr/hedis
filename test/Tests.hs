@@ -302,6 +302,12 @@ testLists = testCase "lists" $ do
     lrem "key" 0 "v2"             >>=? 1
     llen "key"                    >>=? 2
     ltrim "key" 0 1               >>=? Ok
+    del ("key" NE.:| [])
+    -- keys are pushed sequentially so this will result in a list with value1, value2, value3
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 2 >>=? ["value1", "value2"]
+    lpush "key" ["value2", "value1"] >>=? 3
+    rpopCount "key" 2 >>=? ["value3", "value2"]
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
