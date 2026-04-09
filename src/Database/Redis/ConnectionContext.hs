@@ -29,7 +29,7 @@ import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
 import System.IO(Handle, hSetBinaryMode, hClose, IOMode(..), hFlush, hIsOpen)
 import System.IO.Error(catchIOError)
-import System.Timeout
+import System.Timeout (timeout)
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
