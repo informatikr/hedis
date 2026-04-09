@@ -23,7 +23,6 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.IORef as IOR
 import Control.Concurrent.MVar(newMVar, readMVar, swapMVar)
 import Control.Exception(bracketOnError, Exception, throwIO, try)
-import           Data.Typeable
 import Data.Functor(void)
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
@@ -51,7 +50,7 @@ data ConnectPhase
   deriving (Show)
 
 newtype ConnectTimeout = ConnectTimeout ConnectPhase
-  deriving (Show, Typeable)
+  deriving (Show)
 
 instance Exception ConnectTimeout
 

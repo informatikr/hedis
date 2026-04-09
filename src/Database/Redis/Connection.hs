@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -14,21 +13,11 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.Functor(void)
 import qualified Data.IntMap.Strict as IntMap
 import Data.Pool
-    ( Pool
-    , withResource
-    , destroyAllResources
-#if MIN_VERSION_resource_pool(0,3,0)
-    , newPool
-    , defaultPoolConfig
-#else
-    , createPool
-#endif
-    )
-import Data.Typeable
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
 import qualified Network.Socket as NS
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Core(Redis, Hooks, runRedisInternal, runRedisClusteredInternal, defaultHooks)
@@ -86,6 +75,8 @@ data ConnectInfo = ConnInfo
     , connectMaxConnections :: Int
     -- ^ Maximum number of connections to keep open. The smallest acceptable
     --   value is 1.
+    , connectNumStripes     :: Maybe Int
+    -- ^ Number of stripes in the connection pool.
     , connectMaxIdleTime    :: Time.NominalDiffTime
     -- ^ Amount of time for which an unused connection is kept open. The
     --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
@@ -98,11 +89,14 @@ data ConnectInfo = ConnInfo
     , connectTLSParams      :: Maybe ClientParams
     -- ^ Optional TLS parameters. TLS will be enabled if this is provided.
     , connectHooks          :: Hooks
+    -- ^ Connection hooks.
+    , connectPoolLabel      :: T.Text
+    -- ^ Label of the connection pool for instrumentation.
     } deriving Show
 
 data ConnectError = ConnectAuthError Reply
                   | ConnectSelectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ConnectError
 
@@ -115,10 +109,12 @@ instance Exception ConnectError
 --  connectUsername       = Nothing         -- No user
 --  connectDatabase       = 0               -- SELECT database 0
 --  connectMaxConnections = 50              -- Up to 50 connections
+--  connectNumStripes     = Just 1          -- A single stripe
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
 --  connectTimeout        = Nothing         -- Don't add timeout logic
 --  connectTLSParams      = Nothing         -- Do not use TLS
 --  connectHooks          = defaultHooks    -- Do nothing
+--  connectPoolLabel      = ""              -- no label
 -- @
 --
 defaultConnectInfo :: ConnectInfo
@@ -129,10 +125,12 @@ defaultConnectInfo = ConnInfo
     , connectUsername       = Nothing
     , connectDatabase       = 0
     , connectMaxConnections = 50
+    , connectNumStripes     = Just 1
     , connectMaxIdleTime    = 30
     , connectTimeout        = Nothing
     , connectTLSParams      = Nothing
     , connectHooks          = defaultHooks
+    , connectPoolLabel      = ""
     }
 
 createConnection :: ConnectInfo -> IO PP.Connection
@@ -167,11 +165,7 @@ createConnection ConnInfo{..} = do
 --  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
-#if MIN_VERSION_resource_pool(0,3,0)
-    newPool (defaultPoolConfig (createConnection cInfo) PP.disconnect (realToFrac connectMaxIdleTime) connectMaxConnections)
-#else
-    createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
-#endif
+    newPool (setPoolLabel connectPoolLabel . setNumStripes connectNumStripes $ defaultPoolConfig (createConnection cInfo) PP.disconnect (realToFrac connectMaxIdleTime) connectMaxConnections)
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
@@ -208,7 +202,7 @@ runRedis (ClusteredConnection _ pool) redis =
     withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ClusterConnectError
 
@@ -233,11 +227,7 @@ connectCluster bootstrapConnInfo = do
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
-#if MIN_VERSION_resource_pool(0,3,0)
-            pool <- newPool (defaultPoolConfig (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
-#else
-            pool <- createPool (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
-#endif
+            pool <- newPool (setNumStripes (connectNumStripes bootstrapConnInfo) $ defaultPoolConfig (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
             return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
