@@ -31,7 +31,7 @@ import Control.Monad
 import Control.Monad.Reader (asks)
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
-import Data.List (foldl')
+import qualified Data.List as L
 import Data.Maybe (isJust)
 import Data.Pool
 #if __GLASGOW_HASKELL__ < 808
@@ -435,8 +435,8 @@ removeChannels ctrl remChans remPChans = liftIO $ atomically $ do
         ps =        (if null remChans' then mempty else unsubscribe remChans')
           `mappend` (if null remPChans' then mempty else punsubscribe remPChans')
     writeTBQueue (sendChanges ctrl) ps
-    writeTVar (callbacks ctrl) (foldl' (flip HM.delete) cm remChans')
-    writeTVar (pcallbacks ctrl) (foldl' (flip HM.delete) pm remPChans')
+    writeTVar (callbacks ctrl) (L.foldl' (flip HM.delete) cm remChans')
+    writeTVar (pcallbacks ctrl) (L.foldl' (flip HM.delete) pm remPChans')
     modifyTVar (pendingCnt ctrl) (+ totalPendingChanges ps)
 
 -- | Internal function to unsubscribe only from those channels matching the given handle.
@@ -463,8 +463,8 @@ unsubChannels ctrl chans pchans h = liftIO $ atomically $ do
             Just v -> HM.insert k v m
 
     -- maps after taking out channels matching the handle
-    let cm' = foldl' removeHandles cm remChans
-        pm' = foldl' removeHandles pm remPChans
+    let cm' = L.foldl' removeHandles cm remChans
+        pm' = L.foldl' removeHandles pm remPChans
 
     -- the channels to unsubscribe are those that no longer exist in cm' and pm'
     let remChans' = filter (\n -> not $ HM.member n cm') remChans

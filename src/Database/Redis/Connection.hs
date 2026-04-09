@@ -13,7 +13,6 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.Functor(void)
 import qualified Data.IntMap.Strict as IntMap
 import Data.Pool
-import Data.Typeable
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
 import qualified Network.Socket as NS
@@ -97,7 +96,7 @@ data ConnectInfo = ConnInfo
 
 data ConnectError = ConnectAuthError Reply
                   | ConnectSelectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ConnectError
 
@@ -203,7 +202,7 @@ runRedis (ClusteredConnection _ pool) redis =
     withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ClusterConnectError
 

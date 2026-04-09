@@ -36,7 +36,7 @@ import qualified Data.ByteString.Char8 as C8
 -- The scheme is validated, to prevent mixing up configurations:
 --
 -- >>> parseConnectInfo "postgres://"
--- Left "Wrong scheme"
+-- Left "Wrong scheme postgres:"
 --
 -- Beyond that, all values are optional. Omitted values are taken from
 -- @'defaultConnectInfo'@:

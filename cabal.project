@@ -1,7 +1,5 @@
 packages:
     ./
 
-source-repository-package
-    type: git
-    location: https://github.com/scrive/pool
-    tag: eeabc8746d4fa68063551d81bf9fa330c3396845
+-- GHC 9.14
+allow-newer: *:base
