@@ -28,7 +28,7 @@ import qualified Data.ByteString.Char8 as C8
 -- Username is ignored, path is used to specify the database:
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {sendRequestHook = _, sendPubSubHook = _, callbackHook = _, sendHook = _, receiveHook = _}})
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/db"
 -- Left "Invalid port: db"
@@ -36,13 +36,13 @@ import qualified Data.ByteString.Char8 as C8
 -- The scheme is validated, to prevent mixing up configurations:
 --
 -- >>> parseConnectInfo "postgres://"
--- Left "Wrong scheme"
+-- Left "Wrong scheme postgres:"
 --
 -- Beyond that, all values are optional. Omitted values are taken from
 -- @'defaultConnectInfo'@:
 --
 -- >>> parseConnectInfo "redis://"
--- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing})
+-- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {sendRequestHook = _, sendPubSubHook = _, callbackHook = _, sendHook = _, receiveHook = _}})
 --
 parseConnectInfo :: String -> Either String ConnectInfo
 parseConnectInfo url = do
