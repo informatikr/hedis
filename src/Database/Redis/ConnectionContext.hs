@@ -17,8 +17,6 @@ module Database.Redis.ConnectionContext (
   , ioErrorToConnLost
 ) where
 
-import           Control.Concurrent (threadDelay)
-import           Control.Concurrent.Async (race)
 import Control.Monad(when)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
@@ -31,6 +29,7 @@ import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
 import System.IO(Handle, hSetBinaryMode, hClose, IOMode(..), hFlush, hIsOpen)
 import System.IO.Error(catchIOError)
+import System.Timeout (timeout)
 
 data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
 
@@ -75,10 +74,10 @@ connect hostName portId timeoutOpt =
           case timeoutOpt of
             Nothing -> doConnect
             Just micros -> do
-              result <- race doConnect (threadDelay micros)
+              result <- timeout micros doConnect
               case result of
-                Left h -> return h
-                Right () -> do
+                Just h -> return h
+                Nothing -> do
                   phase <- readMVar phaseMVar
                   errConnectTimeout phase
         hConnect' mvar = bracketOnError createSock NS.close $ \sock -> do

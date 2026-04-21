@@ -11,7 +11,7 @@ main = do
     Test.defaultMain (tests conn)
 
 tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat
+tests conn = map ($ conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
     , testsConnection, testsClient, testsServer, [testScans, testSScan, testHScan, testZScan], [testZrangelex]

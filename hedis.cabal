@@ -48,6 +48,13 @@ homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
 extra-source-files: CHANGELOG
 
+tested-with:
+   GHC ==9.12.2
+    || ==9.10.2
+    || ==9.8.4
+    || ==9.6.7
+    || ==9.4.8
+
 source-repository head
   type:     git
   location: https://github.com/informatikr/hedis
@@ -81,7 +88,7 @@ library
                     text,
                     deepseq,
                     mtl >= 2,
-                    network >= 2 && < 3.2,
+                    network >= 2 && < 3.3,
                     resource-pool >= 0.2,
                     stm,
                     time,
@@ -108,7 +115,8 @@ library
                     Database.Redis.Commands,
                     Database.Redis.ManualCommands,
                     Database.Redis.URL,
-                    Database.Redis.ConnectionContext
+                    Database.Redis.ConnectionContext,
+                    Database.Redis.Hooks
   other-extensions: StrictData
 
 benchmark hedis-benchmark
@@ -204,11 +212,20 @@ test-suite hedis-test-cluster
     if flag(dev)
       ghc-prof-options: -auto-all
 
-test-suite doctest
+test-suite hedis-test-hooks
     default-language: Haskell2010
     type: exitcode-stdio-1.0
-    main-is: DocTest.hs
-    ghc-options: -O0 -rtsopts
+    hs-source-dirs: test
+    main-is: MainHooks.hs
     build-depends:
         base == 4.*,
-        doctest
+        hedis,
+        HUnit,
+        test-framework,
+        test-framework-hunit
+    -- We use -O0 here, since GHC takes *very* long to compile so many constants
+    ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind -Wunused-packages
+    if flag(dev)
+      ghc-options: -Werror
+    if flag(dev)
+      ghc-prof-options: -auto-all

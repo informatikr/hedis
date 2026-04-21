@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase, OverloadedLists, TypeApplications #-}
 module Tests where
 
 
@@ -11,8 +11,10 @@ import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Data.ByteString (ByteString)
 import Data.Either (isRight)
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import Data.Time
 import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test)
@@ -138,11 +140,11 @@ testKeys = testCase "keys" $ do
     ttl "{same}key" >>= \case
       Left _ -> error "error"
       Right t -> do
-        assert $ t `elem` [0..1]
+        assert $ elem @[] t [0..1]
         pttl "{same}key" >>= \case
           Left _ -> error "error"
           Right pt -> do
-            assert $ pt `elem` [990..1000]
+            assert $ elem @[] pt [990..1000]
             persist "{same}key"         >>=? True
             dump "{same}key" >>= \case
               Left _ -> error "impossible"
@@ -150,7 +152,7 @@ testKeys = testCase "keys" $ do
                 restore "{same}key'" 0 s          >>=? Ok
                 rename "{same}key" "{same}key'"   >>=? Ok
                 renamenx "{same}key'" "{same}key" >>=? True
-                del ["{same}key"]                 >>=? 1
+                del (NE.fromList ["{same}key"])   >>=? 1
 
 testKeysNoncluster :: Test
 testKeysNoncluster = testCase "keysNoncluster" $ do
@@ -195,13 +197,13 @@ testSort = testCase "sort" $ do
 testGetType :: Test
 testGetType = testCase "getType" $ do
     getType "key"     >>=? None
-    forM_ ts $ \(setKey, typ) -> do
+    forM_ @[] ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? typ
-        del ["key"]   >>=? 1
+        del (NE.fromList ["key"])   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
-         , (hset "key" "field" "value"                >>=? 1,    Hash)
+         , (hset "key" [("field"::ByteString, "value"::ByteString)] >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
          , (sadd "key" ["member"]                     >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
@@ -240,7 +242,7 @@ testStrings = testCase "strings" $ do
     incr "key"                                    >>=? 41
     incrby "key" 1                                >>=? 42
     incrbyfloat "key" 1                           >>=? 43
-    del ["key"]                                   >>=? 1
+    del (NE.fromList ["key"])                     >>=? 1
     setbit "key" 42 "1"                           >>=? 0
     getbit "key" 42                               >>=? 1
     bitcount "key"                                >>=? 1
@@ -260,9 +262,9 @@ testBitops = testCase "bitops" $ do
 --
 testHashes :: Test
 testHashes = testCase "hashes" $ do
-    hset "key" "field" "another" >>=? 1
-    hset "key" "field" "another" >>=? 0
-    hset "key" "field" "value"   >>=? 0
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 1
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 0
+    hset "key" [("field"::ByteString, "value"::ByteString)]   >>=? 0
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
@@ -285,8 +287,8 @@ testsLists =
 
 testLists :: Test
 testLists = testCase "lists" $ do
-    lpushx "notAKey" "-"          >>=? 0
-    rpushx "notAKey" "-"          >>=? 0
+    lpushx "notAKey" ["-" :: ByteString] >>=? 0
+    rpushx "notAKey" ["-" :: ByteString] >>=? 0
     lpush "key" ["value"]         >>=? 1
     lpop "key"                    >>=? Just "value"
     rpush "key" ["value"]         >>=? 1
@@ -300,6 +302,12 @@ testLists = testCase "lists" $ do
     lrem "key" 0 "v2"             >>=? 1
     llen "key"                    >>=? 2
     ltrim "key" 0 1               >>=? Ok
+    del ("key" NE.:| [])
+    -- keys are pushed sequentially so this will result in a list with value1, value2, value3
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 2 >>=? ["value1", "value2"]
+    lpush "key" ["value2", "value1"] >>=? 3
+    rpopCount "key" 2 >>=? ["value3", "value2"]
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
@@ -318,22 +326,22 @@ testsSets = [testSets, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
+    sadd "set" (NE.fromList  ["member"]) >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
     smembers "set"              >>=? ["member"]
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
+    srem "set" (NE.fromList ["member"]) >>=? 0
     smove "{same}set" "{same}set'" "member" >>=? False
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "{same}s1" ["member"]                      >>=? 1
+    sadd "{same}s1" (NE.fromList ["member"])        >>=? 1
     sdiff ["{same}s1", "{same}s2"]                  >>=? ["member"]
     sunion ["{same}s1", "{same}s2"]                 >>=? ["member"]
     sinter ["{same}s1", "{same}s2"]                 >>=? []
@@ -372,9 +380,14 @@ testZSets = testCase "sorted sets" $ do
     zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
     zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
 
-    zrem "key" ["v2"]                                 >>=? 1
+    zrem "key" (NE.fromList ["v2"])                   >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
+
+--  testZSets7 :: Test
+--  testZSets7 = testCase "sorted sets: redis 7" $ do
+--      zadd "key" [(2,"v1"),(0,"v2"),(40,"v3")]          >>=? 3
+--      zrankWithScore "key" "v1"                         >>=? Just  (1, 2)
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
@@ -663,7 +676,7 @@ testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
 
 testConfig :: Test
 testConfig = testCase "config/auth" $ do
-    configGet "requirepass"        >>=? [("requirepass", "")]
+    configGet ["requirepass"]      >>=? [("requirepass", "")]
     configSet "requirepass" "pass" >>=? Ok
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
@@ -704,20 +717,20 @@ testScans :: Test
 testScans = testCase "scans" $ do
     set "key" "value"       >>=? Ok
     scan cursor0            >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts1 >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts2 >>=? (cursor0, [])
+    scanOpts cursor0 sOpts1 Nothing >>=? (cursor0, ["key"])
+    scanOpts cursor0 sOpts2 Nothing >>=? (cursor0, [])
     where sOpts1 = defaultScanOpts { scanMatch = Just "k*" }
           sOpts2 = defaultScanOpts { scanMatch = Just "not*"}
 
 testSScan :: Test
 testSScan = testCase "sscan" $ do
-    sadd "set" ["1"]        >>=? 1
+    sadd "set" (NE.fromList ["1"]) >>=? 1
     sscan "set" cursor0     >>=? (cursor0, ["1"])
 
 testHScan :: Test
 testHScan = testCase "hscan" $ do
-    hset "hash" "k" "v"     >>=? 1
-    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+    hset "hash" [("k"::ByteString, "v"::ByteString)] >>=? 1
+    hscan "hash" cursor0     >>=? (cursor0, [("k", "v")])
 
 testZScan :: Test
 testZScan = testCase "zscan" $ do

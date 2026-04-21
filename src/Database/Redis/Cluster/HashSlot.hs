@@ -5,7 +5,11 @@ module Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot) where
 import Data.Bits((.&.), xor, shiftL)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString as BS
+import Data.Maybe (fromMaybe)
 import Data.Word(Word8, Word16)
+
+-- $setup
+-- >>> :set -XOverloadedStrings
 
 newtype HashSlot = HashSlot Word16 deriving (Num, Eq, Ord, Real, Enum, Integral, Show)
 
@@ -13,16 +17,31 @@ numHashSlots :: Word16
 numHashSlots = 16384
 
 -- | Compute the hashslot associated with a key
+--
+-- >>> keyToSlot "123"
+-- HashSlot 5970
+-- >>> keyToSlot "{123"
+-- HashSlot 2872
+-- >>> keyToSlot "{123}"
+-- HashSlot 5970
+-- >>> keyToSlot "{}123"
+-- HashSlot 7640
+-- >>> keyToSlot "{123}1{abc}"
+-- HashSlot 5970
+-- >>> keyToSlot "\00\01"
+-- HashSlot 4129
 keyToSlot :: BS.ByteString -> HashSlot
 keyToSlot = HashSlot . (.&.) (numHashSlots - 1) . crc16 . findSubKey
 
 -- | Find the section of a key to compute the slot for.
 findSubKey :: BS.ByteString -> BS.ByteString
-findSubKey key = case Char8.break (=='{') key of
-  (whole, "") -> whole
-  (_, xs) -> case Char8.break (=='}') (Char8.tail xs) of
-    ("", _) -> key
-    (subKey, _) -> subKey
+findSubKey key = fromMaybe key (go key) where
+  go bs = case Char8.break (=='{') bs of
+    (_, "") -> Nothing
+    (_, xs)  -> case Char8.break (=='}') (Char8.tail xs) of
+      ("", _) -> go (Char8.tail xs)
+      (_, "") -> Nothing
+      (subKey, _) -> Just subKey
 
 crc16 :: BS.ByteString -> Word16
 crc16 = BS.foldl (crc16Update 0x1021) 0

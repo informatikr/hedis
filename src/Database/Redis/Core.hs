@@ -5,9 +5,11 @@
 module Database.Redis.Core (
     Redis(), unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
+    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook, 
     send, recv, sendRequest,
     runRedisInternal,
     runRedisClusteredInternal,
+    defaultHooks,
     RedisEnv(..),
 ) where
 
@@ -24,6 +26,7 @@ import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Types
 import Database.Redis.Cluster(ShardMap)
 import qualified Database.Redis.Cluster as Cluster
+import Database.Redis.Hooks
 
 --------------------------------------------------------------------------------
 -- The Redis Monad
@@ -118,8 +121,8 @@ sendRequest req = do
         env <- ask
         case env of
             NonClusteredEnv{..} -> do
-                r <- liftIO $ PP.request envConn (renderRequest req)
+                r <- liftIO $ sendRequestHook (PP.hooks envConn) (PP.request envConn . renderRequest) req
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined refreshAction connection req
+            ClusteredEnv{..} -> liftIO $ sendRequestHook (Cluster.hooks connection) (Cluster.requestPipelined refreshAction connection) req
     returnDecode r'

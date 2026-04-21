@@ -11,6 +11,7 @@ module Database.Redis.Types where
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
+import Data.Int
 import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString, pack)
 import qualified Data.ByteString.Lex.Fractional as F (readSigned, readExponential)
@@ -36,6 +37,9 @@ instance RedisArg ByteString where
     encode = id
 
 instance RedisArg Integer where
+    encode = pack . show
+
+instance RedisArg Int64 where
     encode = pack . show
 
 instance RedisArg Double where
@@ -65,6 +69,11 @@ instance RedisResult ByteString where
 
 instance RedisResult Integer where
     decode (Integer n) = Right n
+    decode r           =
+        maybe (Left r) (Right . fst) . I.readSigned I.readDecimal =<< decode r
+
+instance RedisResult Int64 where
+    decode (Integer n) = Right (fromInteger n)
     decode r           =
         maybe (Left r) (Right . fst) . I.readSigned I.readDecimal =<< decode r
 
