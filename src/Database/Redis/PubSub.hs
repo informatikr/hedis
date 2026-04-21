@@ -31,6 +31,7 @@ import Control.Concurrent.Async (withAsync, waitEitherCatch, waitEitherCatchSTM)
 import Control.Concurrent.STM
 import Control.Exception (throwIO)
 import Control.Monad
+import Control.Monad.Reader (asks)
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
 import Data.List (foldl')
@@ -47,6 +48,8 @@ import qualified Database.Redis.Connection as Connection
 import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Protocol (Reply(..), renderRequest)
 import Database.Redis.Types
+import Control.Monad.IO.Unlift (MonadUnliftIO(withRunInIO))
+import Data.Functor (($>))
 
 -- |While in PubSub mode, we keep track of the number of current subscriptions
 --  (as reported by Redis replies) and the number of messages we expect to
@@ -116,12 +119,17 @@ class Command a where
 sendCmd :: (Command (Cmd a b)) => Cmd a b -> StateT PubSubState Core.Redis ()
 sendCmd DoNothing = return ()
 sendCmd cmd       = do
-    lift $ Core.send (redisCmd cmd : changes cmd)
-    modifyPending (updatePending cmd)
+  conn <- lift $ Core.reRedis $ asks Core.envConn
+  let hook = Core.sendPubSubHook $ PP.hooks conn
+  lift $ withRunInIO $ \runInIO -> hook (runInIO . Core.send) (redisCmd cmd : changes cmd)
+  modifyPending (updatePending cmd)
 
 rawSendCmd :: (Command (Cmd a b)) => PP.Connection -> Cmd a b -> IO ()
 rawSendCmd _ DoNothing = return ()
-rawSendCmd conn cmd    = PP.send conn $ renderRequest $ redisCmd cmd : changes cmd
+rawSendCmd conn cmd    =
+  let hook = Core.sendPubSubHook $ PP.hooks conn
+      msg = redisCmd cmd : changes cmd
+  in hook (PP.send conn . renderRequest) msg
 
 plusChangeCnt :: Cmd a b -> Int -> Int
 plusChangeCnt DoNothing = id
@@ -182,8 +190,16 @@ subscribe cs = mempty{ subs = Cmd cs }
 unsubscribe
     :: [ByteString] -- ^ channel
     -> PubSub
-unsubscribe [] = mempty
 unsubscribe cs = mempty{ unsubs = Cmd cs }
+
+-- |Stop listening for messages posted to the given channels.
+-- It works like 'unsubscribe', except it does not unsubscribe from
+-- all channels when no channel is passed
+unsubscribe1
+    :: [ByteString] -- ^ channel
+    -> PubSub
+unsubscribe1 [] = mempty
+unsubscribe1 cs = mempty{ unsubs = Cmd cs }
 
 -- |Listen for messages published to channels matching the given patterns
 --  (<http://redis.io/commands/psubscribe>).
@@ -198,8 +214,16 @@ psubscribe ps = mempty{ psubs = Cmd ps }
 punsubscribe
     :: [ByteString] -- ^ pattern
     -> PubSub
-punsubscribe [] = mempty
 punsubscribe ps = mempty{ punsubs = Cmd ps }
+
+-- |Stop listening for messages posted to channels matching the given patterns.
+-- It works like 'punsubscribe', except it does not unsubscribe from all channels
+-- in case when the list is empty.
+punsubscribe1
+    :: [ByteString] -- ^ pattern
+    -> PubSub
+punsubscribe1 [] = mempty
+punsubscribe1 ps = mempty{ punsubs = Cmd ps }
 
 -- |Listens to published messages on subscribed channels and channels matching
 --  the subscribed patterns. For documentation on the semantics of Redis
@@ -250,9 +274,10 @@ pubSub initial callback
 
     recv :: StateT PubSubState Core.Redis ()
     recv = do
+        hook <- lift $ Core.reRedis $ asks $ Core.callbackHook . PP.hooks . Core.envConn
         reply <- lift Core.recv
         case decodeMsg reply of
-            Msg msg           -> liftIO (callback msg) >>= send
+            Msg msg           -> liftIO (hook callback msg) >>= send
             Subscribed _      -> modifyPending (subtract 1) >> recv
             PSubscribed _     -> modifyPending (subtract 1) >> recv
             PUnsubscribed _ n -> onUnsubscribe n
@@ -371,7 +396,7 @@ currentPChannels ctrl = HM.keys <$> (liftIO $ atomically $ readTVar $ cdSubscrib
 pendingChannels :: MonadIO m => PubSubController -> m (HS.HashSet RedisChannel)
 pendingChannels ctrl = liftIO $ readTVarIO $ cdChannelsPendingSubscription $ pscChannelData ctrl
 
-pendingPatternChannels :: MonadIO m => PubSubController -> m (HS.HashSet RedisChannel)
+pendingPatternChannels :: MonadIO m => PubSubController -> m (HS.HashSet RedisPChannel)
 pendingPatternChannels ctrl = liftIO $ readTVarIO $ cdChannelsPendingSubscription $ pscPChannelData ctrl
 
 -- type CallbackMap a = HM.HashMap ByteString [(UnregisterHandle, a)]
@@ -420,10 +445,9 @@ addChannels ctrl newChans newPChans = liftIO $ do
 
 -- | Call 'addChannels' and then wait for Redis to acknowledge that the channels are actually subscribed.
 --
--- Note that this function waits for all pending subscription change requests, so if you for example call
--- 'addChannelsAndWait' from multiple threads simultaneously, they all will wait for all pending
--- subscription changes to be acknowledged by Redis (this is due to the fact that we just track the total
--- number of pending change requests sent to Redis and just wait until that count reaches zero).
+-- Note that this function waits for requested subscription change requests, so if you for example call
+-- 'addChannelsAndWait' from multiple threads simultaneously, they will all wait their pending
+-- subscription changes to be acknowledged by Redis.
 --
 -- This also correctly waits if the network connection dies during the subscription change.  Say that the
 -- network connection dies right after we send a subscription change to Redis.  'pubSubForever' will throw
@@ -439,14 +463,20 @@ addChannelsAndWait :: MonadIO m => PubSubController
 addChannelsAndWait _ [] [] = return $ return ()
 addChannelsAndWait ctrl newChans newPChans = do
   unreg <- addChannels ctrl newChans newPChans
-  liftIO $ waitUntilAbsent (cdChannelsPendingSubscription $ pscChannelData ctrl) $ fst <$> newChans
-  liftIO $ waitUntilAbsent (cdChannelsPendingSubscription $ pscPChannelData ctrl) $ fst <$> newPChans
+  liftIO $
+    waitUntilAbsent
+      [ (cdChannelsPendingSubscription $ pscChannelData ctrl, fst <$> newChans)
+      , (cdChannelsPendingSubscription $ pscPChannelData ctrl, fst <$> newPChans)
+      ]
   return unreg
 
-waitUntilAbsent :: Hashable channel => TVar (HS.HashSet channel) -> [channel] -> IO ()
-waitUntilAbsent tPendingChannels channels = forM_ channels $ \channel -> atomically $ do
-  pendingChannels' <- readTVar tPendingChannels
-  when (HS.member channel pendingChannels') retry
+-- | Wait until all interesting channels are instantiated.
+waitUntilAbsent :: Hashable channel => [(TVar (HS.HashSet channel), [channel])] -> IO ()
+waitUntilAbsent pending  = atomically $ do
+  forM_ pending $ \(tPendingChannels, channels) -> do
+    unless (null channels) $ do
+      pendingChannels' <- readTVar tPendingChannels
+      when (any (\ch -> HS.member ch pendingChannels') channels) retry
 
 -- | Remove channels from the 'PubSubController', and if there is an active 'pubSubForever', send the
 -- unsubscribe commands to Redis.  Note that as soon as this function returns, no more callbacks will be
@@ -465,7 +495,7 @@ removeChannels _ [] [] = return ()
 removeChannels ctrl remChans remPChans = liftIO $ atomically $ do
     remChans' <- removeChannels' (pscChannelData ctrl) remChans
     remPChans' <- removeChannels' (pscPChannelData ctrl) remPChans
-    writeTBQueue (sendChanges ctrl) $ unsubscribe remChans' `mappend` punsubscribe remPChans'
+    writeTBQueue (sendChanges ctrl) $ unsubscribe1 remChans' `mappend` punsubscribe1 remPChans'
 
 #if !(MIN_VERSION_stm(2,3,0))
 -- | Strict version of 'modifyTVar'.
@@ -478,10 +508,8 @@ modifyTVar' var f = do
 {-# INLINE modifyTVar' #-}
 #endif
 
-data ShowTag a = ShowTag String a deriving Show
-
 -- Helper for `removeChannels` that works on normal or pattern channels
-removeChannels' :: (Show channel, Hashable channel) => ChannelData channel callback -> [channel] -> STM [channel]
+removeChannels' :: (Hashable channel) => ChannelData channel callback -> [channel] -> STM [channel]
 removeChannels' channelData remChannels = do
     subbedChannels <- readTVar $ cdSubscribedChannels channelData
     pendingChannelSubs <- readTVar $ cdChannelsPendingSubscription channelData
@@ -514,18 +542,18 @@ unregisterHandles channelData remChansParam h = do
     pure remChans'
 
     where
-        filterHandle :: Maybe [(UnregisterHandle,a)] -> Maybe (Int, [(UnregisterHandle,a)])
+        filterHandle :: Maybe [(UnregisterHandle,a)] -> Maybe [(UnregisterHandle,a)]
         filterHandle Nothing = Nothing
         filterHandle (Just lst) = case filter (\x -> fst x /= h) lst of
                                     [] -> Nothing
-                                    xs -> Just (length lst - length xs, xs)
+                                    xs -> Just xs
 
         removeHandles :: HM.HashMap channel [(UnregisterHandle,a)]
                       -> channel
                       -> HM.HashMap channel [(UnregisterHandle,a)]
         removeHandles m k = case filterHandle (HM.lookup k m) of -- recent versions of unordered-containers have alter
             Nothing -> HM.delete k m
-            Just (_, v) -> HM.insert k v m
+            Just v  -> HM.insert k v m
 
 
 -- | Internal function to unsubscribe only from those channels matching the given handle.
@@ -534,7 +562,7 @@ unsubChannels ctrl chans pchans h = liftIO $ atomically $ do
     channelsToDrop <- unregisterHandles (pscChannelData ctrl) chans h
     pChannelsToDrop <- unregisterHandles (pscPChannelData ctrl) pchans h
 
-    let commands = unsubscribe channelsToDrop `mappend` punsubscribe pChannelsToDrop
+    let commands = unsubscribe1 channelsToDrop `mappend` punsubscribe1 pChannelsToDrop
 
     -- do the unsubscribe
     writeTBQueue (sendChanges ctrl) commands
@@ -552,10 +580,12 @@ removeChannelsAndWait ctrl remChannels remPChannels = liftIO $ do
     (remChans', remPChans') <- atomically $ do
         remChans' <- removeChannels' (pscChannelData ctrl) remChannels
         remPChans' <- removeChannels' (pscPChannelData ctrl) remPChannels
-        writeTBQueue (sendChanges ctrl) $ unsubscribe remChans' `mappend` punsubscribe remPChans'
+        writeTBQueue (sendChanges ctrl) $ unsubscribe1 remChans' `mappend` punsubscribe1 remPChans'
         pure (remChans', remPChans')
-    waitUntilAbsent (cdChannelsPendingRemoval $ pscChannelData ctrl) remChans'
-    waitUntilAbsent (cdChannelsPendingRemoval $ pscPChannelData ctrl) remPChans'
+    waitUntilAbsent
+      [ (cdChannelsPendingRemoval $ pscChannelData ctrl, remChans')
+      , (cdChannelsPendingRemoval $ pscPChannelData ctrl, remPChans')
+      ]
 
 -- | Internal thread which listens for messages and executes callbacks.
 -- This is the only thread which ever receives data from the underlying
@@ -564,16 +594,14 @@ listenThread :: PubSubController -> PP.Connection -> IO ()
 listenThread ctrl rawConn = forever $ do
     msg <- PP.recv rawConn
     case decodeMsg msg of
-        Msg (Message channel msgCt) -> do
+        Msg message@(Message channel _) -> do
           cm <- atomically $ readTVar $ cdSubscribedChannels $ pscChannelData ctrl
-          case HM.lookup channel cm of
-            Nothing -> return ()
-            Just c -> mapM_ (\(_,x) -> x msgCt) c
-        Msg (PMessage pattern channel msgCt) -> do
+          forM_ (HM.lookup channel cm) $ \c -> do
+            void $ Core.callbackHook (PP.hooks rawConn) (\m -> mapM_ (\(_,x) -> x $ msgMessage m) c $> mempty) message
+        Msg message@(PMessage pattern _ _) -> do
           pm <- atomically $ readTVar $ cdSubscribedChannels $ pscPChannelData ctrl
-          case HM.lookup pattern pm of
-            Nothing -> return ()
-            Just c -> mapM_ (\(_,x) -> x channel msgCt) c
+          forM_ (HM.lookup pattern pm) $ \c -> do
+            void $ Core.callbackHook (PP.hooks rawConn) (\m -> mapM_ (\(_,x) -> x (msgChannel m) (msgMessage m)) c $> mempty) message
         Subscribed chan -> atomically $ modifyTVar (cdChannelsPendingSubscription $ pscChannelData ctrl) $ HS.delete chan
         PSubscribed chan -> atomically $ modifyTVar (cdChannelsPendingSubscription $ pscPChannelData ctrl) $ HS.delete chan
         Unsubscribed chan _ -> atomically $ modifyTVar (cdChannelsPendingRemoval $ pscChannelData ctrl) $ HS.delete chan
