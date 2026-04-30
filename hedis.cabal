@@ -59,6 +59,11 @@ flag dev
   default: False
   manual: True
 
+flag cluster
+  description: enable it to run cluster tests if you have required setup
+  default: False
+  manual: True
+
 library
   default-language: Haskell2010
   hs-source-dirs:   src
@@ -204,8 +209,9 @@ test-suite hedis-test-cluster
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
     if flag(dev)
       ghc-options: -Werror
-    if flag(dev)
       ghc-prof-options: -auto-all
+    if !flag(dev)
+      buildable: False
 
 test-suite hedis-test-hooks
     default-language: Haskell2010

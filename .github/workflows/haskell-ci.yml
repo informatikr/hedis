@@ -26,11 +26,11 @@ on:
   workflow_dispatch:
     {}
 jobs:
-  linux:
+  conctainer-job:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-24.04
     timeout-minutes:
-      60
+      10
     container:
       image: buildpack-deps:jammy
     continue-on-error: ${{ matrix.allow-failure }}
@@ -55,11 +55,6 @@ jobs:
           - compiler: ghc-9.8.4
             compilerKind: ghc
             compilerVersion: 9.8.4
-            setup-method: ghcup
-            allow-failure: false
-          - compiler: ghc-9.6.7
-            compilerKind: ghc
-            compilerVersion: 9.6.7
             setup-method: ghcup
             allow-failure: false
       fail-fast: false

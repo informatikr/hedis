@@ -118,12 +118,12 @@ testEvalReplies :: Test
 testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
-      _ <- liftIO $ runRedis conn $ set "key" "value"
+      _ <- liftIO $ runRedis conn $ set "key-12" "value"
       result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
          _ <-
-           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
+           (Async.wait =<< Async.async (runRedis conn (get "key-12"))) >>= putMVar mvar
          takeMVar mvar
       pure result >>=? Just "value"
 
