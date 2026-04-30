@@ -211,7 +211,7 @@ test-suite hedis-test-cluster
     if flag(dev)
       ghc-options: -Werror
       ghc-prof-options: -auto-all
-    if !flag(dev)
+    if !flag(cluster)
       buildable: False
 
 test-suite hedis-test-hooks

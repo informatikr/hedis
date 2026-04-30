@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     {}
 jobs:
-  conctainer-job:
+  container-job:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-24.04
     timeout-minutes:
@@ -41,23 +41,38 @@ jobs:
             compilerKind: ghc
             compilerVersion: 9.14.1
             setup-method: ghcup
+            redis-version: 7
             allow-failure: false
           - compiler: ghc-9.12.4
             compilerKind: ghc
             compilerVersion: 9.12.4
             setup-method: ghcup
+            redis-version: 7
             allow-failure: false
           - compiler: ghc-9.10.3
             compilerKind: ghc
             compilerVersion: 9.10.3
             setup-method: ghcup
+            redis-version: 7
             allow-failure: false
           - compiler: ghc-9.8.4
             compilerKind: ghc
             compilerVersion: 9.8.4
             setup-method: ghcup
+            redis-version: 7
             allow-failure: false
       fail-fast: false
+    services:
+      redis:
+        image: "redis:${{ matrix.redis-version }}"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
     steps:
       - name: apt-get install
         run: |
@@ -222,6 +237,10 @@ jobs:
         run: |
           cd ${PKGDIR_hedis} || false
           doctest  -XHaskell2010 src
+      - name: hedis test
+        run: cabal test test:hedis-test
+      - name: redis 7 test
+        run: cabal test test:redis7
       - name: cabal check
         run: |
           cd ${PKGDIR_hedis} || false

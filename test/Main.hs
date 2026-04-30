@@ -9,7 +9,7 @@ import System.Environment
 main :: IO ()
 main = do
     mhost <- lookupEnv "REDIS_HOST"
-    conn <- connect $ maybe id (\x -> \ci -> ci{connectHost=x}) mhost $ defaultConnectInfo 
+    conn <- connect $ maybe id (\x -> \ci -> ci{connectHost=x}) mhost $ defaultConnectInfo
     Test.defaultMain (tests conn)
 
 tests :: Connection -> [Test.Test]
