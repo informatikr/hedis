@@ -7,5 +7,4 @@ tests:           True
 
 benchmarks:      True
 
--- Some tests don't pass.
-run-tests:       False
+run-tests:       True

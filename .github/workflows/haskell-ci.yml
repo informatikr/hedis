@@ -15,16 +15,7 @@
 name: Haskell-CI
 on:
   push:
-    branches:
-      - master
   pull_request:
-    branches:
-      - master
-  merge_group:
-    branches:
-      - master
-  workflow_dispatch:
-    {}
 jobs:
   container-job:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}

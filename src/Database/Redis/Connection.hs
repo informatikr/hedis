@@ -227,7 +227,14 @@ connectCluster bootstrapConnInfo = do
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
-            pool <- newPool (setNumStripes (connectNumStripes bootstrapConnInfo) $ defaultPoolConfig (Cluster.connect infos shardMapVar Nothing $ connectHooks bootstrapConnInfo) Cluster.disconnect (realToFrac $ connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo))
+            pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
+                            $ setNumStripes (connectNumStripes bootstrapConnInfo)
+                            $ defaultPoolConfig
+                                (Cluster.connect infos shardMapVar Nothing
+                                  $ connectHooks bootstrapConnInfo)
+                                Cluster.disconnect
+                                (realToFrac $ connectMaxIdleTime bootstrapConnInfo)
+                                (connectMaxConnections bootstrapConnInfo))
             return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
