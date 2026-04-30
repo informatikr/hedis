@@ -1,7 +1,7 @@
 cabal-version:      3.0
 build-type:         Simple
 name:               hedis
-version:            7.1.0
+version:            0.16.0
 synopsis:
     Client library for the Redis datastore: supports full command set,
     pipelining.
