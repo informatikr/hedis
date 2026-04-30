@@ -308,6 +308,11 @@ testLists = testCase "lists" $ do
     lpopCount "key" 2 >>=? ["value1", "value2"]
     lpush "key" ["value2", "value1"] >>=? 3
     rpopCount "key" 2 >>=? ["value3", "value2"]
+    del ("key" NE.:| [])
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 4 >>=? ["value1", "value2", "value3"]
+    del ("key" NE.:| [])
+    return ()
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
