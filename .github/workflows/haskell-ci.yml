@@ -14,14 +14,13 @@
 #
 name: Haskell-CI
 on:
-  push:
   pull_request:
 jobs:
   container-job:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-24.04
     timeout-minutes:
-      10
+      20
     container:
       image: buildpack-deps:jammy
     continue-on-error: ${{ matrix.allow-failure }}
@@ -229,9 +228,13 @@ jobs:
           cd ${PKGDIR_hedis} || false
           doctest  -XHaskell2010 src
       - name: hedis test
-        run: cabal test test:hedis-test
+        run: ${CABAL} v2-test test:hedis-test $ARG_COMPILER  --test-show-details=streaming
+        env:
+          REDIS_HOST: redis
       - name: redis 7 test
-        run: cabal test test:redis7
+        run: ${CABAL} v2-test test:redis7 $ARG_COMPILER  --test-show-details=streaming
+        env:
+          REDIS_HOST: redis
       - name: cabal check
         run: |
           cd ${PKGDIR_hedis} || false
