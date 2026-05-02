@@ -79,12 +79,12 @@ hstrlen,
 hvals,
 
 -- ** HyperLogLogs
-pfadd, 
+pfadd,
 pfcount,
 pfmerge,
 
 -- ** Lists
-blpop, 
+blpop,
 blpopFloat,
 brpop,
 brpopFloat,
@@ -101,7 +101,7 @@ lrange,
 lrem,
 lset,
 ltrim,
-rpop, 
+rpop,
 rpopCount,
 rpoplpush,
 rpush,
@@ -329,6 +329,9 @@ xinfoStream,
 xdel,
 xtrim,
 inf,
+ClusterInfoResponse (..),
+ClusterInfoResponseState (..),
+clusterInfo,
 ClusterNodesResponse(..),
 ClusterNodesResponseEntry(..),
 ClusterNodesResponseSlotSpec(..),
@@ -749,7 +752,7 @@ hdel
     -> m (f Integer)
 hdel key (field:|fields) = sendRequest ("HDEL":key:field:fields)
 
--- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>). 
+-- |Increment the float value of a key by the given amount (<http://redis.io/commands/incrbyfloat>).
 -- Since Redis 2.6.0
 incrbyfloat
     :: (RedisCtx m f)
@@ -876,7 +879,7 @@ lpop key = sendRequest ["LPOP", encode key]
 -- Remove and get the first element in a list (<http://redis.io/commands/lpop>).
 -- The reply will consist of up to count elements, depending on the list's length.
 -- Since Redis 1.0.0
-lpopCount 
+lpopCount
     :: (RedisCtx m f)
     => ByteString -- ^ key
     -> Integer
