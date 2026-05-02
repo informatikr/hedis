@@ -2,7 +2,7 @@
 module ManualPubSub (main) where
 
 -- A test for PubSub which must be run manually to be able to kill and restart the redis-server.
--- I execute this with `stack runghc ManualPubSub.hs`
+-- I execute this with `cabal exec runghc ManualPubSub.hs`
 
 import Database.Redis
 import Data.Monoid ((<>))

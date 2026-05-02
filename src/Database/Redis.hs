@@ -176,6 +176,9 @@ module Database.Redis (
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
+    -- * Hooks
+    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook, defaultHooks,
+
     -- * Low-Level Command API
     sendRequest,
     Reply(..), Status(..), RedisArg(..), RedisResult(..), ConnectionLostException(..),
