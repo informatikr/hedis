@@ -17,14 +17,14 @@ main = do
     -- spin up a cluster on this port using docker you can run:
     --
     --     docker run -e "IP=0.0.0.0" -p 7000-7010:7000-7010 grokzen/redis-cluster:5.0.6
-    conn <- connectCluster defaultConnectInfo { connectPort = PortNumber 7000 }
-    Test.defaultMain (tests conn)
+    conn <- connectCluster defaultConnectInfo { connectPort = PortNumber 16381 }
+    Test.defaultMain (tests "localhost" conn)
 
-tests :: Connection -> [Test.Test]
-tests conn = map ($conn) $ concat @[]
+tests :: String ->Connection -> [Test.Test]
+tests host conn = map ($ conn) $ concat @[]
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
-    , testsConnection, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
+    , testsConnection host, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -37,8 +37,8 @@ testsServer :: [Test]
 testsServer =
     [testBgrewriteaof, testFlushall, testSlowlog, testDebugObject]
 
-testsConnection :: [Test]
-testsConnection = [ testConnectAuthUnexpected, testEcho, testPing
+testsConnection :: String -> [Test]
+testsConnection host = [ testConnectAuthUnexpected host, testEcho, testPing
                   ]
 
 testsKeys :: [Test]
