@@ -28,7 +28,7 @@ import qualified Data.ByteString.Char8 as C8
 -- Username is ignored, path is used to specify the database:
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {sendRequestHook = _, sendPubSubHook = _, callbackHook = _, sendHook = _, receiveHook = _}, connectPoolLabel = ""})
+-- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/db"
 -- Left "Invalid port: db"
@@ -41,14 +41,14 @@ import qualified Data.ByteString.Char8 as C8
 -- Beyond that, all values are optional. Omitted values are taken from
 -- @'defaultConnectInfo'@:
 --
--- >>> parseConnectInfo "redis://"
--- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {sendRequestHook = _, sendPubSubHook = _, callbackHook = _, sendHook = _, receiveHook = _}, connectPoolLabel = ""})
+-- >>> parseConnectInfo "rediss://"
+-- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Just (ClientParams ...), connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 parseConnectInfo :: String -> Either String ConnectInfo
 parseConnectInfo url = do
     uri <- note "Invalid URI" $ parseURI url
     let userScheme = uriScheme uri
-    note ("Wrong scheme " ++ userScheme) $ guard $ userScheme == "redis:" || userScheme == tlsScheme
+    note ("Wrong scheme " ++ userScheme) $ guard $ userScheme == unsecureScheme || userScheme == tlsScheme
     uriAuth <- note "Missing or invalid Authority"
         $ parseURIAuthority
         $ uriToAuthorityString uri
@@ -78,3 +78,4 @@ parseConnectInfo url = do
           toNothingOnEmpty (Just "") = Nothing
           toNothingOnEmpty a = a
           tlsScheme = "rediss:"
+          unsecureScheme = "redis:"
