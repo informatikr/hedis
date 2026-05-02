@@ -118,12 +118,12 @@ testEvalReplies :: Test
 testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
-      _ <- liftIO $ runRedis conn $ set "key" "value"
+      _ <- liftIO $ runRedis conn $ set "key-12" "value"
       result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
          _ <-
-           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
+           (Async.wait =<< Async.async (runRedis conn (get "key-12"))) >>= putMVar mvar
          takeMVar mvar
       pure result >>=? Just "value"
 
@@ -302,6 +302,17 @@ testLists = testCase "lists" $ do
     lrem "key" 0 "v2"             >>=? 1
     llen "key"                    >>=? 2
     ltrim "key" 0 1               >>=? Ok
+    del ("key" NE.:| [])
+    -- keys are pushed sequentially so this will result in a list with value1, value2, value3
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 2 >>=? ["value1", "value2"]
+    lpush "key" ["value2", "value1"] >>=? 3
+    rpopCount "key" 2 >>=? ["value3", "value2"]
+    del ("key" NE.:| [])
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 4 >>=? ["value1", "value2", "value3"]
+    del ("key" NE.:| [])
+    return ()
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
@@ -561,50 +572,50 @@ testScripting conn = testCase "scripting" go conn
 ------------------------------------------------------------------------------
 -- Connection
 --
-testConnectAuth :: Test
-testConnectAuth = testCase "connect/auth" $ do
+testConnectAuth :: String ->Test
+testConnectAuth host = testCase "connect/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
     liftIO $ do
-        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass" }
+        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
         runRedis c (ping >>=? Pong)
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
 
-testConnectAuthUnexpected :: Test
-testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
+testConnectAuthUnexpected :: String -> Test
+testConnectAuthUnexpected host = testCase "connect/auth/unexpected" $ do
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         HUnit.assertEqual "" err res
 
-    where connInfo = defaultConnectInfo { connectAuth = Just "pass" }
+    where connInfo = defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
           err = Left $ ConnectAuthError $
                   Error "ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?"
 
 
-testConnectAuthAcl :: Test
-testConnectAuthAcl = testCase "connect/auth/acl" $ do
+testConnectAuthAcl :: String -> Test
+testConnectAuthAcl host = testCase "connect/auth/acl" $ do
    liftIO $ do
-      c <- checkedConnect defaultConnectInfo
+      c <- checkedConnect defaultConnectInfo { connectHost = host }
       runRedis c $ sendRequest  ["ACL", "SETUSER", "test", "on", ">pass", "~*", "&*", "+@all"] >>=? Ok
    liftIO $ do
-      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test"}
+      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test", connectHost = host}
       runRedis c (ping >>=? Pong)
    liftIO $ do
-      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1"}
+      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1", connectHost = host}
       HUnit.assertEqual "" err res
    where
      err = Left $ ConnectAuthError $
              Error "WRONGPASS invalid username-password pair or user is disabled."
 
-testConnectDb :: Test
-testConnectDb = testCase "connect/db" $ do
+testConnectDb :: String -> Test
+testConnectDb host = testCase "connect/db" $ do
     set "connect" "value" >>=? Ok
     liftIO $ void $ do
-        c <- checkedConnect defaultConnectInfo { connectDatabase = 1 }
+        c <- checkedConnect defaultConnectInfo { connectDatabase = 1, connectHost = host }
         runRedis c (get "connect" >>=? Nothing)
 
-testConnectDbUnexisting :: Test
-testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
+testConnectDbUnexisting :: String -> Test
+testConnectDbUnexisting host = testCase "connect/db/unexisting" $ do
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         case res of
@@ -612,7 +623,7 @@ testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
           _ -> HUnit.assertFailure $
                   "Expected ConnectSelectError, got " ++ show res
 
-    where connInfo = defaultConnectInfo { connectDatabase = 100 }
+    where connInfo = defaultConnectInfo { connectDatabase = 100, connectHost = host }
 
 testEcho :: Test
 testEcho = testCase "echo" $

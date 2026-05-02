@@ -15,6 +15,7 @@ module Database.Redis.Cluster
   , disconnect
   , requestPipelined
   , nodes
+  , hooks
 ) where
 
 import qualified Data.ByteString as B
@@ -30,12 +31,13 @@ import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict as IntMap
-import           Data.Typeable
 import qualified Scanner
 import System.IO.Unsafe(unsafeInterleaveIO)
 
 import Database.Redis.Protocol(Reply(..), renderRequest, reply)
 import qualified Database.Redis.Cluster.Command as CMD
+import Database.Redis.Hooks (Hooks)
+import Network.TLS (ClientParams (..))
 
 -- This module implements a clustered connection whilst maintaining
 -- compatibility with the original Hedis codebase. In particular it still
@@ -48,7 +50,7 @@ import qualified Database.Redis.Cluster.Command as CMD
 
 -- | A connection to a redis cluster, it is compoesed of a map from Node IDs to
 -- | 'NodeConnection's, a 'Pipeline', and a 'ShardMap'
-data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap
+data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap Hooks
 
 -- | A connection to a single node in the cluster, similar to 'ProtocolPipelining.Connection'
 data NodeConnection = NodeConnection CC.ConnectionContext (IOR.IORef (Maybe B.ByteString)) NodeID
@@ -91,30 +93,42 @@ data Shard = Shard MasterNode [SlaveNode] deriving (Show, Eq, Ord)
 
 newtype ShardMap = ShardMap (IntMap.IntMap Shard) deriving (Show)
 
-newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show, Typeable)
+newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show)
 instance Exception MissingNodeException
 
-newtype UnsupportedClusterCommandException = UnsupportedClusterCommandException [B.ByteString] deriving (Show, Typeable)
+newtype UnsupportedClusterCommandException = UnsupportedClusterCommandException [B.ByteString] deriving (Show)
 instance Exception UnsupportedClusterCommandException
 
-newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show, Typeable)
+newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show)
 instance Exception CrossSlotException
 
 data ClusterAuthError = ClusterAuthError Host Port Reply deriving (Show)
 instance Exception ClusterAuthError
 
-connect :: Maybe B.ByteString -> Maybe B.ByteString -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> IO Connection
-connect mUsername mPassword commandInfos shardMapVar timeoutOpt = do
+
+connect :: Maybe B.ByteString -> Maybe B.ByteString -> Maybe ClientParams -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
+connect mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
         nodeConns <- nodeConnections shardMap
-        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) where
+        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) hooks' where
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
     nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
     connectNode :: Node -> IO (NodeID, NodeConnection)
     connectNode (Node n _ host port) = do
-        ctx <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
+        ctx0 <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
+        ctx <- case mTlsParams of
+                  Nothing -> pure ctx0
+                  Just defaultTlsParams -> do
+                      -- The defaultTlsParams are used to connect to the first
+                      -- host in the cluster, other hosts have different
+                      -- hostnames and so require a different server
+                      -- identification params
+                      let tlsParams = defaultTlsParams {
+                                        clientServerIdentification =  (host, Char8.pack $ show port)
+                                      }
+                      CC.enableTLS tlsParams ctx0
         ref <- IOR.newIORef Nothing
         let nodeConn = NodeConnection ctx ref n
         case mPassword of
@@ -128,14 +142,14 @@ connect mUsername mPassword commandInfos shardMapVar timeoutOpt = do
         return (n, nodeConn)
 
 disconnect :: Connection -> IO ()
-disconnect (Connection nodeConnMap _ _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
+disconnect (Connection nodeConnMap _ _ _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
     disconnectNode (NodeConnection nodeCtx _ _) = CC.disconnect nodeCtx
 
 -- Add a request to the current pipeline for this connection. The pipeline will
 -- be executed implicitly as soon as any result returned from this function is
 -- evaluated.
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
-requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
+requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _ _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
     (newStateVar, repliesIndex) <- hasLocked $ modifyMVar stateVar $ \case
         Pending requests | isMulti nextRequest -> do
             replies <- evaluatePipeline shardMapVar refreshAction conn requests
@@ -240,7 +254,7 @@ retryBatch shardMapVar refreshShardmapAction conn retryCount requests replies =
     -- there is one.
     case last replies of
         (Error errString) | B.isPrefixOf "MOVED" errString -> do
-            let (Connection _ _ _ infoMap) = conn
+            let (Connection _ _ _ infoMap _) = conn
             keys <- mconcat <$> mapM (requestKeys infoMap) requests
             hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
             nodeConn <- nodeConnForHashSlot shardMapVar conn (MissingNodeException (head requests)) hashSlot
@@ -262,7 +276,7 @@ retryBatch shardMapVar refreshShardmapAction conn retryCount requests replies =
 evaluateTransactionPipeline :: MVar ShardMap -> IO ShardMap -> Connection -> [[B.ByteString]] -> IO [Reply]
 evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = do
     let requests = reverse requests'
-    let (Connection _ _ _ infoMap) = conn
+    let (Connection _ _ _ infoMap _) = conn
     keys <- mconcat <$> mapM (requestKeys infoMap) requests
     -- In cluster mode Redis expects commands in transactions to all work on the
     -- same hashslot. We find that hashslot here.
@@ -308,7 +322,7 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
 
 nodeConnForHashSlot :: Exception e => MVar ShardMap -> Connection -> e -> HashSlot -> IO NodeConnection
 nodeConnForHashSlot shardMapVar conn exception hashSlot = do
-    let (Connection nodeConns _ _ _) = conn
+    let (Connection nodeConns _ _ _ _) = conn
     (ShardMap shardMap) <- hasLocked $ readMVar shardMapVar
     node <-
         case IntMap.lookup (fromEnum hashSlot) shardMap of
@@ -351,12 +365,12 @@ moved _ = False
 
 
 nodeConnWithHostAndPort :: ShardMap -> Connection -> Host -> Port -> Maybe NodeConnection
-nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _) host port = do
+nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _ _) host port = do
     node <- nodeWithHostAndPort shardMap host port
     HM.lookup (nodeId node) nodeConns
 
 nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO [NodeConnection]
-nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shardMap) request =
+nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap _) (ShardMap shardMap) request =
     case request of
         ("FLUSHALL" : _) -> allNodes
         ("FLUSHDB" : _) -> allNodes
@@ -376,7 +390,7 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap) (ShardMap shard
                 Just allNodes' -> return allNodes'
 
 allMasterNodes :: Connection -> ShardMap -> Maybe [NodeConnection]
-allMasterNodes (Connection nodeConns _ _ _) (ShardMap shardMap) =
+allMasterNodes (Connection nodeConns _ _ _ _) (ShardMap shardMap) =
     mapM (flip HM.lookup nodeConns . nodeId) masterNodes
   where
     masterNodes = (\(Shard master _) -> master) <$> nub (IntMap.elems shardMap)
@@ -429,3 +443,6 @@ hasLocked action =
   action `catches`
   [ Handler $ \exc@BlockedIndefinitelyOnMVar -> throwIO exc
   ]
+
+hooks :: Connection -> Hooks
+hooks (Connection _ _ _ _ h) = h
