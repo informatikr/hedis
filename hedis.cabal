@@ -1,5 +1,7 @@
+cabal-version:      3.0
+build-type:         Simple
 name:               hedis
-version:            0.15.2
+version:            0.16.0
 synopsis:
     Client library for the Redis datastore: supports full command set,
     pipelining.
@@ -36,24 +38,17 @@ Description:
     .
     For detailed documentation, see the "Database.Redis" module.
     .
-license:            BSD3
+license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Falko Peters <falko.peters@gmail.com>
 maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>
 copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
-build-type:         Simple
-cabal-version:      >=1.10
 homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
 extra-source-files: CHANGELOG
 
-tested-with:
-   GHC ==9.12.2
-    || ==9.10.2
-    || ==9.8.4
-    || ==9.6.7
-    || ==9.4.8
+tested-with: GHC == { 9.6.7, 9.8.4, 9.10.3, 9.12.4, 9.14.1 }
 
 source-repository head
   type:     git
@@ -64,22 +59,42 @@ flag dev
   default: False
   manual: True
 
+flag cluster
+  description: enable it to run cluster tests if you have required setup
+  default: False
+  manual: True
+
 library
   default-language: Haskell2010
   hs-source-dirs:   src
-  ghc-options:      -Wall -fwarn-tabs
-  if impl(ghc >= 8.6.0)
-    ghc-options:    -Wno-warnings-deprecations
+  ghc-options:      -Wall -Wcompat
+  if impl(ghc >= 9.8)
+    ghc-options:    -Wno-x-partial
   if flag(dev)
     ghc-options:    -Werror
   if flag(dev)
     ghc-prof-options: -auto-all
   exposed-modules:  Database.Redis
-                  , Database.Redis.Sentinel
+                  , Database.Redis.Cluster
+                  , Database.Redis.Cluster.Command
+                  , Database.Redis.Cluster.HashSlot
+                  , Database.Redis.Commands
+                  , Database.Redis.Connection
+                  , Database.Redis.ConnectionContext
+                  , Database.Redis.Core
                   , Database.Redis.Core.Internal
+                  , Database.Redis.Hooks
+                  , Database.Redis.ManualCommands
+                  , Database.Redis.Protocol
+                  , Database.Redis.ProtocolPipelining
+                  , Database.Redis.PubSub
+                  , Database.Redis.Sentinel
+                  , Database.Redis.Transactions
+                  , Database.Redis.Types
+                  , Database.Redis.URL
   build-depends:    scanner >= 0.2,
                     async >= 2.1,
-                    base >= 4.8 && < 5,
+                    base >= 4.18 && < 5,
                     bytestring >= 0.9,
                     bytestring-lexing >= 0.5,
                     exceptions,
@@ -89,7 +104,7 @@ library
                     deepseq,
                     mtl >= 2,
                     network >= 2 && < 3.3,
-                    resource-pool >= 0.2,
+                    resource-pool >= 0.5,
                     stm,
                     time,
                     tls >= 1.3,
@@ -103,21 +118,6 @@ library
     build-depends:
       semigroups >= 0.11 && < 0.19
 
-  other-modules:    Database.Redis.Core,
-                    Database.Redis.Connection,
-                    Database.Redis.Cluster,
-                    Database.Redis.Cluster.HashSlot,
-                    Database.Redis.Cluster.Command,
-                    Database.Redis.ProtocolPipelining,
-                    Database.Redis.Protocol,
-                    Database.Redis.PubSub,
-                    Database.Redis.Transactions,
-                    Database.Redis.Types
-                    Database.Redis.Commands,
-                    Database.Redis.ManualCommands,
-                    Database.Redis.URL,
-                    Database.Redis.ConnectionContext,
-                    Database.Redis.Hooks
   other-extensions: StrictData
 
 benchmark hedis-benchmark
@@ -210,8 +210,9 @@ test-suite hedis-test-cluster
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
     if flag(dev)
       ghc-options: -Werror
-    if flag(dev)
       ghc-prof-options: -auto-all
+    if !flag(cluster)
+      buildable: False
 
 test-suite hedis-test-hooks
     default-language: Haskell2010

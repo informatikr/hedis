@@ -34,7 +34,7 @@ import Control.Monad
 import Control.Monad.Reader (asks)
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
-import Data.List (foldl')
+import qualified Data.List as L
 import Data.Maybe (isJust)
 import Data.Pool
 #if __GLASGOW_HASKELL__ < 808
@@ -514,9 +514,9 @@ removeChannels' channelData remChannels = do
     subbedChannels <- readTVar $ cdSubscribedChannels channelData
     pendingChannelSubs <- readTVar $ cdChannelsPendingSubscription channelData
     let remChannels' = filter (memberMapOrSet subbedChannels pendingChannelSubs) remChannels
-    writeTVar (cdSubscribedChannels channelData) (foldl' (flip HM.delete) subbedChannels remChannels')
-    writeTVar (cdChannelsPendingSubscription channelData) (foldl' (flip HS.delete) pendingChannelSubs remChannels')
-    modifyTVar' (cdChannelsPendingRemoval channelData) $ flip (foldl' $ flip HS.insert) remChannels'
+    writeTVar (cdSubscribedChannels channelData) (L.foldl' (flip HM.delete) subbedChannels remChannels')
+    writeTVar (cdChannelsPendingSubscription channelData) (L.foldl' (flip HS.delete) pendingChannelSubs remChannels')
+    modifyTVar' (cdChannelsPendingRemoval channelData) $ flip (L.foldl' $ flip HS.insert) remChannels'
     pure remChannels'
 
 memberMapOrSet :: Hashable k => HM.HashMap k v1 -> HS.HashSet k -> k -> Bool
@@ -534,7 +534,7 @@ unregisterHandles channelData remChansParam h = do
     -- helper functions to filter out handlers that match
     -- returns number of removals, and remaining subscriptions
     -- maps after taking out channels matching the handle
-    let callbacks' = foldl' removeHandles callbacks remChans
+    let callbacks' = L.foldl' removeHandles callbacks remChans
         remChans' = filter (\chan -> HM.member chan callbacks && not (HM.member chan callbacks')) remChans
 
     writeTVar (cdSubscribedChannels channelData) callbacks'
@@ -554,7 +554,6 @@ unregisterHandles channelData remChansParam h = do
         removeHandles m k = case filterHandle (HM.lookup k m) of -- recent versions of unordered-containers have alter
             Nothing -> HM.delete k m
             Just v  -> HM.insert k v m
-
 
 -- | Internal function to unsubscribe only from those channels matching the given handle.
 unsubChannels :: PubSubController -> [RedisChannel] -> [RedisPChannel] -> UnregisterHandle -> IO ()

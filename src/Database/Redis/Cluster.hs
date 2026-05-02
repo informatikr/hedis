@@ -31,7 +31,6 @@ import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap.Strict as IntMap
-import           Data.Typeable
 import qualified Scanner
 import System.IO.Unsafe(unsafeInterleaveIO)
 
@@ -93,13 +92,13 @@ data Shard = Shard MasterNode [SlaveNode] deriving (Show, Eq, Ord)
 
 newtype ShardMap = ShardMap (IntMap.IntMap Shard) deriving (Show)
 
-newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show, Typeable)
+newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show)
 instance Exception MissingNodeException
 
-newtype UnsupportedClusterCommandException = UnsupportedClusterCommandException [B.ByteString] deriving (Show, Typeable)
+newtype UnsupportedClusterCommandException = UnsupportedClusterCommandException [B.ByteString] deriving (Show)
 instance Exception UnsupportedClusterCommandException
 
-newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show, Typeable)
+newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show)
 instance Exception CrossSlotException
 
 connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
