@@ -12,15 +12,15 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import Data.Functor(void)
 import qualified Data.IntMap.Strict as IntMap
-import Data.Pool(Pool, withResource, createPool, destroyAllResources)
-import Data.Typeable
+import Data.Pool
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
 import qualified Network.Socket as NS
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 
 import qualified Database.Redis.ProtocolPipelining as PP
-import Database.Redis.Core(Redis, runRedisInternal, runRedisClusteredInternal)
+import Database.Redis.Core(Redis, Hooks, runRedisInternal, runRedisClusteredInternal, defaultHooks)
 import Database.Redis.Protocol(Reply(..))
 import Database.Redis.Cluster(ShardMap(..), Node, Shard(..))
 import qualified Database.Redis.Cluster as Cluster
@@ -29,7 +29,9 @@ import qualified Database.Redis.ConnectionContext as CC
 import Database.Redis.Commands
     ( ping
     , select
-    , auth
+    , authOpts
+    , defaultAuthOpts
+    , AuthOpts(..)
     , clusterInfo
     , clusterSlots
     , command
@@ -63,16 +65,21 @@ data Connection
 --
 data ConnectInfo = ConnInfo
     { connectHost           :: NS.HostName
+    -- ^ Ignored when 'connectPort' is a 'UnixSocket'
     , connectPort           :: CC.PortID
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
     --   command.
+    , connectUsername       :: Maybe B.ByteString
+    -- ^ When ACL is used set 'connectUsername' as the user.
     , connectDatabase       :: Integer
     -- ^ Each connection will 'select' the database with the given index.
     , connectMaxConnections :: Int
     -- ^ Maximum number of connections to keep open. The smallest acceptable
     --   value is 1.
+    , connectNumStripes     :: Maybe Int
+    -- ^ Number of stripes in the connection pool.
     , connectMaxIdleTime    :: Time.NominalDiffTime
     -- ^ Amount of time for which an unused connection is kept open. The
     --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
@@ -84,11 +91,15 @@ data ConnectInfo = ConnInfo
     --   get connected in this interval of time.
     , connectTLSParams      :: Maybe ClientParams
     -- ^ Optional TLS parameters. TLS will be enabled if this is provided.
+    , connectHooks          :: Hooks
+    -- ^ Connection hooks.
+    , connectPoolLabel      :: T.Text
+    -- ^ Label of the connection pool for instrumentation.
     } deriving Show
 
 data ConnectError = ConnectAuthError Reply
                   | ConnectSelectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ConnectError
 
@@ -98,11 +109,15 @@ instance Exception ConnectError
 --  connectHost           = \"localhost\"
 --  connectPort           = PortNumber 6379 -- Redis default port
 --  connectAuth           = Nothing         -- No password
+--  connectUsername       = Nothing         -- No user
 --  connectDatabase       = 0               -- SELECT database 0
 --  connectMaxConnections = 50              -- Up to 50 connections
+--  connectNumStripes     = Just 1          -- A single stripe
 --  connectMaxIdleTime    = 30              -- Keep open for 30 seconds
 --  connectTimeout        = Nothing         -- Don't add timeout logic
 --  connectTLSParams      = Nothing         -- Do not use TLS
+--  connectHooks          = defaultHooks    -- Do nothing
+--  connectPoolLabel      = ""              -- no label
 -- @
 --
 defaultConnectInfo :: ConnectInfo
@@ -110,18 +125,22 @@ defaultConnectInfo = ConnInfo
     { connectHost           = "localhost"
     , connectPort           = CC.PortNumber 6379
     , connectAuth           = Nothing
+    , connectUsername       = Nothing
     , connectDatabase       = 0
     , connectMaxConnections = 50
+    , connectNumStripes     = Just 1
     , connectMaxIdleTime    = 30
     , connectTimeout        = Nothing
     , connectTLSParams      = Nothing
+    , connectHooks          = defaultHooks
+    , connectPoolLabel      = ""
     }
 
 createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    conn <- PP.connect connectHost connectPort timeoutOptUs
+    conn <- PP.connectWithHooks connectHost connectPort timeoutOptUs connectHooks
     conn' <- case connectTLSParams of
                Nothing -> return conn
                Just tlsParams -> PP.enableTLS tlsParams conn
@@ -132,7 +151,7 @@ createConnection ConnInfo{..} = do
         case connectAuth of
             Nothing   -> return ()
             Just pass -> do
-              resp <- auth pass
+              resp <- authOpts pass defaultAuthOpts{ authOptsUsername = connectUsername}
               case resp of
                 Left r -> liftIO $ throwIO $ ConnectAuthError r
                 _      -> return ()
@@ -149,7 +168,7 @@ createConnection ConnInfo{..} = do
 --  until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
-    createPool (createConnection cInfo) PP.disconnect 1 connectMaxIdleTime connectMaxConnections
+    newPool (setPoolLabel connectPoolLabel . setNumStripes connectNumStripes $ defaultPoolConfig (createConnection cInfo) PP.disconnect (realToFrac connectMaxIdleTime) connectMaxConnections)
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
@@ -176,7 +195,7 @@ checkedConnectCluster connInfo = do
     Left e -> throwIO $ ClusterConnectError e
 
 newtype ClusterDownError = ClusterDownError ClusterInfoResponse
-  deriving (Eq, Show, Typeable)
+  deriving (Eq, Show)
 
 instance Exception ClusterDownError
 
@@ -205,7 +224,7 @@ runRedis (ClusteredConnection _ pool) redis =
     withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
 newtype ClusterConnectError = ClusterConnectError Reply
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show)
 
 instance Exception ClusterConnectError
 
@@ -227,10 +246,19 @@ connectCluster bootstrapConnInfo = do
             shardMap <- shardMapFromClusterSlotsResponse slots
             newMVar shardMap
     commandInfos <- runRedisInternal conn command
+    let timeoutOptUs =
+          round . (1000000 *) <$> connectTimeout bootstrapConnInfo
     case commandInfos of
         Left e -> throwIO $ ClusterConnectError e
         Right infos -> do
-            pool <- createPool (Cluster.connect infos shardMapVar Nothing) Cluster.disconnect 1 (connectMaxIdleTime bootstrapConnInfo) (connectMaxConnections bootstrapConnInfo)
+            pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
+                            $ setNumStripes (connectNumStripes bootstrapConnInfo)
+                            $ defaultPoolConfig
+                                (Cluster.connect (connectTLSParams bootstrapConnInfo) infos shardMapVar timeoutOptUs
+                                  $ connectHooks bootstrapConnInfo)
+                                Cluster.disconnect
+                                (realToFrac $ connectMaxIdleTime bootstrapConnInfo)
+                                (connectMaxConnections bootstrapConnInfo))
             return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
@@ -251,7 +279,7 @@ shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr m
             Cluster.Node clusterSlotsNodeID role hostname (toEnum clusterSlotsNodePort)
 
 refreshShardMap :: Cluster.Connection -> IO ShardMap
-refreshShardMap (Cluster.Connection nodeConns _ _ _) = do
+refreshShardMap (Cluster.Connection nodeConns _ _ _ _) = do
     let (Cluster.NodeConnection ctx _ _) = head $ HM.elems nodeConns
     pipelineConn <- PP.fromCtx ctx
     _ <- PP.beginReceiving pipelineConn

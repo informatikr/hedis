@@ -97,6 +97,20 @@ instance RedisResult CommandInfo where
         , MultiBulk _  -- ACL categories
         ])) =
         decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
+    -- since redis 7.0
+    decode (MultiBulk (Just
+        [ name@(Bulk (Just _))
+        , arity@(Integer _)
+        , flags@(MultiBulk (Just _))
+        , firstPos@(Integer _)
+        , lastPos@(Integer _)
+        , step@(Integer _)
+        , MultiBulk _  -- ACL categories
+        , MultiBulk _  -- Tips
+        , MultiBulk _  -- Key specifications
+        , MultiBulk _  -- Subcommands
+        ])) =
+        decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
 
     decode e = Left e
 

@@ -1,2 +1,5 @@
 packages:
     ./
+
+-- GHC 9.14
+allow-newer: *:base

@@ -15,23 +15,6 @@ In order of descending priority.
 The idea of Hedis is to support all Redis commands by having one typesafe
 function per command.
 
-* Commands code generator:
-  The code generator uses the commands.json file from
-  github.com/antirez/redis-doc which is used on the redis.io website.
-  - My current state of mind is to completely remove the code generator and
-    implement all commands by hand. Otherwise it has to be support more/all
-    commands.
-  - PROs of the code generator
-    - Can be sure that all commands exist as Haskell functions
-    - Automatic Haddock with one-sentence description and link to Redis
-      documentation website.
-    - No errors/mistakes where it works
-  - CONs of the code generator
-    - It's a mess, partly because commands.json the Redis API is a mess itself.
-    - Is not "feature-complete", some commands have/need manual implementations.
-    - Does not support optional arguments very well.
-    - commands.json does not document all return types -> they need maintenance.
-
 * Optional Arguments
   Currently has more than one function per Redis command for different optional
   arguments (e.g. BITOP).
@@ -45,7 +28,7 @@ function per command.
     (e.g. always use ZRANGEBYSCOREWITHSCORES).
 
 * Hedis supports commands up to Redis 2.6.?. The newer commands need
-  implementations (decide on the fate of the code generator first).
+  implementations.
 
 * Mapping of Haskell types to Redis types: simplicity and convenience vs.
   correctness (Some issues and pull requests on this topic).

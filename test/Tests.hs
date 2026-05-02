@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase #-}
+{-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, LambdaCase, OverloadedLists, TypeApplications #-}
 module Tests where
+
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
@@ -10,14 +11,19 @@ import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Data.ByteString (ByteString)
+import Data.Either (isRight)
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import Data.Time
 import Data.Time.Clock.POSIX
 import qualified Test.Framework as Test (Test)
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
+import qualified Test.HUnit.Lang as HUnit.Lang
 
 import Database.Redis
+import Data.Either (fromRight)
 
 ------------------------------------------------------------------------------
 -- helpers
@@ -36,11 +42,30 @@ testCase name r conn = Test.testCase name $ do
             putStrLn $ name ++ ": " ++ show deltaT
 
 (>>=?) :: (Eq a, Show a) => Redis (Either Reply a) -> a -> Redis ()
-redis >>=? expected = do
+redis >>=? expected = redis >>@? (expected HUnit.@=?)
+
+(>>@?) :: (Eq a, Show a) => Redis (Either Reply a) -> (a -> HUnit.Assertion) -> Redis ()
+redis >>@? predicate = do
     a <- redis
     liftIO $ case a of
-        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right actual -> expected HUnit.@=? actual
+        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right actual -> predicate actual
+
+(<|?>) :: HUnit.Assertion -> HUnit.Assertion -> HUnit.Assertion
+a <|?> b = do
+    resultA <- HUnit.Lang.performTestCase a
+    case resultA of
+        HUnit.Lang.Success        -> a
+        HUnit.Lang.Failure _ errA -> tryB errA
+        HUnit.Lang.Error   _ errA -> tryB errA
+        where tryB errA = do
+                        resultB <- HUnit.Lang.performTestCase b
+                        case resultB of
+                            HUnit.Lang.Success        -> b
+                            HUnit.Lang.Failure _ errB -> concatErrors errA errB
+                            HUnit.Lang.Error   _ errB -> concatErrors errA errB
+              concatErrors errA errB = HUnit.Lang.assertFailure ("{" ++ errA ++ "\nOR\n" ++ errB ++ "\n}: Failed")
+
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
@@ -93,12 +118,12 @@ testEvalReplies :: Test
 testEvalReplies conn = testCase "eval unused replies" go conn
   where
     go = do
-      _ <- liftIO $ runRedis conn $ set "key" "value"
+      _ <- liftIO $ runRedis conn $ set "key-12" "value"
       result <- liftIO $ do
          threadDelay $ 10 ^ (5 :: Int)
          mvar <- newEmptyMVar
          _ <-
-           (Async.wait =<< Async.async (runRedis conn (get "key"))) >>= putMVar mvar
+           (Async.wait =<< Async.async (runRedis conn (get "key-12"))) >>= putMVar mvar
          takeMVar mvar
       pure result >>=? Just "value"
 
@@ -115,11 +140,11 @@ testKeys = testCase "keys" $ do
     ttl "{same}key" >>= \case
       Left _ -> error "error"
       Right t -> do
-        assert $ t `elem` [0..1]
+        assert $ elem @[] t [0..1]
         pttl "{same}key" >>= \case
           Left _ -> error "error"
           Right pt -> do
-            assert $ pt `elem` [990..1000]
+            assert $ elem @[] pt [990..1000]
             persist "{same}key"         >>=? True
             dump "{same}key" >>= \case
               Left _ -> error "impossible"
@@ -127,7 +152,7 @@ testKeys = testCase "keys" $ do
                 restore "{same}key'" 0 s          >>=? Ok
                 rename "{same}key" "{same}key'"   >>=? Ok
                 renamenx "{same}key'" "{same}key" >>=? True
-                del ["{same}key"]                 >>=? 1
+                del (NE.fromList ["{same}key"])   >>=? 1
 
 testKeysNoncluster :: Test
 testKeysNoncluster = testCase "keysNoncluster" $ do
@@ -172,13 +197,13 @@ testSort = testCase "sort" $ do
 testGetType :: Test
 testGetType = testCase "getType" $ do
     getType "key"     >>=? None
-    forM_ ts $ \(setKey, typ) -> do
+    forM_ @[] ts $ \(setKey, typ) -> do
         setKey
         getType "key" >>=? typ
-        del ["key"]   >>=? 1
+        del (NE.fromList ["key"])   >>=? 1
   where
     ts = [ (set "key" "value"                         >>=? Ok,   String)
-         , (hset "key" "field" "value"                >>=? 1,    Hash)
+         , (hset "key" [("field"::ByteString, "value"::ByteString)] >>=? 1,    Hash)
          , (lpush "key" ["value"]                     >>=? 1,    List)
          , (sadd "key" ["member"]                     >>=? 1,    Set)
          , (zadd "key" [(42,"member"),(12.3,"value")] >>=? 2,    ZSet)
@@ -217,7 +242,7 @@ testStrings = testCase "strings" $ do
     incr "key"                                    >>=? 41
     incrby "key" 1                                >>=? 42
     incrbyfloat "key" 1                           >>=? 43
-    del ["key"]                                   >>=? 1
+    del (NE.fromList ["key"])                     >>=? 1
     setbit "key" 42 "1"                           >>=? 0
     getbit "key" 42                               >>=? 1
     bitcount "key"                                >>=? 1
@@ -237,9 +262,9 @@ testBitops = testCase "bitops" $ do
 --
 testHashes :: Test
 testHashes = testCase "hashes" $ do
-    hset "key" "field" "another" >>=? 1
-    hset "key" "field" "another" >>=? 0
-    hset "key" "field" "value"   >>=? 0
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 1
+    hset "key" [("field"::ByteString, "another"::ByteString)] >>=? 0
+    hset "key" [("field"::ByteString, "value"::ByteString)]   >>=? 0
     hsetnx "key" "field" "value" >>=? False
     hexists "key" "field"        >>=? True
     hlen "key"                   >>=? 1
@@ -262,8 +287,8 @@ testsLists =
 
 testLists :: Test
 testLists = testCase "lists" $ do
-    lpushx "notAKey" "-"          >>=? 0
-    rpushx "notAKey" "-"          >>=? 0
+    lpushx "notAKey" ["-" :: ByteString] >>=? 0
+    rpushx "notAKey" ["-" :: ByteString] >>=? 0
     lpush "key" ["value"]         >>=? 1
     lpop "key"                    >>=? Just "value"
     rpush "key" ["value"]         >>=? 1
@@ -277,6 +302,17 @@ testLists = testCase "lists" $ do
     lrem "key" 0 "v2"             >>=? 1
     llen "key"                    >>=? 2
     ltrim "key" 0 1               >>=? Ok
+    del ("key" NE.:| [])
+    -- keys are pushed sequentially so this will result in a list with value1, value2, value3
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 2 >>=? ["value1", "value2"]
+    lpush "key" ["value2", "value1"] >>=? 3
+    rpopCount "key" 2 >>=? ["value3", "value2"]
+    del ("key" NE.:| [])
+    lpush "key" ["value3", "value2", "value1"] >>=? 3
+    lpopCount "key" 4 >>=? ["value1", "value2", "value3"]
+    del ("key" NE.:| [])
+    return ()
 
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
@@ -295,22 +331,22 @@ testsSets = [testSets, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
-    sadd "set" ["member"]       >>=? 1
+    sadd "set" (NE.fromList  ["member"]) >>=? 1
     sismember "set" "member"    >>=? True
     scard "set"                 >>=? 1
     smembers "set"              >>=? ["member"]
     srandmember "set"           >>=? Just "member"
     spop "set"                  >>=? Just "member"
-    srem "set" ["member"]       >>=? 0
+    srem "set" (NE.fromList ["member"]) >>=? 0
     smove "{same}set" "{same}set'" "member" >>=? False
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> spopN "set" 2) >>=? ["member1", "member2"]
-    _ <- sadd "set" ["member1", "member2"]
+    _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
 
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
-    sadd "{same}s1" ["member"]                      >>=? 1
+    sadd "{same}s1" (NE.fromList ["member"])        >>=? 1
     sdiff ["{same}s1", "{same}s2"]                  >>=? ["member"]
     sunion ["{same}s1", "{same}s2"]                 >>=? ["member"]
     sinter ["{same}s1", "{same}s2"]                 >>=? []
@@ -349,9 +385,14 @@ testZSets = testCase "sorted sets" $ do
     zrevrangebyscoreLimit "key" 2.5 0.5 0 1           >>=? ["v2"]
     zrevrangebyscoreWithscoresLimit "key" 2.5 0.5 0 1 >>=? [("v2",2)]
 
-    zrem "key" ["v2"]                                 >>=? 1
+    zrem "key" (NE.fromList ["v2"])                   >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
+
+--  testZSets7 :: Test
+--  testZSets7 = testCase "sorted sets: redis 7" $ do
+--      zadd "key" [(2,"v1"),(0,"v2"),(40,"v3")]          >>=? 3
+--      zrankWithScore "key" "v1"                         >>=? Just  (1, 2)
 
 testZStore :: Test
 testZStore = testCase "zunionstore/zinterstore" $ do
@@ -450,6 +491,50 @@ testTransaction = testCase "transaction" $ do
         return $ (,) <$> foo <*> bar
     assert $ foobar == TxSuccess (Just "foo", Just "bar")
 
+testSet7 :: Test
+testSet7 = testCase "Set" $ do
+    set "hello" "hi" >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Just 2000,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Just 20000,
+        setCondition         = Nothing,
+        setKeepTTL           = False
+    } >>=? Ok
+    setOpts "hello" "hi" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Nothing,
+        setKeepTTL           = True
+    } >>=? Ok
+    setGet "hello" "henlo" >>=? "hi"
+    setGetOpts "hello" "henlo2" SetOpts{
+        setSeconds           = Nothing,
+        setMilliseconds      = Nothing,
+        setUnixSeconds       = Nothing,
+        setUnixMilliseconds  = Nothing,
+        setCondition         = Just Nx,
+        setKeepTTL           = False
+    } >>=? "henlo"
+    return ()
+
+testZAdd7 :: Test
+testZAdd7 = testCase "ZADD" $ do
+    zadd "set" [(42, "2")] >>=? 1
+    zaddOpts "set" [(44, "6")] (defaultZaddOpts {zaddSizeCondition = Just CGT}) >>=? 1
+    zaddOpts "set" [(46, "7")] (defaultZaddOpts {zaddSizeCondition = Just CLT}) >>=? 1
+    return ()
 
 ------------------------------------------------------------------------------
 -- Scripting
@@ -487,34 +572,50 @@ testScripting conn = testCase "scripting" go conn
 ------------------------------------------------------------------------------
 -- Connection
 --
-testConnectAuth :: Test
-testConnectAuth = testCase "connect/auth" $ do
+testConnectAuth :: String ->Test
+testConnectAuth host = testCase "connect/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
     liftIO $ do
-        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass" }
+        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
         runRedis c (ping >>=? Pong)
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
 
-testConnectAuthUnexpected :: Test
-testConnectAuthUnexpected = testCase "connect/auth/unexpected" $ do
+testConnectAuthUnexpected :: String -> Test
+testConnectAuthUnexpected host = testCase "connect/auth/unexpected" $ do
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         HUnit.assertEqual "" err res
 
-    where connInfo = defaultConnectInfo { connectAuth = Just "pass" }
+    where connInfo = defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
           err = Left $ ConnectAuthError $
                   Error "ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?"
 
-testConnectDb :: Test
-testConnectDb = testCase "connect/db" $ do
+
+testConnectAuthAcl :: String -> Test
+testConnectAuthAcl host = testCase "connect/auth/acl" $ do
+   liftIO $ do
+      c <- checkedConnect defaultConnectInfo { connectHost = host }
+      runRedis c $ sendRequest  ["ACL", "SETUSER", "test", "on", ">pass", "~*", "&*", "+@all"] >>=? Ok
+   liftIO $ do
+      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test", connectHost = host}
+      runRedis c (ping >>=? Pong)
+   liftIO $ do
+      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1", connectHost = host}
+      HUnit.assertEqual "" err res
+   where
+     err = Left $ ConnectAuthError $
+             Error "WRONGPASS invalid username-password pair or user is disabled."
+
+testConnectDb :: String -> Test
+testConnectDb host = testCase "connect/db" $ do
     set "connect" "value" >>=? Ok
     liftIO $ void $ do
-        c <- checkedConnect defaultConnectInfo { connectDatabase = 1 }
+        c <- checkedConnect defaultConnectInfo { connectDatabase = 1, connectHost = host }
         runRedis c (get "connect" >>=? Nothing)
 
-testConnectDbUnexisting :: Test
-testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
+testConnectDbUnexisting :: String -> Test
+testConnectDbUnexisting host = testCase "connect/db/unexisting" $ do
     liftIO $ do
         res <- try $ void $ checkedConnect connInfo
         case res of
@@ -522,7 +623,7 @@ testConnectDbUnexisting = testCase "connect/db/unexisting" $ do
           _ -> HUnit.assertFailure $
                   "Expected ConnectSelectError, got " ++ show res
 
-    where connInfo = defaultConnectInfo { connectDatabase = 100 }
+    where connInfo = defaultConnectInfo { connectDatabase = 100, connectHost = host }
 
 testEcho :: Test
 testEcho = testCase "echo" $
@@ -538,6 +639,20 @@ testSelect :: Test
 testSelect = testCase "select" $ do
     select 13 >>=? Ok
     select 0 >>=? Ok
+
+
+------------------------------------------------------------------------------
+-- Client
+--
+testClientId :: Test
+testClientId = testCase "client id" $ do
+    clientId >>= assert . isRight
+
+testClientName :: Test
+testClientName = testCase "client {get,set}name" $ do
+    clientGetname >>=? Nothing
+    clientSetname "FooBar" >>=? Ok
+    clientGetname >>=? Just "FooBar"
 
 
 ------------------------------------------------------------------------------
@@ -566,7 +681,7 @@ testBgrewriteaof = testCase "bgrewriteaof/bgsave/save" $ do
 
 testConfig :: Test
 testConfig = testCase "config/auth" $ do
-    configGet "requirepass"        >>=? [("requirepass", "")]
+    configGet ["requirepass"]      >>=? [("requirepass", "")]
     configSet "requirepass" "pass" >>=? Ok
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
@@ -593,32 +708,34 @@ testSlowlog = testCase "slowlog" $ do
     slowlogGet 5 >>=? []
     slowlogLen   >>=? 0
 
+-- |Starting with Redis 7.0.0, the DEBUG command is disabled by default and must be enabled manually in the Redis Config file
 testDebugObject :: Test
 testDebugObject = testCase "debugObject/debugSegfault" $ do
-    set "key" "value" >>=? Ok
-    debugObject "key" >>= \case
-      Left _ -> error "error"
-      _ -> return ()
     return ()
+    -- set "key" "value" >>=? Ok
+    -- debugObject "key" >>= \case
+      -- Left _ -> error "error"
+      -- _ -> return ()
+    -- return ()
 
 testScans :: Test
 testScans = testCase "scans" $ do
     set "key" "value"       >>=? Ok
     scan cursor0            >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts1 >>=? (cursor0, ["key"])
-    scanOpts cursor0 sOpts2 >>=? (cursor0, [])
+    scanOpts cursor0 sOpts1 Nothing >>=? (cursor0, ["key"])
+    scanOpts cursor0 sOpts2 Nothing >>=? (cursor0, [])
     where sOpts1 = defaultScanOpts { scanMatch = Just "k*" }
           sOpts2 = defaultScanOpts { scanMatch = Just "not*"}
 
 testSScan :: Test
 testSScan = testCase "sscan" $ do
-    sadd "set" ["1"]        >>=? 1
+    sadd "set" (NE.fromList ["1"]) >>=? 1
     sscan "set" cursor0     >>=? (cursor0, ["1"])
 
 testHScan :: Test
 testHScan = testCase "hscan" $ do
-    hset "hash" "k" "v"     >>=? 1
-    hscan "hash" cursor0    >>=? (cursor0, [("k", "v")])
+    hset "hash" [("k"::ByteString, "v"::ByteString)] >>=? 1
+    hscan "hash" cursor0     >>=? (cursor0, [("k", "v")])
 
 testZScan :: Test
 testZScan = testCase "zscan" $ do
@@ -638,8 +755,10 @@ testXAddRead ::Test
 testXAddRead = testCase "xadd/xread" $ do
     xadd "{same}somestream" "123" [("key", "value"), ("key2", "value2")]
     xadd "{same}otherstream" "456" [("key1", "value1")]
-    xaddOpts "{same}thirdstream" "*" [("k", "v")] (Maxlen 1)
-    xaddOpts "{same}thirdstream" "*" [("k", "v")] (ApproxMaxlen 1)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")]
+        $ xaddTrimOpt (Just $ trimOpts (TrimMaxlen 1) TrimExact)
+    xaddOpts "{same}thirdstream" "*" [("k", "v")]
+        $ xaddTrimOpt (Just $ trimOpts (TrimMaxlen 1) (TrimApprox Nothing))
     xread [("{same}somestream", "0"), ("{same}otherstream", "0")] >>=? Just [
         XReadResponse {
             stream = "{same}somestream",
@@ -650,6 +769,9 @@ testXAddRead = testCase "xadd/xread" $ do
             records = [StreamsRecord{recordId = "456-0", keyValues = [("key1", "value1")]}]
         }]
     xlen "{same}somestream" >>=? 1
+    where xaddTrimOpt a = XAddOpts{
+        xAddTrimOpts = a,
+        xAddnoMkStream = False}
 
 testXReadGroup ::Test
 testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
@@ -665,6 +787,12 @@ testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
     xgroupSetId "somestream" "somegroup" "0" >>=? Ok
     xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
     xgroupDestroy "somestream" "somegroup" >>=? True
+
+testXCreateGroup7 ::Test
+testXCreateGroup7 = testCase "XGROUP CREATE" $ do
+    xgroupCreateOpts "somestream" "somegroup" "0" XGroupCreateOpts {xGroupCreateMkStream    = True,
+                                                                    xGroupCreateEntriesRead = Just "1234"} >>=? Ok
+    return ()
 
 testXRange ::Test
 testXRange = testCase "xrange/xrevrange" $ do
@@ -689,18 +817,35 @@ testXpending = testCase "xpending" $ do
     xadd "somestream" "124" [("key4", "value4")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroup "somegroup" "consumer1" [("somestream", ">")]
-    xpendingSummary "somestream" "somegroup" Nothing >>=? XPendingSummaryResponse {
+    xpendingSummary "somestream" "somegroup" >>=? XPendingSummaryResponse {
         numPendingMessages = 4,
         smallestPendingMessageId = "121-0",
         largestPendingMessageId = "124-0",
         numPendingMessagesByconsumer = [("consumer1", 4)]
     }
-    detail <- xpendingDetail "somestream" "somegroup" "121" "121" 10 Nothing
-    liftIO $ case detail of
-        Left reply   -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XPendingDetailRecord{..}] -> do
-            messageId HUnit.@=? "121-0"
-        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    xpendingDetail "somestream" "somegroup" "121" "121" 10 defaultXPendingDetailOpts >>@? (\case
+            [XPendingDetailRecord{..}] -> do
+                messageId HUnit.@=? "121-0"
+            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+            )
+
+testXpending7 ::Test
+testXpending7 = testCase "xpending" $ do
+    xadd "somestream" "121" [("key1", "value1")]
+    xadd "somestream" "122" [("key2", "value2")]
+    xadd "somestream" "123" [("key3", "value3")]
+    xadd "somestream" "124" [("key4", "value4")]
+    xgroupCreate "somestream" "somegroup" "0"
+    xgroupCreate "somestream" "somegroup2" "0"
+    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    xreadGroup "somegroup2" "consumer2" [("somestream", ">")]
+    xack "somestream" "somegroup" ["121", "122", "123"] >>=? 3
+    xpendingDetail "somestream" "somegroup2" "123" "123" 10 XPendingDetailOpts
+                    {xPendingDetailIdle     = Just 0,
+                     xPendingDetailConsumer = Just "consumer2" } >>@? (\case
+                            [XPendingDetailRecord{..}] -> do
+                                messageId HUnit.@=? "123-0"
+                            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
 
 testXClaim ::Test
 testXClaim =
@@ -735,41 +880,84 @@ testXClaim =
       ["122-0"] >>=?
       ["122-0"]
 
+testXAutoClaim7 ::Test
+testXAutoClaim7 =
+  testCase "xautoclaim" $ do
+    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
+    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
+    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts {recordCount = Just 2})
+
+    let opts = XAutoclaimOpts {
+        xAutoclaimCount = Just 1
+    }
+    xautoclaimJustIdsOpts "somestream" "somegroup" "consumer2" 0 "0-0" opts  >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? ["121-0"]
+            xAutoclaimDeletedMessages HUnit.@=? []
+            return ())
+
+    xtrim "somestream" (trimOpts (TrimMaxlen 1) TrimExact) >>=? 1
+    xautoclaim "somestream" "somegroup" "consumer2" 0 "0-0" >>@? (\case
+        XAutoclaimResult{..} -> do
+            xAutoclaimClaimedMessages HUnit.@=? [StreamsRecord {
+                recordId = "122-0",
+                keyValues = [("key2", "value2")]
+            }]
+            xAutoclaimDeletedMessages HUnit.@=? ["121-0"]
+            return ()
+        )
+    return ()
+
 testXInfo ::Test
 testXInfo = testCase "xinfo" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
     xgroupCreate "somestream" "somegroup" "0"
     xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
-    consumerInfos <- xinfoConsumers "somestream" "somegroup"
-    liftIO $ case consumerInfos of
-        Left reply -> HUnit.assertFailure $ "Redis error: " ++ show reply
-        Right [XInfoConsumersResponse{..}] -> do
+
+    xinfoConsumers "somestream" "somegroup" >>@? (\case
+        [XInfoConsumersResponse{..}] -> do
             xinfoConsumerName HUnit.@=? "consumer1"
             xinfoConsumerNumPendingMessages HUnit.@=? 2
-        Right bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
-    xinfoGroups "somestream" >>=? [
-        XInfoGroupsResponse{
-            xinfoGroupsGroupName = "somegroup",
-            xinfoGroupsNumConsumers = 1,
-            xinfoGroupsNumPendingMessages = 2,
-            xinfoGroupsLastDeliveredMessageId = "122-0"
-        }]
-    xinfoStream "somestream" >>=? XInfoStreamResponse
-        { xinfoStreamLength = 2
-        , xinfoStreamRadixTreeKeys = 1
-        , xinfoStreamRadixTreeNodes = 2
-        , xinfoStreamNumGroups = 1
-        , xinfoStreamLastEntryId = "122-0"
-        , xinfoStreamFirstEntry = StreamsRecord
-            { recordId = "121-0"
-            , keyValues = [("key1", "value1")]
-            }
-        , xinfoStreamLastEntry = StreamsRecord
-            { recordId = "122-0"
-            , keyValues = [("key2", "value2")]
-            }
-        }
+
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+
+    xinfoGroups "somestream" >>@? (\case
+        [XInfoGroupsResponse{..}] -> do
+            xinfoGroupsGroupName              HUnit.@=? "somegroup"
+            xinfoGroupsNumConsumers           HUnit.@=? 1
+            xinfoGroupsNumPendingMessages     HUnit.@=? 2
+            xinfoGroupsLastDeliveredMessageId HUnit.@=? "122-0"
+
+            (do xinfoGroupsEntriesRead          HUnit.@=? Nothing -- Redis 6
+                xinfoGroupsLag                  HUnit.@=? Nothing) <|?>
+                (do xinfoGroupsEntriesRead          HUnit.@=? Just 2 -- Redis 7
+                    xinfoGroupsLag                  HUnit.@=? Just 0)
+
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+
+
+    xinfoStream "somestream" >>@? (\case
+        XInfoStreamResponse{..} -> do
+            xinfoStreamLength         HUnit.@=? 2
+            xinfoStreamRadixTreeKeys  HUnit.@=? 1
+            xinfoStreamRadixTreeNodes HUnit.@=? 2
+            xinfoStreamNumGroups      HUnit.@=? 1
+            xinfoStreamLastEntryId    HUnit.@=? "122-0"
+            xinfoStreamFirstEntry     HUnit.@=? StreamsRecord {
+                                                      recordId = "121-0"
+                                                    , keyValues = [("key1", "value1")]}
+            xinfoStreamLastEntry      HUnit.@=? StreamsRecord {
+                                                      recordId = "122-0"
+                                                    , keyValues = [("key2", "value2")] }
+            (do xinfoMaxDeletedEntryId    HUnit.@=? Nothing -- Redis 6.0
+                xinfoEntriesAdded         HUnit.@=? Nothing
+                xinfoRecordedFirstEntryId HUnit.@=? Nothing) <|?> -- Redis 7.0
+                (do xinfoMaxDeletedEntryId    HUnit.@=? Just "0-0"
+                    xinfoEntriesAdded         HUnit.@=? Just 2
+                    xinfoRecordedFirstEntryId HUnit.@=? Just "121-0")
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
 
 testXDel ::Test
 testXDel = testCase "xdel" $ do
@@ -783,6 +971,8 @@ testXTrim = testCase "xtrim" $ do
     xadd "somestream" "121" [("key1", "value1")]
     xadd "somestream" "122" [("key2", "value2")]
     xadd "somestream" "123" [("key3", "value3")]
-    xadd "somestream" "124" [("key4", "value4")]
+    streamId <- fromRight "" <$> xadd "somestream" "124" [("key4", "value4")]
     xadd "somestream" "125" [("key5", "value5")]
-    xtrim "somestream" (Maxlen 2) >>=? 3
+    xtrim "somestream" (trimOpts (TrimMaxlen 3) TrimExact) >>=? 2
+    xtrim "somestream" (trimOpts (TrimMinId streamId) TrimExact) >>=? 1
+
