@@ -254,7 +254,7 @@ connectCluster bootstrapConnInfo = do
             pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
                             $ setNumStripes (connectNumStripes bootstrapConnInfo)
                             $ defaultPoolConfig
-                                (Cluster.connect
+                                (Cluster.connectWith
                                   (connectUsername bootstrapConnInfo)
                                   (connectAuth bootstrapConnInfo)
                                   (connectTLSParams bootstrapConnInfo)
