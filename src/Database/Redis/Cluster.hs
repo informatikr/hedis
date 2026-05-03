@@ -24,9 +24,9 @@ import qualified Data.IORef as IOR
 import Data.List(nub, sortBy, find)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
-import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..))
+import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
-import Control.Monad(zipWithM, when, replicateM)
+import Control.Monad(zipWithM, when, replicateM, forM_)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
@@ -114,10 +114,18 @@ connect mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks
         nodeConns <- nodeConnections shardMap
         return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) hooks' where
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
-    nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
-    connectNode :: Node -> IO (NodeID, NodeConnection)
-    connectNode (Node n _ host port) = do
-        ctx0 <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
+    nodeConnections shardMap = HM.fromList <$> connectNodes (nub $ nodes shardMap)
+    connectNodes :: [Node] -> IO [(NodeID, NodeConnection)]
+    connectNodes [] = return []
+    connectNodes (z@(Node _ _ host port):ns) = do
+        bracketOnError
+          (CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt)
+          (CC.disconnect) $ \ctx0 -> do
+            nodeConn <- connectNode z ctx0
+            rest <- connectNodes ns
+            return $ nodeConn : rest
+    connectNode :: Node -> CC.ConnectionContext -> IO (NodeID, NodeConnection)
+    connectNode (Node n _ host port) ctx0 = do
         ctx <- case mTlsParams of
                   Nothing -> pure ctx0
                   Just defaultTlsParams -> do
@@ -131,14 +139,12 @@ connect mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks
                       CC.enableTLS tlsParams ctx0
         ref <- IOR.newIORef Nothing
         let nodeConn = NodeConnection ctx ref n
-        case mPassword of
-           Nothing -> pure ()
-           Just password -> do
-              let reqOpts = maybe [password] (:[password]) mUsername
-              authReply <- requestNode1 nodeConn ( ["AUTH"] <> reqOpts )
-              case authReply of
-                SingleLine "OK" -> pure ()
-                _ -> throwIO $ ClusterAuthError host port authReply
+        forM_ mPassword $ \password -> do
+            let reqOpts = maybe [password] (:[password]) mUsername
+            authReply <- requestNode1 nodeConn ( ["AUTH"] <> reqOpts )
+            case authReply of
+              SingleLine "OK" -> pure ()
+              _ -> throwIO $ ClusterAuthError host port authReply
         return (n, nodeConn)
 
 disconnect :: Connection -> IO ()
