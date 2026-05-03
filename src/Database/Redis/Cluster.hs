@@ -24,9 +24,9 @@ import qualified Data.IORef as IOR
 import Data.List(nub, sortBy, find)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
-import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..))
+import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
-import Control.Monad(zipWithM, when, replicateM)
+import Control.Monad(zipWithM, when, replicateM, forM_)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
 import qualified Database.Redis.ConnectionContext as CC
 import qualified Data.HashMap.Strict as HM
@@ -34,7 +34,7 @@ import qualified Data.IntMap.Strict as IntMap
 import qualified Scanner
 import System.IO.Unsafe(unsafeInterleaveIO)
 
-import Database.Redis.Protocol(Reply(Error), renderRequest, reply)
+import Database.Redis.Protocol(Reply(..), renderRequest, reply)
 import qualified Database.Redis.Cluster.Command as CMD
 import Database.Redis.Hooks (Hooks)
 import Network.TLS (ClientParams (..))
@@ -102,18 +102,30 @@ instance Exception UnsupportedClusterCommandException
 newtype CrossSlotException = CrossSlotException [[B.ByteString]] deriving (Show)
 instance Exception CrossSlotException
 
-connect :: Maybe ClientParams -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
-connect mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
+data ClusterAuthError = ClusterAuthError Host Port Reply deriving (Show)
+instance Exception ClusterAuthError
+
+
+connect :: Maybe B.ByteString -> Maybe B.ByteString -> Maybe ClientParams -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
+connect mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
         nodeConns <- nodeConnections shardMap
         return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) hooks' where
     nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
-    nodeConnections shardMap = HM.fromList <$> mapM connectNode (nub $ nodes shardMap)
-    connectNode :: Node -> IO (NodeID, NodeConnection)
-    connectNode (Node n _ host port) = do
-        ctx0 <- CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt
+    nodeConnections shardMap = HM.fromList <$> connectNodes (nub $ nodes shardMap)
+    connectNodes :: [Node] -> IO [(NodeID, NodeConnection)]
+    connectNodes [] = return []
+    connectNodes (z@(Node _ _ host port):ns) = do
+        bracketOnError
+          (CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt)
+          (CC.disconnect) $ \ctx0 -> do
+            nodeConn <- connectNode z ctx0
+            rest <- connectNodes ns
+            return $ nodeConn : rest
+    connectNode :: Node -> CC.ConnectionContext -> IO (NodeID, NodeConnection)
+    connectNode (Node n _ host port) ctx0 = do
         ctx <- case mTlsParams of
                   Nothing -> pure ctx0
                   Just defaultTlsParams -> do
@@ -126,7 +138,14 @@ connect mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
                                       }
                       CC.enableTLS tlsParams ctx0
         ref <- IOR.newIORef Nothing
-        return (n, NodeConnection ctx ref n)
+        let nodeConn = NodeConnection ctx ref n
+        forM_ mPassword $ \password -> do
+            let reqOpts = maybe [password] (:[password]) mUsername
+            authReply <- requestNode1 nodeConn ( ["AUTH"] <> reqOpts )
+            case authReply of
+              SingleLine "OK" -> pure ()
+              _ -> throwIO $ ClusterAuthError host port authReply
+        return (n, nodeConn)
 
 disconnect :: Connection -> IO ()
 disconnect (Connection nodeConnMap _ _ _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
@@ -383,28 +402,35 @@ allMasterNodes (Connection nodeConns _ _ _ _) (ShardMap shardMap) =
     masterNodes = (\(Shard master _) -> master) <$> nub (IntMap.elems shardMap)
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
-requestNode (NodeConnection ctx lastRecvRef _) requests = do
+requestNode nodeConn@(NodeConnection ctx _ _) requests = do
     mapM_ (sendNode . renderRequest) requests
     _ <- CC.flush ctx
-    replicateM (length requests) recvNode
+    replicateM (length requests) $ recvNode nodeConn
 
     where
 
     sendNode :: B.ByteString -> IO ()
     sendNode = CC.send ctx
-    recvNode :: IO Reply
-    recvNode = do
-        maybeLastRecv <- IOR.readIORef lastRecvRef
-        scanResult <- case maybeLastRecv of
-            Just lastRecv -> Scanner.scanWith (CC.recv ctx) reply lastRecv
-            Nothing -> Scanner.scanWith (CC.recv ctx) reply B.empty
 
-        case scanResult of
-          Scanner.Fail{}       -> CC.errConnClosed
-          Scanner.More{}    -> error "Hedis: parseWith returned Partial"
-          Scanner.Done rest' r -> do
-            IOR.writeIORef lastRecvRef (Just rest')
-            return r
+requestNode1 :: NodeConnection -> [B.ByteString] -> IO Reply
+requestNode1 nodeConn@(NodeConnection ctx _ _) request = do
+    CC.send ctx $ renderRequest request
+    _ <- CC.flush ctx
+    recvNode nodeConn
+
+recvNode :: NodeConnection -> IO Reply
+recvNode (NodeConnection ctx lastRecvRef _) = do
+    maybeLastRecv <- IOR.readIORef lastRecvRef
+    scanResult <- case maybeLastRecv of
+        Just lastRecv -> Scanner.scanWith (CC.recv ctx) reply lastRecv
+        Nothing -> Scanner.scanWith (CC.recv ctx) reply B.empty
+
+    case scanResult of
+      Scanner.Fail{}       -> CC.errConnClosed
+      Scanner.More{}    -> error "Hedis: parseWith returned Partial"
+      Scanner.Done rest' r -> do
+        IOR.writeIORef lastRecvRef (Just rest')
+        return r
 
 nodes :: ShardMap -> [Node]
 nodes (ShardMap shardMap) = concatMap snd $ IntMap.toList $ fmap shardNodes shardMap where

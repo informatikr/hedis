@@ -254,7 +254,11 @@ connectCluster bootstrapConnInfo = do
             pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
                             $ setNumStripes (connectNumStripes bootstrapConnInfo)
                             $ defaultPoolConfig
-                                (Cluster.connect (connectTLSParams bootstrapConnInfo) infos shardMapVar timeoutOptUs
+                                (Cluster.connect
+                                  (connectUsername bootstrapConnInfo)
+                                  (connectAuth bootstrapConnInfo)
+                                  (connectTLSParams bootstrapConnInfo)
+                                  infos shardMapVar timeoutOptUs
                                   $ connectHooks bootstrapConnInfo)
                                 Cluster.disconnect
                                 (realToFrac $ connectMaxIdleTime bootstrapConnInfo)
