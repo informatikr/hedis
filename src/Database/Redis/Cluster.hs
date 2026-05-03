@@ -12,6 +12,7 @@ module Database.Redis.Cluster
   , HashSlot
   , Shard(..)
   , connect
+  , connectWith
   , disconnect
   , requestPipelined
   , nodes
@@ -105,9 +106,14 @@ instance Exception CrossSlotException
 data ClusterAuthError = ClusterAuthError Host Port Reply deriving (Show)
 instance Exception ClusterAuthError
 
+-- | Backwards compatible version of connect that can't provide authentication or TLS parameters.
+{-# DEPRECATED connect "Use connectWith instead, passing Nothing for the parameters you don't need." #-}
+connect :: [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
+connect = connectWith Nothing Nothing Nothing
 
-connect :: Maybe B.ByteString -> Maybe B.ByteString -> Maybe ClientParams -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
-connect mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
+-- | Connects to cluster.
+connectWith :: Maybe B.ByteString -> Maybe B.ByteString -> Maybe ClientParams -> [CMD.CommandInfo] -> MVar ShardMap -> Maybe Int -> Hooks -> IO Connection
+connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt hooks' = do
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
