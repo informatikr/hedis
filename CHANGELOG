@@ -16,6 +16,11 @@
 
 Breaking changes:
 
+- **URI parsing** follows the redis client spec. Main changes:
+
+  1. In `redis://password@host`, `password` is parsed as a password instead of a username.
+  2. `redis-socket://[[username:]password@]path` is supported.
+
 - **xpendingDetail** instead of 'Maybe ByteString' for a consumer name the method
 receives XPendingOpts structure that can take number of milliseconds and consumer name.
 In order to preserve an old behavior code should be rewritten as:
