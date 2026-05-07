@@ -25,7 +25,6 @@ import           Control.Monad
 import qualified Scanner
 import qualified Data.ByteString as S
 import           Data.IORef
-import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
 import           System.IO.Unsafe
 
@@ -50,12 +49,12 @@ data Connection = Conn
 fromCtx :: CC.ConnectionContext -> IO Connection
 fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0 <*> pure defaultHooks
 
-connect :: NS.HostName -> CC.PortID -> Maybe Int -> IO Connection
-connect hostName portId timeoutOpt = connectWithHooks hostName portId timeoutOpt defaultHooks
+connect :: CC.ConnectAddr -> Maybe Int -> IO Connection
+connect connectAddr timeoutOpt = connectWithHooks connectAddr timeoutOpt defaultHooks
 
-connectWithHooks :: NS.HostName -> CC.PortID -> Maybe Int -> Hooks -> IO Connection
-connectWithHooks hostName portId timeoutOpt hooks = do
-    connCtx <- CC.connect hostName portId timeoutOpt
+connectWithHooks :: CC.ConnectAddr -> Maybe Int -> Hooks -> IO Connection
+connectWithHooks connectAddr timeoutOpt hooks = do
+    connCtx <- CC.connect connectAddr timeoutOpt
     connReplies <- newIORef []
     connPending <- newIORef []
     connPendingCnt <- newIORef 0

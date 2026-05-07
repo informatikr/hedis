@@ -16,6 +16,25 @@
 
 Breaking changes:
 
+- **Connection** Fix connection API.
+
+  ```haskell
+  data PortID = PortNumber NS.PortNumber
+              | UnixSocket String
+              deriving (Eq, Show)
+  ```
+
+  And introduce instead `ConnectAddr`:
+
+  ```haskell
+  data ConnectAddr
+    = ConnectAddrHostPort NS.HostName NS.PortNumber
+    | ConnectAddrUnixSocket String
+    deriving (Eq, Show)
+  ```
+
+  It allow to remove a hack with ignored path.
+
 - **URI parsing** follows the redis client spec. Main changes:
 
   1. In `redis://password@host`, `password` is parsed as a password instead of a username.

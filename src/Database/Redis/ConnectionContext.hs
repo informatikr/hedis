@@ -6,7 +6,7 @@ module Database.Redis.ConnectionContext (
     ConnectionContext(..)
   , ConnectTimeout(..)
   , ConnectionLostException(..)
-  , PortID(..)
+  , ConnectAddr(..)
   , connect
   , disconnect
   , send
@@ -57,12 +57,13 @@ instance Exception ConnectTimeout
 data ConnectionLostException = ConnectionLost deriving Show
 instance Exception ConnectionLostException
 
-data PortID = PortNumber NS.PortNumber
-            | UnixSocket String
-            deriving (Eq, Show)
+data ConnectAddr
+  = ConnectAddrHostPort NS.HostName NS.PortNumber
+  | ConnectAddrUnixSocket String
+  deriving (Eq, Show)
 
-connect :: NS.HostName -> PortID -> Maybe Int -> IO ConnectionContext
-connect hostName portId timeoutOpt =
+connect :: ConnectAddr -> Maybe Int -> IO ConnectionContext
+connect connectAddr timeoutOpt =
   bracketOnError hConnect hClose $ \h -> do
     hSetBinaryMode h True
     return $ NormalHandle h
@@ -85,11 +86,11 @@ connect hostName portId timeoutOpt =
           void $ swapMVar mvar PhaseOpenSocket
           NS.socketToHandle sock ReadWriteMode
           where
-            createSock = case portId of
-              PortNumber portNumber -> do
+            createSock = case connectAddr of
+              ConnectAddrHostPort hostName portNumber -> do
                 addrInfo <- getHostAddrInfo hostName portNumber
                 connectSocket addrInfo
-              UnixSocket addr -> bracketOnError
+              ConnectAddrUnixSocket addr -> bracketOnError
                 (NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol)
                 NS.close
                 (\sock -> NS.connect sock (NS.SockAddrUnix addr) >> return sock)

@@ -125,7 +125,7 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
     connectNodes [] = return []
     connectNodes (z@(Node _ _ host port):ns) = do
         bracketOnError
-          (CC.connect host (CC.PortNumber $ toEnum port) timeoutOpt)
+          (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt)
           (CC.disconnect) $ \ctx0 -> do
             nodeConn <- connectNode z ctx0
             rest <- connectNodes ns

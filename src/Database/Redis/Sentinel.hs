@@ -14,7 +14,7 @@
 -- Example:
 --
 -- @
--- conn <- 'connect' 'SentinelConnectionInfo' (("localhost", PortNumber 26379) :| []) "mymaster" 'defaultConnectInfo'
+-- conn <- 'connect' 'SentinelConnectionInfo' (("localhost", 26379) :| []) "mymaster" 'defaultConnectInfo'
 --
 -- 'runRedis' conn $ do
 --   'set' "hello" "world"
@@ -54,7 +54,7 @@ import           Data.Foldable         (toList)
 import           Data.List             (delete)
 import           Data.List.NonEmpty    (NonEmpty (..))
 import           Data.Unique
-import           Network.Socket        (HostName)
+import qualified Network.Socket        as NS
 
 import           Database.Redis hiding (Connection, connect, runRedis)
 import qualified Database.Redis as Redis
@@ -105,7 +105,7 @@ runRedis (SentinelConnection connMVar) action = do
 
   where
     sameHost :: Redis.ConnectInfo -> Redis.ConnectInfo -> Bool
-    sameHost l r = connectHost l == connectHost r && connectPort l == connectPort r
+    sameHost l r = connectAddr l == connectAddr r
 
     setCheckSentinel preToken = modifyMVar_ connMVar $ \conn@SentinelConnection'{rcToken} ->
       if preToken == rcToken
@@ -147,13 +147,12 @@ updateMaster sci@SentinelConnectInfo{..} = do
           )
         Right () -> throwIO $ NoSentinels connectSentinels
   where
-    trySentinel :: HostName -> PortID -> ExceptT (Redis.ConnectInfo, (HostName, PortID)) IO ()
+    trySentinel :: NS.HostName -> NS.PortNumber -> ExceptT (Redis.ConnectInfo, (NS.HostName, NS.PortNumber)) IO ()
     trySentinel sentinelHost sentinelPort = do
       -- bang to ensure exceptions from runRedis get thrown immediately.
       !replyE <- liftIO $ do
         !sentinelConn <- Redis.connect $ Redis.defaultConnectInfo
-            { connectHost = sentinelHost
-            , connectPort = sentinelPort
+            { connectAddr = ConnectAddrHostPort sentinelHost sentinelPort
             , connectMaxConnections = 1
             }
         Redis.runRedis sentinelConn $ sendRequest
@@ -163,12 +162,14 @@ updateMaster sci@SentinelConnectInfo{..} = do
         Right [host, port] ->
           throwError
             ( connectBaseInfo
-              { connectHost = BS8.unpack host
-              , connectPort =
-                  maybe
-                    (PortNumber 26379)
-                    (PortNumber . fromIntegral . fst)
+              { connectAddr =
+                  ConnectAddrHostPort
+                    (BS8.unpack host)
+                    (maybe
+                      26379
+                      (fromIntegral . fst)
                     $ BS8.readInt port
+                    )
               }
             , (sentinelHost, sentinelPort)
             )
@@ -202,19 +203,19 @@ data SentinelConnection'
 -- | Configuration of Sentinel hosts.
 data SentinelConnectInfo
   = SentinelConnectInfo
-      { connectSentinels  :: NonEmpty (HostName, PortID)
+      { connectSentinels  :: NonEmpty (NS.HostName, NS.PortNumber)
         -- ^ List of sentinels.
       , connectMasterName :: ByteString
         -- ^ Name of master to connect to.
       , connectBaseInfo   :: Redis.ConnectInfo
         -- ^ This is used to configure auth and other parameters for Redis connection,
-        -- but 'Redis.connectHost' and 'Redis.connectPort' are ignored.
+        -- but 'Redis.connectAddr' is ignored.
       }
   deriving (Show)
 
 -- | Exception thrown by "Database.Redis.Sentinel".
 data RedisSentinelException
-  = NoSentinels (NonEmpty (HostName, PortID))
+  = NoSentinels (NonEmpty (NS.HostName, NS.PortNumber))
     -- ^ Thrown if no sentinel can be reached.
   deriving (Show)
 
