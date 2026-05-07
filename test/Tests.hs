@@ -576,7 +576,7 @@ testConnectAuth :: String ->Test
 testConnectAuth host = testCase "connect/auth" $ do
     configSet "requirepass" "pass" >>=? Ok
     liftIO $ do
-        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
+        c <- checkedConnect defaultConnectInfo { connectAuth = Just "pass", connectAddr = ConnectAddrHostPort host 6379 }
         runRedis c (ping >>=? Pong)
     auth "pass"                    >>=? Ok
     configSet "requirepass" ""     >>=? Ok
@@ -587,7 +587,7 @@ testConnectAuthUnexpected host = testCase "connect/auth/unexpected" $ do
         res <- try $ void $ checkedConnect connInfo
         HUnit.assertEqual "" err res
 
-    where connInfo = defaultConnectInfo { connectAuth = Just "pass", connectHost = host }
+    where connInfo = defaultConnectInfo { connectAuth = Just "pass", connectAddr = ConnectAddrHostPort host 6379 }
           err = Left $ ConnectAuthError $
                   Error "ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?"
 
@@ -595,13 +595,13 @@ testConnectAuthUnexpected host = testCase "connect/auth/unexpected" $ do
 testConnectAuthAcl :: String -> Test
 testConnectAuthAcl host = testCase "connect/auth/acl" $ do
    liftIO $ do
-      c <- checkedConnect defaultConnectInfo { connectHost = host }
+      c <- checkedConnect defaultConnectInfo { connectAddr = ConnectAddrHostPort host 6379 }
       runRedis c $ sendRequest  ["ACL", "SETUSER", "test", "on", ">pass", "~*", "&*", "+@all"] >>=? Ok
    liftIO $ do
-      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test", connectHost = host}
+      c <- checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test", connectAddr = ConnectAddrHostPort host 6379}
       runRedis c (ping >>=? Pong)
    liftIO $ do
-      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1", connectHost = host}
+      res <- try $ void $ checkedConnect defaultConnectInfo{connectAuth=Just "pass", connectUsername=Just "test1", connectAddr = ConnectAddrHostPort host 6379}
       HUnit.assertEqual "" err res
    where
      err = Left $ ConnectAuthError $
@@ -611,7 +611,7 @@ testConnectDb :: String -> Test
 testConnectDb host = testCase "connect/db" $ do
     set "connect" "value" >>=? Ok
     liftIO $ void $ do
-        c <- checkedConnect defaultConnectInfo { connectDatabase = 1, connectHost = host }
+        c <- checkedConnect defaultConnectInfo { connectDatabase = 1, connectAddr = ConnectAddrHostPort host 6379 }
         runRedis c (get "connect" >>=? Nothing)
 
 testConnectDbUnexisting :: String -> Test
@@ -623,7 +623,7 @@ testConnectDbUnexisting host = testCase "connect/db/unexisting" $ do
           _ -> HUnit.assertFailure $
                   "Expected ConnectSelectError, got " ++ show res
 
-    where connInfo = defaultConnectInfo { connectDatabase = 100, connectHost = host }
+    where connInfo = defaultConnectInfo { connectDatabase = 100, connectAddr = ConnectAddrHostPort host 6379 }
 
 testEcho :: Test
 testEcho = testCase "echo" $
@@ -975,4 +975,3 @@ testXTrim = testCase "xtrim" $ do
     xadd "somestream" "125" [("key5", "value5")]
     xtrim "somestream" (trimOpts (TrimMaxlen 3) TrimExact) >>=? 2
     xtrim "somestream" (trimOpts (TrimMinId streamId) TrimExact) >>=? 1
-

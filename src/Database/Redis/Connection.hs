@@ -15,7 +15,6 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.Pool
 import qualified Data.Time as Time
 import Network.TLS (ClientParams)
-import qualified Network.Socket as NS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 
@@ -64,9 +63,7 @@ data Connection
 -- @
 --
 data ConnectInfo = ConnInfo
-    { connectHost           :: NS.HostName
-    -- ^ Ignored when 'connectPort' is a 'UnixSocket'
-    , connectPort           :: CC.PortID
+    { connectAddr           :: CC.ConnectAddr
     , connectAuth           :: Maybe B.ByteString
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
@@ -106,8 +103,7 @@ instance Exception ConnectError
 -- |Default information for connecting:
 --
 -- @
---  connectHost           = \"localhost\"
---  connectPort           = PortNumber 6379 -- Redis default port
+--  connectAddr           = ConnectAddrHostPort \"localhost\" 6379 -- Redis default port
 --  connectAuth           = Nothing         -- No password
 --  connectUsername       = Nothing         -- No user
 --  connectDatabase       = 0               -- SELECT database 0
@@ -122,8 +118,7 @@ instance Exception ConnectError
 --
 defaultConnectInfo :: ConnectInfo
 defaultConnectInfo = ConnInfo
-    { connectHost           = "localhost"
-    , connectPort           = CC.PortNumber 6379
+    { connectAddr           = CC.ConnectAddrHostPort "localhost" 6379
     , connectAuth           = Nothing
     , connectUsername       = Nothing
     , connectDatabase       = 0
@@ -140,7 +135,7 @@ createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    conn <- PP.connectWithHooks connectHost connectPort timeoutOptUs connectHooks
+    conn <- PP.connectWithHooks connectAddr timeoutOptUs connectHooks
     conn' <- case connectTLSParams of
                Nothing -> return conn
                Just tlsParams -> PP.enableTLS tlsParams conn

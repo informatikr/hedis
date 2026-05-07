@@ -12,7 +12,7 @@ main = do
     host <- lookupEnv "REDIS_HOST" >>= \case
         Just host -> return host
         Nothing -> return "localhost"
-    conn <- connect defaultConnectInfo { connectHost = host }
+    conn <- connect defaultConnectInfo { connectAddr = ConnectAddrHostPort host 6379 }
     Test.defaultMain (tests host conn)
 
 tests :: String -> Connection -> [Test.Test]

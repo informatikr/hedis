@@ -35,10 +35,10 @@ import Text.Read (readMaybe)
 -- @
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
+-- Right (ConnInfo {connectAddr = ConnectAddrHostPort "host" 42, connectAuth = Just "password", connectUsername = Just "username", connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 -- >>> parseConnectInfo "redis://password@host:42/2"
--- Right (ConnInfo {connectHost = "host", connectPort = PortNumber 42, connectAuth = Just "password", connectUsername = Nothing, connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
+-- Right (ConnInfo {connectAddr = ConnectAddrHostPort "host" 42, connectAuth = Just "password", connectUsername = Nothing, connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 -- TLS-enabled Redis:
 --
@@ -53,7 +53,7 @@ import Text.Read (readMaybe)
 -- @
 --
 -- >>> parseConnectInfo "redis-socket://password@/tmp/redis.sock?database=2"
--- Right (ConnInfo {connectHost = "", connectPort = UnixSocket "/tmp/redis.sock", connectAuth = Just "password", connectUsername = Nothing, connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
+-- Right (ConnInfo {connectAddr = ConnectAddrUnixSocket "/tmp/redis.sock", connectAuth = Just "password", connectUsername = Nothing, connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/db"
 -- Left "Invalid port: db"
@@ -67,7 +67,7 @@ import Text.Read (readMaybe)
 -- @'defaultConnectInfo'@:
 --
 -- >>> parseConnectInfo "rediss://"
--- Right (ConnInfo {connectHost = "localhost", connectPort = PortNumber 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Just (ClientParams ...), connectHooks = Hooks {...}, connectPoolLabel = ""})
+-- Right (ConnInfo {connectAddr = ConnectAddrHostPort "localhost" 6379, connectAuth = Nothing, connectUsername = Nothing, connectDatabase = 0, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Just (ClientParams ...), connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
 parseConnectInfo :: String -> Either String ConnectInfo
 parseConnectInfo url = do
@@ -93,7 +93,9 @@ parseConnectInfo url = do
               else note ("Invalid port: " <> dbNumPart) $ readMaybe dbNumPart
 
             let finalHost = if null h
-                    then connectHost defaultConnectInfo
+                    then case connectAddr defaultConnectInfo of
+                      CC.ConnectAddrHostPort defaultHost _ -> defaultHost
+                      CC.ConnectAddrUnixSocket _ -> "localhost"
                     else h
 
             let (finalUser, finalAuth) = case (T.pack <$> user uriAuth, T.pack <$> password uriAuth) of
@@ -102,8 +104,10 @@ parseConnectInfo url = do
                     (u, p) -> (u, p)
 
             return defaultConnectInfo
-                { connectHost = finalHost
-                , connectPort = maybe (connectPort defaultConnectInfo) (CC.PortNumber . fromIntegral) (port uriAuth)
+                { connectAddr =
+                    CC.ConnectAddrHostPort
+                      finalHost
+                      (maybe defaultPort fromIntegral (port uriAuth))
                 , connectAuth = T.encodeUtf8 <$> finalAuth
                 , connectUsername = T.encodeUtf8 <$> finalUser
                 , connectDatabase = db
@@ -111,6 +115,10 @@ parseConnectInfo url = do
                      False -> Nothing
                      True -> Just $ defaultParamsClient finalHost ""
                 }
+          where
+            defaultPort = case connectAddr defaultConnectInfo of
+              CC.ConnectAddrHostPort _ portNum -> portNum
+              CC.ConnectAddrUnixSocket _ -> 6379
 
         parseUnix :: URI -> Either String ConnectInfo
         parseUnix uri = do
@@ -122,8 +130,7 @@ parseConnectInfo url = do
                     Just dbNumPart ->
                         note "Invalid database" $ readMaybe @Integer . T.unpack $ T.decodeUtf8 dbNumPart
             return defaultConnectInfo
-                { connectHost = ""
-                , connectPort = CC.UnixSocket (mkPath auth)
+                { connectAddr = CC.ConnectAddrUnixSocket (mkPath auth)
                 , connectAuth = C8.pack <$> (user auth)
                 , connectDatabase = (db :: Integer)
                 }

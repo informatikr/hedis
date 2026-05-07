@@ -17,7 +17,7 @@ main = do
     -- spin up a cluster on this port using docker you can run:
     --
     --     docker run -e "IP=0.0.0.0" -p 7000-7010:7000-7010 grokzen/redis-cluster:5.0.6
-    conn <- connectCluster defaultConnectInfo { connectPort = PortNumber 16381 }
+    conn <- connectCluster defaultConnectInfo { connectAddr = ConnectAddrHostPort "localhost" 16381 }
     Test.defaultMain (tests "localhost" conn)
 
 tests :: String ->Connection -> [Test.Test]
