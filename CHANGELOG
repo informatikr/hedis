@@ -15,6 +15,7 @@
   - Fixed resource leakage
 - Added new methods for the cluster mode:
   - requestMasterNodes, masterNodes, getRandomConnection
+- `xreadGroupOpts` now accepts XReadGroupOpts instead of XReadOpts
 
 Breaking changes:
 

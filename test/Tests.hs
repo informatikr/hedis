@@ -872,7 +872,7 @@ testXClaim =
       "somegroup"
       "consumer1"
       [("somestream", ">")]
-      (defaultXreadOpts {recordCount = Just 2})
+      (defaultXReadGroupOpts {xReadGroupCount = Just 2})
     liftIO $ readResult HUnit.@=? Just
         [ XReadResponse
             { stream = "somestream"
@@ -901,7 +901,7 @@ testXAutoClaim7 =
     xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
     xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
     xgroupCreate "somestream" "somegroup" "0" >>=? Ok
-    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts {recordCount = Just 2})
+    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXReadGroupOpts {xReadGroupCount = Just 2})
 
     let opts = XAutoclaimOpts {
         xAutoclaimCount = Just 1
@@ -931,7 +931,7 @@ testXInfo = testCase "xinfo" $ void $ runExceptT $ do
     _ <- ExceptT $ xadd "somestream" "121" [("key1", "value1")]
     _ <- ExceptT $ xadd "somestream" "122" [("key2", "value2")]
     _ <- ExceptT $ xgroupCreate "somestream" "somegroup" "0"
-    _ <- ExceptT $ xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
+    _ <- ExceptT $ xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] defaultXReadGroupOpts { xReadGroupCount = Just 2 }
 
     z <- ExceptT $ xinfoConsumers "somestream" "somegroup"
     liftIO $ case z of
