@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 module Main (main) where
 
@@ -6,20 +7,25 @@ import Database.Redis
 import Tests
 import PubSubTest
 import System.Environment
+import Text.Read (readMaybe)
+import Network.Socket (PortNumber)
 
 main :: IO ()
 main = do
+    redisPort <- ((readMaybe @PortNumber =<<) <$> lookupEnv "REDIS_PORT") >>= \case
+            Just port -> return port
+            _ -> return 6379
     host <- lookupEnv "REDIS_HOST" >>= \case
         Just host -> return host
         Nothing -> return "localhost"
-    conn <- connect defaultConnectInfo { connectAddr = ConnectAddrHostPort host 6379 }
-    Test.defaultMain (tests host conn)
+    conn <- connect defaultConnectInfo { connectAddr = ConnectAddrHostPort host redisPort }
+    Test.defaultMain (tests host redisPort conn)
 
-tests :: String -> Connection -> [Test.Test]
-tests host conn = map ($ conn) $ concat
+tests :: String -> PortNumber -> Connection -> [Test.Test]
+tests host port conn = map ($ conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testPubSub], [testTransaction], [testScripting]
-    , testsConnection host
+    , testsConnection host port
     , testsClient, testsServer
     , [testScans, testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
@@ -37,13 +43,13 @@ testsServer =
     [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
     ,testSlowlog, testDebugObject]
 
-testsConnection :: String -> [Test]
-testsConnection host =
-    [ testConnectAuth host
-    , testConnectAuthUnexpected host
-    , testConnectAuthAcl host
-    , testConnectDb host
-    , testConnectDbUnexisting host
+testsConnection :: String -> PortNumber -> [Test]
+testsConnection host port =
+    [ testConnectAuth host port
+    , testConnectAuthUnexpected host port
+    , testConnectAuthAcl host port
+    , testConnectDb host port
+    , testConnectDbUnexisting host port
     , testEcho
     , testPing
     , testSelect
