@@ -18,12 +18,16 @@ module Database.Redis.Cluster
   , requestPipelined
   , nodes
   , hooks
+  , requestMasterNodes
+  , masterNodes
+  , getRandomConnection
 ) where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.IORef as IOR
 import Data.List(nub, sortBy, find)
+import Data.Maybe(mapMaybe, fromMaybe)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
 import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError)
@@ -473,3 +477,25 @@ hasLocked action =
 
 hooks :: Connection -> Hooks
 hooks (Connection _ _ _ _ h) = h
+
+-- | Send a request to all master nodes in the cluster. This is useful for commands that need to be sent to all master nodes, such as `FLUSHALL` or `CONFIG SET`.
+requestMasterNodes :: Connection -> [B.ByteString] -> IO [Reply]
+requestMasterNodes conn req = do
+    masterNodeConns <- masterNodes conn
+    concat <$> mapM (`requestNode` [req]) masterNodeConns
+
+-- | Get connection to a master nodes in the cluster.
+-- This is useful for commands that need to be sent to all master nodes, such as `FLUSHALL` or `CONFIG SET`.
+masterNodes :: Connection -> IO [NodeConnection]
+masterNodes (Connection nodeConns _ shardMapVar _ _) = do
+    (ShardMap shardMap) <- readMVar shardMapVar
+    let masters = map shardMaster $ nub $ IntMap.elems shardMap
+    let masterNodeIds = map nodeId masters
+    return $ mapMaybe (`HM.lookup` nodeConns) masterNodeIds
+
+-- | Get connection to a random node in the cluster that is not the same as the provided connection.
+getRandomConnection :: NodeConnection -> Connection -> NodeConnection
+getRandomConnection nc conn =
+  let (Connection hmn _ _ _ _) = conn
+      conns = HM.elems hmn
+      in fromMaybe (head conns) $ find (nc /= ) conns
