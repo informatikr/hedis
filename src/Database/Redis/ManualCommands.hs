@@ -1200,7 +1200,6 @@ data XReadGroupOpts = XReadGroupOpts
     { xReadGroupBlock :: Maybe Integer
     , xReadGroupCount :: Maybe Integer
     , xReadGroupNoAck :: Bool
-    , xReadGroupClaim :: Maybe ByteString
     } deriving (Show, Eq)
 
 defaultXReadGroupOpts :: XReadGroupOpts
@@ -1208,7 +1207,6 @@ defaultXReadGroupOpts = XReadGroupOpts
     { xReadGroupBlock = Nothing
     , xReadGroupCount = Nothing
     , xReadGroupNoAck = False
-    , xReadGroupClaim = Nothing
     }
 
 xreadGroupOpts

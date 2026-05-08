@@ -486,7 +486,7 @@ hasLocked action =
   ]
 
 hooks :: Connection -> Hooks
-hooks (Connection _ _ _ _ h) = h
+hooks = connectionHooks
 
 -- | Send a request to all master nodes in the cluster. This is useful for commands that need to be sent to all master nodes, such as `FLUSHALL` or `CONFIG SET`.
 requestMasterNodes :: Connection -> [B.ByteString] -> IO [Reply]
@@ -505,7 +505,6 @@ masterNodes (Connection nodeConns _ shardMapVar _ _) = do
 
 -- | Get connection to a random node in the cluster that is not the same as the provided connection.
 getRandomConnection :: NodeConnection -> Connection -> NodeConnection
-getRandomConnection nc conn =
-  let (Connection hmn _ _ _ _) = conn
-      conns = HM.elems hmn
+getRandomConnection nc Connection{connectionNodes = hmn} =
+  let conns = HM.elems hmn
       in fromMaybe (head conns) $ find (nc /= ) conns
