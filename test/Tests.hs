@@ -11,6 +11,7 @@ import Control.Exception (try)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Control.Monad.Trans.Except
 import Data.ByteString (ByteString)
 import Data.Either (isRight)
 import qualified Data.List as L
@@ -214,9 +215,10 @@ testObject = testCase "object" $ do
     set "key" "value"    >>=? Ok
     objectRefcount "key" >>=? 1
     objectEncoding "key" >>= \case
-      Left _ -> error "error"
-      _ -> return ()
+       Left _ -> error "error"
+       _ -> return ()
     objectIdletime "key" >>=? 0
+    return ()
 
 ------------------------------------------------------------------------------
 -- Strings
@@ -774,19 +776,25 @@ testXAddRead = testCase "xadd/xread" $ do
         xAddnoMkStream = False}
 
 testXReadGroup ::Test
-testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ do
-    xadd "somestream" "123" [("key", "value")]
-    xgroupCreate "somestream" "somegroup" "0"
-    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Just [
+testXReadGroup = testCase "XGROUP */xreadgroup/xack" $ void $ runExceptT $ do
+    ExceptT $ xadd "somestream" "123" [("key", "value")]
+    ExceptT $ xgroupCreate "somestream" "somegroup" "0"
+    readResult <- ExceptT $ xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    liftIO $ readResult HUnit.@=? Just [
         XReadResponse {
             stream = "somestream",
             records = [StreamsRecord{recordId = "123-0", keyValues = [("key", "value")]}]
         }]
-    xack "somestream" "somegroup" ["123-0"] >>=? 1
-    xreadGroup "somegroup" "consumer1" [("somestream", ">")] >>=? Nothing
-    xgroupSetId "somestream" "somegroup" "0" >>=? Ok
-    xgroupDelConsumer "somestream" "somegroup" "consumer1" >>=? 0
-    xgroupDestroy "somestream" "somegroup" >>=? True
+    noAcked <- ExceptT $ xack "somestream" "somegroup" ["123-0"]
+    liftIO $ noAcked HUnit.@=? 1
+    groupMessages <- ExceptT $ xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    liftIO $ groupMessages HUnit.@=? Nothing
+    setIdOk <- ExceptT $ xgroupSetId "somestream" "somegroup" "0"
+    liftIO $ setIdOk HUnit.@=? Ok
+    itemsLeft <- ExceptT $ xgroupDelConsumer "somestream" "somegroup" "consumer1"
+    liftIO $ itemsLeft HUnit.@=? 0
+    groupDestroyed <- ExceptT (xgroupDestroy "somestream" "somegroup")
+    liftIO $ groupDestroyed HUnit.@=? True
 
 testXCreateGroup7 ::Test
 testXCreateGroup7 = testCase "XGROUP CREATE" $ do
@@ -830,35 +838,41 @@ testXpending = testCase "xpending" $ do
             )
 
 testXpending7 ::Test
-testXpending7 = testCase "xpending" $ do
-    xadd "somestream" "121" [("key1", "value1")]
-    xadd "somestream" "122" [("key2", "value2")]
-    xadd "somestream" "123" [("key3", "value3")]
-    xadd "somestream" "124" [("key4", "value4")]
-    xgroupCreate "somestream" "somegroup" "0"
-    xgroupCreate "somestream" "somegroup2" "0"
-    xreadGroup "somegroup" "consumer1" [("somestream", ">")]
-    xreadGroup "somegroup2" "consumer2" [("somestream", ">")]
-    xack "somestream" "somegroup" ["121", "122", "123"] >>=? 3
-    xpendingDetail "somestream" "somegroup2" "123" "123" 10 XPendingDetailOpts
+testXpending7 = testCase "xpending7" $ void $ runExceptT $ do
+    ExceptT $ xadd "somestream" "121" [("key1", "value1")]
+    ExceptT $ xadd "somestream" "122" [("key2", "value2")]
+    ExceptT $ xadd "somestream" "123" [("key3", "value3")]
+    ExceptT $ xadd "somestream" "124" [("key4", "value4")]
+    ExceptT $ xgroupCreate "somestream" "somegroup" "0"
+    ExceptT $ xgroupCreate "somestream" "somegroup2" "0"
+    ExceptT $ xreadGroup "somegroup" "consumer1" [("somestream", ">")]
+    ExceptT $ xreadGroup "somegroup2" "consumer2" [("somestream", ">")]
+    ackedCount <- ExceptT $ xack "somestream" "somegroup" ["121", "122", "123"]
+    liftIO $ ackedCount HUnit.@=? 3
+    pendingDetails <- ExceptT $ xpendingDetail "somestream" "somegroup2" "123" "123" 10 XPendingDetailOpts
                     {xPendingDetailIdle     = Just 0,
-                     xPendingDetailConsumer = Just "consumer2" } >>@? (\case
-                            [XPendingDetailRecord{..}] -> do
-                                messageId HUnit.@=? "123-0"
-                            bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+                     xPendingDetailConsumer = Just "consumer2" }
+
+    liftIO $ case pendingDetails of
+        [XPendingDetailRecord{..}] -> do
+            messageId HUnit.@=? "123-0"
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
 testXClaim ::Test
 testXClaim =
-  testCase "xclaim" $ do
-    xadd "somestream" "121" [("key1", "value1")] >>=? "121-0"
-    xadd "somestream" "122" [("key2", "value2")] >>=? "122-0"
-    xgroupCreate "somestream" "somegroup" "0" >>=? Ok
-    xreadGroupOpts
+  testCase "xclaim" $ void $ runExceptT $ do
+    storedKey1 <- ExceptT $ xadd "somestream" "121" [("key1", "value1")]
+    liftIO $ storedKey1 HUnit.@=? "121-0"
+    storedKey2 <- ExceptT $ xadd "somestream" "122" [("key2", "value2")]
+    liftIO $ storedKey2 HUnit.@=? "122-0"
+    groupCreated <- ExceptT $ xgroupCreate "somestream" "somegroup" "0"
+    liftIO $ groupCreated HUnit.@=? Ok
+    readResult <- ExceptT $ xreadGroupOpts
       "somegroup"
       "consumer1"
       [("somestream", ">")]
-      (defaultXreadOpts {recordCount = Just 2}) >>=?
-      Just
+      (defaultXreadOpts {recordCount = Just 2})
+    liftIO $ readResult HUnit.@=? Just
         [ XReadResponse
             { stream = "somestream"
             , records =
@@ -869,16 +883,16 @@ testXClaim =
                 ]
             }
         ]
-    xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"] >>=?
-      [StreamsRecord {recordId = "121-0", keyValues = [("key1", "value1")]}]
-    xclaimJustIds
+    claimed <- ExceptT $ xclaim "somestream" "somegroup" "consumer2" 0 defaultXClaimOpts ["121-0"]
+    liftIO $ claimed HUnit.@=? [StreamsRecord {recordId = "121-0", keyValues = [("key1", "value1")]}]
+    claimedJustIds <- ExceptT $ xclaimJustIds
       "somestream"
       "somegroup"
       "consumer2"
       0
       defaultXClaimOpts
-      ["122-0"] >>=?
       ["122-0"]
+    liftIO $ claimedJustIds HUnit.@=? ["122-0"]
 
 testXAutoClaim7 ::Test
 testXAutoClaim7 =
@@ -910,20 +924,24 @@ testXAutoClaim7 =
     return ()
 
 testXInfo ::Test
-testXInfo = testCase "xinfo" $ do
-    xadd "somestream" "121" [("key1", "value1")]
-    xadd "somestream" "122" [("key2", "value2")]
-    xgroupCreate "somestream" "somegroup" "0"
-    xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
+-- This test does not work with pipelining because it relies on the certaino order of commands execution
+-- and fails if commands reach different nodes.
+testXInfo = testCase "xinfo" $ void $ runExceptT $ do
+    _ <- ExceptT $ xadd "somestream" "121" [("key1", "value1")]
+    _ <- ExceptT $ xadd "somestream" "122" [("key2", "value2")]
+    _ <- ExceptT $ xgroupCreate "somestream" "somegroup" "0"
+    _ <- ExceptT $ xreadGroupOpts "somegroup" "consumer1" [("somestream", ">")] (defaultXreadOpts { recordCount = Just 2})
 
-    xinfoConsumers "somestream" "somegroup" >>@? (\case
+    z <- ExceptT $ xinfoConsumers "somestream" "somegroup"
+    liftIO $ case z of
         [XInfoConsumersResponse{..}] -> do
             xinfoConsumerName HUnit.@=? "consumer1"
             xinfoConsumerNumPendingMessages HUnit.@=? 2
 
-        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
-    xinfoGroups "somestream" >>@? (\case
+    x <- ExceptT $ xinfoGroups "somestream"
+    liftIO $ case x of
         [XInfoGroupsResponse{..}] -> do
             xinfoGroupsGroupName              HUnit.@=? "somegroup"
             xinfoGroupsNumConsumers           HUnit.@=? 1
@@ -935,10 +953,10 @@ testXInfo = testCase "xinfo" $ do
                 (do xinfoGroupsEntriesRead          HUnit.@=? Just 2 -- Redis 7
                     xinfoGroupsLag                  HUnit.@=? Just 0)
 
-        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
 
-
-    xinfoStream "somestream" >>@? (\case
+    a <- ExceptT $ xinfoStream "somestream"
+    liftIO $ case a of
         XInfoStreamResponse{..} -> do
             xinfoStreamLength         HUnit.@=? 2
             xinfoStreamRadixTreeKeys  HUnit.@=? 1
@@ -957,7 +975,8 @@ testXInfo = testCase "xinfo" $ do
                 (do xinfoMaxDeletedEntryId    HUnit.@=? Just "0-0"
                     xinfoEntriesAdded         HUnit.@=? Just 2
                     xinfoRecordedFirstEntryId HUnit.@=? Just "121-0")
-        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad)
+        bad -> HUnit.assertFailure $ "Unexpectedly got " ++ show bad
+    return ()
 
 testXDel ::Test
 testXDel = testCase "xdel" $ do

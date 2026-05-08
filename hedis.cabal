@@ -154,6 +154,7 @@ test-suite hedis-test
         mtl == 2.*,
         test-framework,
         test-framework-hunit,
+        transformers,
         time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
@@ -180,6 +181,7 @@ test-suite redis7
         mtl == 2.*,
         test-framework,
         test-framework-hunit,
+        transformers,
         time
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
@@ -206,7 +208,8 @@ test-suite hedis-test-cluster
         mtl == 2.*,
         test-framework,
         test-framework-hunit,
-        time
+        time,
+        transformers
     -- We use -O0 here, since GHC takes *very* long to compile so many constants
     ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
     if flag(dev)
