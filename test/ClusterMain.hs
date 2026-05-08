@@ -2,29 +2,40 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main (main) where
 
 import qualified Test.Framework as Test
 import Data.ByteString (ByteString)
 import Database.Redis
+import Network.Socket (PortNumber)
+import System.Environment (lookupEnv)
 import Tests
+import Text.Read (readMaybe)
 
 main :: IO ()
 main = do
+
+    redisPort <- ((readMaybe @PortNumber =<<) <$> lookupEnv "REDIS_PORT") >>= \case
+            Just port -> return port
+            _ -> return 6379
+    redisHost <- lookupEnv "REDIS_HOST" >>= \case
+        Just host -> return host
+        Nothing -> return "localhost"
     -- We're looking for the cluster on a non-default port to support running
     -- this test in parallel witht the regular non-cluster tests. To quickly
     -- spin up a cluster on this port using docker you can run:
     --
     --     docker run -e "IP=0.0.0.0" -p 7000-7010:7000-7010 grokzen/redis-cluster:5.0.6
-    conn <- connectCluster defaultConnectInfo { connectAddr = ConnectAddrHostPort "localhost" 6379 }
-    Test.defaultMain (tests "localhost" conn)
+    conn <- connectCluster defaultConnectInfo { connectAddr = ConnectAddrHostPort redisHost redisPort }
+    Test.defaultMain (tests redisHost redisPort conn)
 
-tests :: String ->Connection -> [Test.Test]
-tests host conn = map ($ conn) $ concat @[]
+tests :: String -> PortNumber -> Connection -> [Test.Test]
+tests host port conn = map ($ conn) $ concat @[]
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
     , testsZSets, [testTransaction], [testScripting]
-    , testsConnection host, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
+    , testsConnection host port, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending7, testXClaim, testXInfo, testXDel, testXTrim]
       -- should always be run last as connection gets closed after it
     , [testQuit]
@@ -37,9 +48,8 @@ testsServer :: [Test]
 testsServer =
     [testBgrewriteaof, testFlushall, testSlowlog, testDebugObject]
 
-testsConnection :: String -> [Test]
-testsConnection host = [ testConnectAuthUnexpected host, testEcho, testPing
-                  ]
+testsConnection :: String -> PortNumber -> [Test]
+testsConnection host port = [ testConnectAuthUnexpected host port, testEcho, testPing ]
 
 testsKeys :: [Test]
 testsKeys = [ testKeys, testExpireAt, testSortCluster, testGetType, testObject ]
