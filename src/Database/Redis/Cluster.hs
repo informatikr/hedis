@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 module Database.Redis.Cluster
@@ -86,12 +87,29 @@ data NodeRole = Master | Slave deriving (Show, Eq, Ord)
 type Host = String
 type Port = Int
 type NodeID = B.ByteString
-data Node = Node NodeID NodeRole Host Port deriving (Show, Eq, Ord)
+
+-- | Represents a single node, note that this type does not include the
+-- connection to the node because the shard map can be shared amongst multiple
+-- connections
+data Node = Node
+  { nodeId :: NodeID
+  , nodeRole :: NodeRole
+  , nodeHost :: Host
+  , nodePort :: Port
+  } deriving (Show, Eq, Ord)
 
 type MasterNode = Node
 type SlaveNode = Node
-data Shard = Shard MasterNode [SlaveNode] deriving (Show, Eq, Ord)
 
+-- | A 'shard' is a master node and 0 or more slaves, (the 'master', 'slave'
+-- terminology is unfortunate but I felt it better to follow the documentation
+-- until it changes).
+data Shard = Shard
+  { shardMaster :: MasterNode
+  , shardSlaves :: [SlaveNode]
+  } deriving (Show, Eq, Ord)
+
+-- | A map from hashslot to shards
 newtype ShardMap = ShardMap (IntMap.IntMap Shard) deriving (Show)
 
 newtype MissingNodeException = MissingNodeException [B.ByteString] deriving (Show)
@@ -123,7 +141,7 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
     nodeConnections shardMap = HM.fromList <$> connectNodes (nub $ nodes shardMap)
     connectNodes :: [Node] -> IO [(NodeID, NodeConnection)]
     connectNodes [] = return []
-    connectNodes (z@(Node _ _ host port):ns) = do
+    connectNodes (z@Node{nodeHost = host, nodePort = port}:ns) = do
         bracketOnError
           (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt)
           (CC.disconnect) $ \ctx0 -> do
@@ -131,7 +149,7 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
             rest <- connectNodes ns
             return $ nodeConn : rest
     connectNode :: Node -> CC.ConnectionContext -> IO (NodeID, NodeConnection)
-    connectNode (Node n _ host port) ctx0 = do
+    connectNode Node{nodeId = n, nodeHost = host, nodePort = port} ctx0 = do
         ctx <- case mTlsParams of
                   Nothing -> pure ctx0
                   Just defaultTlsParams -> do
@@ -339,7 +357,7 @@ nodeConnForHashSlot shardMapVar conn exception hashSlot = do
     node <-
         case IntMap.lookup (fromEnum hashSlot) shardMap of
             Nothing -> throwIO exception
-            Just (Shard master _) -> return master
+            Just Shard{shardMaster = master} -> return master
     case HM.lookup (nodeId node) nodeConns of
         Nothing -> throwIO exception
         Just nodeConn' -> return nodeConn'
@@ -393,7 +411,7 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap _) (ShardMap sha
             hashSlot <- hashSlotForKeys (CrossSlotException [request]) keys
             node <- case IntMap.lookup (fromEnum hashSlot) shardMap of
                 Nothing -> throwIO $ MissingNodeException request
-                Just (Shard master _) -> return master
+                Just Shard{shardMaster = master} -> return master
             maybe (throwIO $ MissingNodeException request) (return . return) (HM.lookup (nodeId node) nodeConns)
     where
         allNodes =
@@ -405,7 +423,7 @@ allMasterNodes :: Connection -> ShardMap -> Maybe [NodeConnection]
 allMasterNodes (Connection nodeConns _ _ _ _) (ShardMap shardMap) =
     mapM (flip HM.lookup nodeConns . nodeId) masterNodes
   where
-    masterNodes = (\(Shard master _) -> master) <$> nub (IntMap.elems shardMap)
+    masterNodes = shardMaster <$> nub (IntMap.elems shardMap)
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode nodeConn@(NodeConnection ctx _ _) requests = do
@@ -441,14 +459,11 @@ recvNode (NodeConnection ctx lastRecvRef _) = do
 nodes :: ShardMap -> [Node]
 nodes (ShardMap shardMap) = concatMap snd $ IntMap.toList $ fmap shardNodes shardMap where
     shardNodes :: Shard -> [Node]
-    shardNodes (Shard master slaves) = master:slaves
+    shardNodes Shard{..} = shardMaster:shardSlaves
 
 
 nodeWithHostAndPort :: ShardMap -> Host -> Port -> Maybe Node
-nodeWithHostAndPort shardMap host port = find (\(Node _ _ nodeHost nodePort) -> port == nodePort && host == nodeHost) (nodes shardMap)
-
-nodeId :: Node -> NodeID
-nodeId (Node theId _ _ _) = theId
+nodeWithHostAndPort shardMap host port = find (\Node{nodeHost = h, nodePort = p} -> port == p && host == h) (nodes shardMap)
 
 hasLocked :: IO a -> IO a
 hasLocked action =
