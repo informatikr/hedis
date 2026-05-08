@@ -54,18 +54,28 @@ import Network.TLS (ClientParams (..))
 -- evaluated, execute the entire pipeline. If the pipeline is already executed
 -- then it just looks up it's response in the executed pipeline.
 
--- | A connection to a redis cluster, it is compoesed of a map from Node IDs to
+-- | A connection to a redis cluster, it is composed of a map from Node IDs to
 -- | 'NodeConnection's, a 'Pipeline', and a 'ShardMap'
-data Connection = Connection (HM.HashMap NodeID NodeConnection) (MVar Pipeline) (MVar ShardMap) CMD.InfoMap Hooks
+data Connection = Connection
+  { connectionNodes :: HM.HashMap NodeID NodeConnection
+  , connectionPipeline :: MVar Pipeline
+  , connectionShardMap :: MVar ShardMap
+  , connectionInfoMap :: CMD.InfoMap
+  , connectionHooks :: Hooks
+  }
 
 -- | A connection to a single node in the cluster, similar to 'ProtocolPipelining.Connection'
-data NodeConnection = NodeConnection CC.ConnectionContext (IOR.IORef (Maybe B.ByteString)) NodeID
+data NodeConnection = NodeConnection
+  { nodeConnectionContext :: CC.ConnectionContext
+  , nodeConnectionLastRecvRef :: IOR.IORef (Maybe B.ByteString)
+  , nodeConnectionNodeId :: NodeID
+  }
 
 instance Eq NodeConnection where
-    (NodeConnection _ _ id1) == (NodeConnection _ _ id2) = id1 == id2
+    NodeConnection{nodeConnectionNodeId=id1} == NodeConnection{nodeConnectionNodeId=id2} = id1 == id2
 
 instance Ord NodeConnection where
-    compare (NodeConnection _ _ id1) (NodeConnection _ _ id2) = compare id1 id2
+    compare NodeConnection{nodeConnectionNodeId=id1} NodeConnection{nodeConnectionNodeId=id2} = compare id1 id2
 
 data PipelineState =
       -- Nothing in the pipeline has been evaluated yet so nothing has been
@@ -176,14 +186,14 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
         return (n, nodeConn)
 
 disconnect :: Connection -> IO ()
-disconnect (Connection nodeConnMap _ _ _ _) = mapM_ disconnectNode (HM.elems nodeConnMap) where
+disconnect Connection{connectionNodes=nodeConnMap} = mapM_ disconnectNode (HM.elems nodeConnMap) where
     disconnectNode (NodeConnection nodeCtx _ _) = CC.disconnect nodeCtx
 
 -- Add a request to the current pipeline for this connection. The pipeline will
 -- be executed implicitly as soon as any result returned from this function is
 -- evaluated.
 requestPipelined :: IO ShardMap -> Connection -> [B.ByteString] -> IO Reply
-requestPipelined refreshAction conn@(Connection _ pipelineVar shardMapVar _ _) nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
+requestPipelined refreshAction conn@Connection{connectionPipeline=pipelineVar, connectionShardMap=shardMapVar} nextRequest = modifyMVar pipelineVar $ \(Pipeline stateVar) -> do
     (newStateVar, repliesIndex) <- hasLocked $ modifyMVar stateVar $ \case
         Pending requests | isMulti nextRequest -> do
             replies <- evaluatePipeline shardMapVar refreshAction conn requests
@@ -288,7 +298,7 @@ retryBatch shardMapVar refreshShardmapAction conn retryCount requests replies =
     -- there is one.
     case last replies of
         (Error errString) | B.isPrefixOf "MOVED" errString -> do
-            let (Connection _ _ _ infoMap _) = conn
+            let Connection{connectionInfoMap=infoMap} = conn
             keys <- mconcat <$> mapM (requestKeys infoMap) requests
             hashSlot <- hashSlotForKeys (CrossSlotException requests) keys
             nodeConn <- nodeConnForHashSlot shardMapVar conn (MissingNodeException (head requests)) hashSlot
@@ -310,7 +320,7 @@ retryBatch shardMapVar refreshShardmapAction conn retryCount requests replies =
 evaluateTransactionPipeline :: MVar ShardMap -> IO ShardMap -> Connection -> [[B.ByteString]] -> IO [Reply]
 evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = do
     let requests = reverse requests'
-    let (Connection _ _ _ infoMap _) = conn
+    let Connection{connectionInfoMap=infoMap} = conn
     keys <- mconcat <$> mapM (requestKeys infoMap) requests
     -- In cluster mode Redis expects commands in transactions to all work on the
     -- same hashslot. We find that hashslot here.
@@ -356,7 +366,7 @@ evaluateTransactionPipeline shardMapVar refreshShardmapAction conn requests' = d
 
 nodeConnForHashSlot :: Exception e => MVar ShardMap -> Connection -> e -> HashSlot -> IO NodeConnection
 nodeConnForHashSlot shardMapVar conn exception hashSlot = do
-    let (Connection nodeConns _ _ _ _) = conn
+    let Connection{connectionNodes=nodeConns} = conn
     (ShardMap shardMap) <- hasLocked $ readMVar shardMapVar
     node <-
         case IntMap.lookup (fromEnum hashSlot) shardMap of
@@ -399,12 +409,12 @@ moved _ = False
 
 
 nodeConnWithHostAndPort :: ShardMap -> Connection -> Host -> Port -> Maybe NodeConnection
-nodeConnWithHostAndPort shardMap (Connection nodeConns _ _ _ _) host port = do
+nodeConnWithHostAndPort shardMap Connection{connectionNodes=nodeConns} host port = do
     node <- nodeWithHostAndPort shardMap host port
     HM.lookup (nodeId node) nodeConns
 
 nodeConnectionForCommand :: Connection -> ShardMap -> [B.ByteString] -> IO [NodeConnection]
-nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap _) (ShardMap shardMap) request =
+nodeConnectionForCommand conn@Connection{connectionNodes=nodeConns, connectionInfoMap=infoMap} (ShardMap shardMap) request =
     case request of
         ("FLUSHALL" : _) -> allNodes
         ("FLUSHDB" : _) -> allNodes
@@ -424,10 +434,10 @@ nodeConnectionForCommand conn@(Connection nodeConns _ _ infoMap _) (ShardMap sha
                 Just allNodes' -> return allNodes'
 
 allMasterNodes :: Connection -> ShardMap -> Maybe [NodeConnection]
-allMasterNodes (Connection nodeConns _ _ _ _) (ShardMap shardMap) =
-    mapM (flip HM.lookup nodeConns . nodeId) masterNodes
+allMasterNodes Connection{connectionNodes=nodeConns} (ShardMap shardMap) =
+    mapM (flip HM.lookup nodeConns . nodeId) masters
   where
-    masterNodes = shardMaster <$> nub (IntMap.elems shardMap)
+    masters = shardMaster <$> nub (IntMap.elems shardMap)
 
 requestNode :: NodeConnection -> [[B.ByteString]] -> IO [Reply]
 requestNode nodeConn@(NodeConnection ctx _ _) requests = do
@@ -441,13 +451,13 @@ requestNode nodeConn@(NodeConnection ctx _ _) requests = do
     sendNode = CC.send ctx
 
 requestNode1 :: NodeConnection -> [B.ByteString] -> IO Reply
-requestNode1 nodeConn@(NodeConnection ctx _ _) request = do
+requestNode1 nodeConn@NodeConnection{nodeConnectionContext=ctx} request = do
     CC.send ctx $ renderRequest request
     _ <- CC.flush ctx
     recvNode nodeConn
 
 recvNode :: NodeConnection -> IO Reply
-recvNode (NodeConnection ctx lastRecvRef _) = do
+recvNode NodeConnection{nodeConnectionContext = ctx, nodeConnectionLastRecvRef = lastRecvRef} = do
     maybeLastRecv <- IOR.readIORef lastRecvRef
     scanResult <- case maybeLastRecv of
         Just lastRecv -> Scanner.scanWith (CC.recv ctx) reply lastRecv
