@@ -125,6 +125,14 @@ keysForRequest _ ["DEBUG", "OBJECT", key] =
 keysForRequest _ ["QUIT"] =
     -- The `QUIT` command is not listed in the `COMMAND` output.
     Just []
+keysForRequest _ ["OBJECT", "refcount", key] =
+    Just [key]
+keysForRequest _ ["OBJECT", "encoding", key] =
+    Just [key]
+keysForRequest _ ["OBJECT", "idletime", key] =
+    Just [key]
+keysForRequest _ ("XINFO":_:key:_) =
+    Just [key]
 keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
     keysForRequest' info request
