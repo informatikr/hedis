@@ -19,10 +19,11 @@ module Database.Redis.ConnectionContext (
 
 import Control.Monad(when)
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.IORef as IOR
 import Control.Concurrent.MVar(newMVar, readMVar, swapMVar)
-import Control.Exception(bracketOnError, Exception, throwIO, try)
+import Control.Exception(bracketOnError, Exception, throwIO, try, finally, mask_)
 import Data.Functor(void)
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
@@ -30,11 +31,11 @@ import System.IO(Handle, hSetBinaryMode, hClose, IOMode(..), hFlush, hIsOpen)
 import System.IO.Error(catchIOError)
 import System.Timeout (timeout)
 
-data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context
+data ConnectionContext = NormalHandle Handle | TLSContext TLS.Context Handle
 
 instance Show ConnectionContext where
     show (NormalHandle _) = "NormalHandle"
-    show (TLSContext _) = "TLSContext"
+    show (TLSContext _ _) = "TLSContext"
 
 data Connection = Connection
     { ctx :: ConnectionContext
@@ -62,11 +63,21 @@ data ConnectAddr
   | ConnectAddrUnixSocket String
   deriving (Eq, Show)
 
-connect :: ConnectAddr -> Maybe Int -> IO ConnectionContext
-connect connectAddr timeoutOpt =
+connect :: ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> IO ConnectionContext
+connect connectAddr timeoutOpt mTlsParams =
   bracketOnError hConnect hClose $ \h -> do
     hSetBinaryMode h True
-    return $ NormalHandle h
+    case (mTlsParams, connectAddr) of
+      (Just defaultTlsParams, ConnectAddrHostPort host port) -> do
+        -- The defaultTlsParams are used to connect to the first
+        -- host in the cluster, other hosts have different
+        -- hostnames and so require a different server
+        -- identification params
+        let tlsParams = defaultTlsParams {
+              TLS.clientServerIdentification =  (host, Char8.pack $ show port)
+            }
+        enableTLS tlsParams (NormalHandle h)
+      _ -> return $ NormalHandle h
   where
         hConnect = do
           phaseMVar <- newMVar PhaseUnknown
@@ -96,8 +107,7 @@ connect connectAddr timeoutOpt =
                 (\sock -> NS.connect sock (NS.SockAddrUnix addr) >> return sock)
 
 getHostAddrInfo :: NS.HostName -> NS.PortNumber -> IO [NS.AddrInfo]
-getHostAddrInfo hostname port =
-  NS.getAddrInfo (Just hints) (Just hostname) (Just $ show port)
+getHostAddrInfo hostname port = NS.getAddrInfo (Just hints) (Just hostname) (Just $ show port)
   where
     hints = NS.defaultHints
       { NS.addrSocketType = NS.Stream }
@@ -125,13 +135,13 @@ connectSocket (addr:rest) = tryConnect >>= \case
 
 send :: ConnectionContext -> B.ByteString -> IO ()
 send (NormalHandle h) requestData =
-      ioErrorToConnLost (B.hPut h requestData)
-send (TLSContext ctx) requestData =
-        ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData))
+    ioErrorToConnLost (B.hPut h requestData)
+send (TLSContext ctx _) requestData =
+    ioErrorToConnLost (TLS.sendData ctx (LB.fromStrict requestData))
 
 recv :: ConnectionContext -> IO B.ByteString
 recv (NormalHandle h) = ioErrorToConnLost $ B.hGetSome h 4096
-recv (TLSContext ctx) = TLS.recvData ctx
+recv (TLSContext ctx _) = TLS.recvData ctx
 
 
 ioErrorToConnLost :: IO a -> IO a
@@ -145,17 +155,17 @@ enableTLS :: TLS.ClientParams -> ConnectionContext -> IO ConnectionContext
 enableTLS tlsParams (NormalHandle h) = do
   ctx <- TLS.contextNew h tlsParams
   TLS.handshake ctx
-  return $ TLSContext ctx
-enableTLS _ c@(TLSContext _) = return c
+  return $! TLSContext ctx h
+enableTLS _ c@(TLSContext _ _) = return c
+
 
 disconnect :: ConnectionContext -> IO ()
-disconnect (NormalHandle h) = do
+disconnect (NormalHandle h) = mask_ $ do
   open <- hIsOpen h
   when open $ hClose h
-disconnect (TLSContext ctx) = do
-  TLS.bye ctx
-  TLS.contextClose ctx
+disconnect (TLSContext ctx h) =
+  TLS.bye ctx `finally` TLS.contextClose ctx `finally` (hIsOpen h >>= \open -> when open $ hClose h)
 
 flush :: ConnectionContext -> IO ()
 flush (NormalHandle h) = hFlush h
-flush (TLSContext c) = TLS.contextFlush c
+flush (TLSContext ctx _) = TLS.contextFlush ctx

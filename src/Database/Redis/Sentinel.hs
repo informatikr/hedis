@@ -45,7 +45,7 @@ import           Control.Concurrent
 import           Control.Exception     (Exception, IOException, evaluate, throwIO)
 import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
-import           Control.Monad.Catch   (Handler (..), MonadCatch, catches, throwM)
+import           Control.Monad.Catch   (Handler (..), MonadCatch, catches, throwM, bracket)
 import           Control.Monad.Except
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as BS
@@ -79,6 +79,7 @@ runRedis (SentinelConnection connMVar) action = do
               then return (oldMasterConnectInfo, oldBaseConnection)
               else do
                 newConn <- Redis.connect newMasterConnectInfo
+                Redis.disconnect oldBaseConnection
                 return (newMasterConnectInfo, newConn)
 
           return
@@ -151,12 +152,14 @@ updateMaster sci@SentinelConnectInfo{..} = do
     trySentinel sentinelHost sentinelPort = do
       -- bang to ensure exceptions from runRedis get thrown immediately.
       !replyE <- liftIO $ do
-        !sentinelConn <- Redis.connect $ Redis.defaultConnectInfo
+        bracket
+          (Redis.connect $ Redis.defaultConnectInfo
             { connectAddr = ConnectAddrHostPort sentinelHost sentinelPort
             , connectMaxConnections = 1
-            }
-        Redis.runRedis sentinelConn $ sendRequest
-          ["SENTINEL", "get-master-addr-by-name", connectMasterName]
+            })
+          Redis.disconnect
+          $ \sentinelConn -> Redis.runRedis sentinelConn $ sendRequest
+            ["SENTINEL", "get-master-addr-by-name", connectMasterName]
 
       case replyE of
         Right [host, port] ->

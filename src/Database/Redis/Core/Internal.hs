@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Database.Redis.Core.Internal where
 #if __GLASGOW_HASKELL__ > 711 && __GLASGOW_HASKELL__ < 808
@@ -26,8 +27,13 @@ newtype Redis a =
 deriving instance MonadFail Redis
 #endif
 data RedisEnv
-    = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
+    = NonClusteredEnv { envConn :: PP.Connection, nonClusteredLastReply :: IORef Reply }
     | ClusteredEnv
         { refreshAction :: IO Cluster.ShardMap
         , connection :: Cluster.Connection
+        , clusteredLastReply :: IORef Reply
         }
+
+envLastReply :: RedisEnv -> IORef Reply
+envLastReply NonClusteredEnv{..} = nonClusteredLastReply
+envLastReply ClusteredEnv{..} = clusteredLastReply

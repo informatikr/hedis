@@ -13,6 +13,9 @@
   - connect authorizes with all nodes
   - TLS connection is instantiated with all nodes
   - Fixed resource leakage
+- Added new methods for the cluster mode:
+  - requestMasterNodes, masterNodes, getRandomConnection
+
 
 Breaking changes:
 
@@ -58,6 +61,7 @@ xpendingDetails s g f l t (Just c) -> xpendingSummary s g f l t defaultXPendingD
   MaxlenApprox n -> TrimOpts{trumOptsStrategy=TrimMaxlen n, trimOptsType=TrimApprox Nothing};
 - 'addChannelsAndWait', 'removeChannelsAndWait' now wait only the channels that we run
   operations on, instead of waiting changes from all threads.
+- `xreadGroupOpts` now accepts new `XReadGroupOpts` instead of `XReadOpts` type.
 
 ## 0.15.2
 

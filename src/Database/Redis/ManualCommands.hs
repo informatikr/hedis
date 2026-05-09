@@ -1196,15 +1196,35 @@ xread
     -> m( f (Maybe [XReadResponse]))
 xread streamsAndIds = xreadOpts streamsAndIds defaultXreadOpts
 
+data XReadGroupOpts = XReadGroupOpts
+    { xReadGroupBlock :: Maybe Integer
+    , xReadGroupCount :: Maybe Integer
+    , xReadGroupNoAck :: Bool
+    } deriving (Show, Eq)
+
+defaultXReadGroupOpts :: XReadGroupOpts
+defaultXReadGroupOpts = XReadGroupOpts
+    { xReadGroupBlock = Nothing
+    , xReadGroupCount = Nothing
+    , xReadGroupNoAck = False
+    }
+
 xreadGroupOpts
     :: (RedisCtx m f)
     => ByteString -- ^ group name
     -> ByteString -- ^ consumer name
     -> [(ByteString, ByteString)] -- ^ (stream, id) pairs
-    -> XReadOpts -- ^ Options
+    -> XReadGroupOpts -- ^ Options
     -> m (f (Maybe [XReadResponse]))
-xreadGroupOpts groupName consumerName streamsAndIds opts = sendRequest $
-    ["XREADGROUP", "GROUP", groupName, consumerName] ++ (internalXreadArgs streamsAndIds opts)
+xreadGroupOpts groupName consumerName streamsAndIds XReadGroupOpts{..} = sendRequest $
+    ["XREADGROUP", "GROUP", groupName, consumerName] ++ internalXreadGroupArgs
+    where
+        internalXreadGroupArgs = concat [countArgs, blockArgs, noAckArgs, ["STREAMS"], streams, recordIds]
+        blockArgs = maybe [] (\blockMillis -> ["BLOCK", encode blockMillis]) xReadGroupBlock
+        countArgs = maybe [] (\countRecords -> ["COUNT", encode countRecords]) xReadGroupCount
+        noAckArgs = ["NOACK" | xReadGroupNoAck]
+        streams = map (\(stream, _) -> stream) streamsAndIds
+        recordIds = map (\(_, recordId) -> recordId) streamsAndIds
 
 xreadGroup
     :: (RedisCtx m f)
@@ -1212,7 +1232,7 @@ xreadGroup
     -> ByteString -- ^ consumer name
     -> [(ByteString, ByteString)] -- ^ (stream, id) pairs
     -> m (f (Maybe [XReadResponse]))
-xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXreadOpts
+xreadGroup groupName consumerName streamsAndIds = xreadGroupOpts groupName consumerName streamsAndIds defaultXReadGroupOpts
 
 -- | Additional parameters of the XGroupCreate
 data XGroupCreateOpts = XGroupCreateOpts

@@ -5,7 +5,7 @@
 module Database.Redis.Core (
     Redis(), unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
-    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook, 
+    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook,
     send, recv, sendRequest,
     runRedisInternal,
     runRedisClusteredInternal,
@@ -83,9 +83,9 @@ runRedisInternal conn (Redis redis) = do
 
 runRedisClusteredInternal :: Cluster.Connection -> IO ShardMap -> Redis a -> IO a
 runRedisClusteredInternal connection refreshShardmapAction (Redis redis) = do
-    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection)
-    r `seq` return ()
-    return r
+    ref <- newIORef (SingleLine "no reply yet")
+    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection ref)
+    r `seq` return r
 
 setLastReply :: Reply -> ReaderT RedisEnv IO ()
 setLastReply r = do
@@ -124,5 +124,8 @@ sendRequest req = do
                 r <- liftIO $ sendRequestHook (PP.hooks envConn) (PP.request envConn . renderRequest) req
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ sendRequestHook (Cluster.hooks connection) (Cluster.requestPipelined refreshAction connection) req
+            ClusteredEnv{..} -> do
+                r <- liftIO $ sendRequestHook (Cluster.hooks connection) (Cluster.requestPipelined refreshAction connection) req
+                setLastReply r
+                return r
     returnDecode r'
