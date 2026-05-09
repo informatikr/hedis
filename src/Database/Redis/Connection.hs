@@ -134,10 +134,7 @@ createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    conn <- PP.connectWithHooks connectAddr timeoutOptUs connectHooks
-    conn' <- case connectTLSParams of
-               Nothing -> return conn
-               Just tlsParams -> PP.enableTLS tlsParams conn
+    conn' <- PP.connectWithHooks connectAddr timeoutOptUs connectTLSParams connectHooks
     PP.beginReceiving conn'
 
     runRedisInternal conn' $ do
@@ -230,32 +227,32 @@ instance Exception ClusterConnectError
 -- - PUBLISH, SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE, PUNSUBSCRIBE, RESET
 connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
-    conn <- createConnection bootstrapConnInfo
-    slotsResponse <- runRedisInternal conn clusterSlots
-    shardMapVar <- case slotsResponse of
-        Left e -> throwIO $ ClusterConnectError e
-        Right slots -> do
-            shardMap <- shardMapFromClusterSlotsResponse slots
-            newMVar shardMap
-    commandInfos <- runRedisInternal conn command
-    let timeoutOptUs =
-          round . (1000000 *) <$> connectTimeout bootstrapConnInfo
-    case commandInfos of
-        Left e -> throwIO $ ClusterConnectError e
-        Right infos -> do
-            pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
-                            $ setNumStripes (connectNumStripes bootstrapConnInfo)
-                            $ defaultPoolConfig
-                                (Cluster.connectWith
-                                  (connectUsername bootstrapConnInfo)
-                                  (connectAuth bootstrapConnInfo)
-                                  (connectTLSParams bootstrapConnInfo)
-                                  infos shardMapVar timeoutOptUs
-                                  $ connectHooks bootstrapConnInfo)
-                                Cluster.disconnect
-                                (realToFrac $ connectMaxIdleTime bootstrapConnInfo)
-                                (connectMaxConnections bootstrapConnInfo))
-            return $ ClusteredConnection shardMapVar pool
+    bracket (createConnection bootstrapConnInfo) PP.disconnect $ \conn -> do
+        slotsResponse <- runRedisInternal conn clusterSlots
+        shardMapVar <- case slotsResponse of
+            Left e -> throwIO $ ClusterConnectError e
+            Right slots -> do
+                shardMap <- shardMapFromClusterSlotsResponse slots
+                newMVar shardMap
+        commandInfos <- runRedisInternal conn command
+        let timeoutOptUs =
+              round . (1000000 *) <$> connectTimeout bootstrapConnInfo
+        case commandInfos of
+            Left e -> throwIO $ ClusterConnectError e
+            Right infos -> do
+                pool <- newPool (setPoolLabel (connectPoolLabel bootstrapConnInfo)
+                                $ setNumStripes (connectNumStripes bootstrapConnInfo)
+                                $ defaultPoolConfig
+                                    (Cluster.connectWith
+                                      (connectUsername bootstrapConnInfo)
+                                      (connectAuth bootstrapConnInfo)
+                                      (connectTLSParams bootstrapConnInfo)
+                                      infos shardMapVar timeoutOptUs
+                                      $ connectHooks bootstrapConnInfo)
+                                    Cluster.disconnect
+                                    (realToFrac $ connectMaxIdleTime bootstrapConnInfo)
+                                    (connectMaxConnections bootstrapConnInfo))
+                return $ ClusteredConnection shardMapVar pool
 
 shardMapFromClusterSlotsResponse :: ClusterSlotsResponse -> IO ShardMap
 shardMapFromClusterSlotsResponse ClusterSlotsResponse{..} = ShardMap <$> foldr mkShardMap (pure IntMap.empty)  clusterSlotsResponseEntries where

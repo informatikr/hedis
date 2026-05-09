@@ -172,9 +172,9 @@ readXreadKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
 readXreadKeys _ = Nothing
 
 readXreadgroupKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
-readXreadgroupKeys ("COUNT":_:rest) = readXreadKeys rest
-readXreadgroupKeys ("BLOCK":_:rest) = readXreadKeys rest
-readXreadgroupKeys ("NOACK":rest) = readXreadKeys rest
+readXreadgroupKeys ("COUNT":_:rest) = readXreadgroupKeys rest
+readXreadgroupKeys ("BLOCK":_:rest) = readXreadgroupKeys rest
+readXreadgroupKeys ("NOACK":rest) = readXreadgroupKeys rest
 readXreadgroupKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
 readXreadgroupKeys _ = Nothing
 

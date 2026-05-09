@@ -10,7 +10,6 @@ module Database.Redis.Core (
     runRedisInternal,
     runRedisClusteredInternal,
     defaultHooks,
-    sendToAllMasterNodes,
     RedisEnv(..),
 ) where
 
@@ -130,16 +129,3 @@ sendRequest req = do
                 setLastReply r
                 return r
     returnDecode r'
-
-sendToAllMasterNodes :: (RedisResult a, MonadRedis m) => [B.ByteString] -> m [Either Reply a]
-sendToAllMasterNodes req = do
-    r' <- liftRedis $ Redis $ do
-        env <- ask
-        case env of
-            NonClusteredEnv{..} -> do
-                r <- liftIO $ PP.request envConn (renderRequest req)
-                r `seq` return [r]
-            ClusteredEnv{..} ->  do
-                r <- liftIO $ Cluster.requestMasterNodes connection req
-                return r
-    return $ map decode r'

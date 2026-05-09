@@ -17,7 +17,7 @@
 --
 module Database.Redis.ProtocolPipelining (
   Connection,
-  connect, connectWithHooks, enableTLS, beginReceiving, disconnect, request, send, recv, flush, fromCtx, hooks
+  connect, connectWithHooks, beginReceiving, disconnect, request, send, recv, flush, fromCtx, hooks
 ) where
 
 import           Prelude
@@ -49,21 +49,16 @@ data Connection = Conn
 fromCtx :: CC.ConnectionContext -> IO Connection
 fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0 <*> pure defaultHooks
 
-connect :: CC.ConnectAddr -> Maybe Int -> IO Connection
-connect connectAddr timeoutOpt = connectWithHooks connectAddr timeoutOpt defaultHooks
+connect :: CC.ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> IO Connection
+connect connectAddr timeoutOpt mTlsParams = connectWithHooks connectAddr timeoutOpt mTlsParams defaultHooks
 
-connectWithHooks :: CC.ConnectAddr -> Maybe Int -> Hooks -> IO Connection
-connectWithHooks connectAddr timeoutOpt hooks = do
-    connCtx <- CC.connect connectAddr timeoutOpt
+connectWithHooks :: CC.ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> Hooks -> IO Connection
+connectWithHooks connectAddr timeoutOpt mTlsParams hooks = do
+    connCtx <- CC.connect connectAddr timeoutOpt mTlsParams
     connReplies <- newIORef []
     connPending <- newIORef []
     connPendingCnt <- newIORef 0
     return Conn{..}
-
-enableTLS :: TLS.ClientParams -> Connection -> IO Connection
-enableTLS tlsParams conn@Conn{..} = do
-    newCtx <- CC.enableTLS tlsParams connCtx
-    return conn{connCtx = newCtx}
 
 beginReceiving :: Connection -> IO ()
 beginReceiving conn = do

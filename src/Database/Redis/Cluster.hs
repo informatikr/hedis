@@ -157,26 +157,15 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
     connectNodes [] = return []
     connectNodes (z@Node{nodeHost = host, nodePort = port}:ns) = do
         bracketOnError
-          (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt)
+          (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt mTlsParams)
           (CC.disconnect) $ \ctx0 -> do
             nodeConn <- connectNode z ctx0
             rest <- connectNodes ns
             return $ nodeConn : rest
     connectNode :: Node -> CC.ConnectionContext -> IO (NodeID, NodeConnection)
     connectNode Node{nodeId = n, nodeHost = host, nodePort = port} ctx0 = do
-        ctx <- case mTlsParams of
-                  Nothing -> pure ctx0
-                  Just defaultTlsParams -> do
-                      -- The defaultTlsParams are used to connect to the first
-                      -- host in the cluster, other hosts have different
-                      -- hostnames and so require a different server
-                      -- identification params
-                      let tlsParams = defaultTlsParams {
-                                        clientServerIdentification =  (host, Char8.pack $ show port)
-                                      }
-                      CC.enableTLS tlsParams ctx0
         ref <- IOR.newIORef Nothing
-        let nodeConn = NodeConnection ctx ref n
+        let nodeConn = NodeConnection ctx0 ref n
         forM_ mPassword $ \password -> do
             let reqOpts = maybe [password] (:[password]) mUsername
             authReply <- requestNode1 nodeConn ( ["AUTH"] <> reqOpts )
