@@ -3,6 +3,8 @@
 
 In order of descending priority.
 
+See repository milestones for more information.
+
 
 ## Github Issues and Pull requests
 
@@ -15,20 +17,12 @@ In order of descending priority.
 The idea of Hedis is to support all Redis commands by having one typesafe
 function per command.
 
-* Optional Arguments
-  Currently has more than one function per Redis command for different optional
-  arguments (e.g. BITOP).
-  - Only have one function per command that takes an "optionals" argument. See
-    the `OPTS a` monoid in redis-resp http://hackage.haskell.org/package/redis-resp-0.3.2/docs/Data-Redis-Command.html#t:Opts
-    for a great solution. (Although it's not quite perfect since it is possible
-    to add conflicting optionals args, e.g. use both XX and NX in the SET
-    command.)
-  - Might still be necessary to have multiple functions when optional arguments
-    change the return type (e.g. ZRANGEBYSCORE). Or only allow one return type
-    (e.g. always use ZRANGEBYSCOREWITHSCORES).
+* Full features support of the Redis cluster.
+  At this point there are only few leftover issues for redis cluster support.
 
-* Hedis supports commands up to Redis 2.6.?. The newer commands need
-  implementations.
+* Support of the PubSub protocol.
+
+* Support of Redis 5, 6, 7 features.
 
 * Mapping of Haskell types to Redis types: simplicity and convenience vs.
   correctness (Some issues and pull requests on this topic).
@@ -45,7 +39,6 @@ function per command.
         once in the returned list.
     - Maps
     - etc.
-
 
 ## Command Return Types
 

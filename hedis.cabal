@@ -41,7 +41,7 @@ Description:
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Falko Peters <falko.peters@gmail.com>
-maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>
+maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>, Alexander Vershilov <alexander.vershilov@gmail.com>
 copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
 homepage:           https://github.com/informatikr/hedis
