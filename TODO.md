@@ -5,12 +5,10 @@ In order of descending priority.
 
 See repository milestones for more information.
 
-
 ## Github Issues and Pull requests
 
 * Priorities vary
 * Some of them overlap with the big-picture issues discussed below.
-
 
 ## Redis API Completeness
 

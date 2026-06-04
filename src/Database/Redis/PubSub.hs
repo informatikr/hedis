@@ -43,6 +43,7 @@ import Data.Semigroup (Semigroup(..))
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
+import qualified Database.Redis.Cluster as Cluster
 import qualified Database.Redis.Core as Core
 import qualified Database.Redis.Connection as Connection
 import qualified Database.Redis.ProtocolPipelining as PP
@@ -668,7 +669,19 @@ pubSubForever :: Connection.Connection -- ^ The connection pool
                        -- the controller are now subscribed.  You can use this after an exception (such as
                        -- 'ConnectionLost') to signal that all subscriptions are now reactivated.
               -> IO ()
-pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = withResource pool $ \rawConn -> do
+pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad =
+    withResource pool $ \rawConn -> pubSubForeverOnConn rawConn ctrl onInitialLoad
+pubSubForever (Connection.ClusteredConnection _ pool) ctrl onInitialLoad = withResource pool $ \clusterConn -> do
+    masterNodeConns <- Cluster.masterNodes clusterConn
+    nodeConn <- case masterNodeConns of
+      [] -> ioError $ userError "Hedis: clustered pubSubForever requires at least one master node"
+      x:_ -> pure x
+    rawConn <- PP.fromCtxWithHooks (Cluster.nodeConnectionContext nodeConn) (Cluster.hooks clusterConn)
+    PP.beginReceiving rawConn
+    pubSubForeverOnConn rawConn ctrl onInitialLoad
+
+pubSubForeverOnConn :: PP.Connection -> PubSubController -> IO () -> IO ()
+pubSubForeverOnConn rawConn ctrl onInitialLoad = do
     -- get initial subscriptions and write them into the queue.
     atomically $ do
       let loop = tryReadTBQueue (sendChanges ctrl) >>=
@@ -703,7 +716,6 @@ pubSubForever (Connection.NonClusteredConnection pool) ctrl onInitialLoad = with
           (Right (Left err)) -> throwIO err
           (Left (Left err)) -> throwIO err
           _ -> return ()  -- should never happen, since threads exit only with an error
-pubSubForever (Connection.ClusteredConnection _ _) _ _ = undefined
 
 
 ------------------------------------------------------------------------------
