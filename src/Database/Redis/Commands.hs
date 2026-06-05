@@ -312,6 +312,26 @@ defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 
+-- ** Geo commands
+GeoUnit(..),
+GeoOrder(..),
+GeoCoordinates(..),
+GeoLocation(..),
+GeoSearchFrom(..),
+GeoSearchBy(..),
+GeoSearchOpts(..),
+defaultGeoSearchOpts,
+GeoSearchStoreOpts(..),
+defaultGeoSearchStoreOpts,
+GeoAddOpts(..),
+defaultGeoAddOpts,
+geoadd,
+geoaddOpts,
+geodist,
+geopos,
+geoSearch,
+geoSearchStore,
+
 -- *** Autoclaim
 -- $autoclaim
 xautoclaim,
@@ -1553,4 +1573,3 @@ sismember key member = sendRequest ["SISMEMBER",key, member]
 
 -- $auth
 -- Authenticate to the server (<http://redis.io/commands/auth>). Since Redis 1.0.0
-
