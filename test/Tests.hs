@@ -78,7 +78,7 @@ assert = liftIO . HUnit.assert
 testsMisc :: [Test]
 testsMisc =
     [ testConstantSpacePipelining, testForceErrorReply, testPipelining
-    , testEvalReplies
+    , testEvalReplies, testGeo
     ]
 
 testConstantSpacePipelining :: Test
@@ -128,6 +128,61 @@ testEvalReplies conn = testCase "eval unused replies" go conn
            (Async.wait =<< Async.async (runRedis conn (get "key-12"))) >>= putMVar mvar
          takeMVar mvar
       pure result >>=? Just "value"
+
+testGeo :: Test
+testGeo = testCase "geo" $ do
+    geoadd "{geo}cities" [(13.361389, 38.115556, "Palermo"), (15.087269, 37.502669, "Catania")] >>=? 2
+    geoaddOpts "{geo}cities"
+        [(13.361389, 38.115556, "Palermo"), (12.496366, 41.902782, "Rome")]
+        defaultGeoAddOpts { geoAddCondition = Just Nx, geoAddChange = True } >>=? 1
+    geodist "{geo}cities" "Palermo" "Rome" (Just GeoKilometers) >>@? \actual ->
+        case actual of
+            Just dist -> HUnit.assertBool "Rome should have been inserted by GEOADD NX" (dist > 400)
+            Nothing -> HUnit.assertFailure "GEODIST Palermo Rome returned Nothing"
+    geoaddOpts "{geo}cities"
+        [(9.1900, 45.4642, "Milan")]
+        defaultGeoAddOpts { geoAddCondition = Just Xx } >>=? 0
+
+    geodist "{geo}cities" "Palermo" "Catania" Nothing >>@? \actual ->
+        case actual of
+            Just dist -> HUnit.assertBool "unexpected GEODIST distance in meters" (abs (dist - 166274.1516) < 1000)
+            Nothing -> HUnit.assertFailure "GEODIST returned Nothing"
+
+    geopos "{geo}cities" ["Palermo", "Catania"] >>@? \positions ->
+        case positions of
+            [Just palermo, Just catania] -> do
+                assertApprox "Palermo longitude" 13.361389 (geoLongitude palermo)
+                assertApprox "Palermo latitude" 38.115556 (geoLatitude palermo)
+                assertApprox "Catania longitude" 15.087269 (geoLongitude catania)
+                assertApprox "Catania latitude" 37.502669 (geoLatitude catania)
+            _ -> HUnit.assertFailure $ "Unexpected GEOPOS response: " ++ show positions
+
+    let searchOpts = defaultGeoSearchOpts
+            { geoSearchWithDist = True
+            , geoSearchOrder = Just GeoAsc
+            }
+
+    geoSearch "{geo}cities" (GeoSearchFromMember "Palermo") (GeoSearchByRadius 200 GeoKilometers) searchOpts >>@? \locations ->
+        case locations of
+            [palermo, catania] -> do
+                HUnit.assertEqual "GEOSEARCH center member" "Palermo" (geoLocationMember palermo)
+                HUnit.assertBool "GEOSEARCH distance should be zero for center member" (maybe False (< 0.001) (geoLocationDist palermo))
+                HUnit.assertEqual "GEOSEARCH second member" "Catania" (geoLocationMember catania)
+            _ -> HUnit.assertFailure $ "Unexpected GEOSEARCH response: " ++ show locations
+
+    geoSearchStore "{geo}near" "{geo}cities" (GeoSearchFromLonLat 15 37) (GeoSearchByRadius 200 GeoKilometers)
+        (defaultGeoSearchStoreOpts { geoSearchStoreStoredist = True }) >>=? 2
+
+    zrangeWithscores "{geo}near" 0 (-1) >>@? \members ->
+        case members of
+            [(firstCity, firstDistance), (secondCity, secondDistance)] -> do
+                HUnit.assertEqual "closest stored city" "Catania" firstCity
+                HUnit.assertEqual "second stored city" "Palermo" secondCity
+                HUnit.assertBool "stored distances should be increasing" (firstDistance < secondDistance)
+            _ -> HUnit.assertFailure $ "Unexpected GEOSEARCHSTORE response: " ++ show members
+  where
+    assertApprox label expected actual =
+        HUnit.assertBool label (abs (expected - actual) < 0.0001)
 
 ------------------------------------------------------------------------------
 -- Keys

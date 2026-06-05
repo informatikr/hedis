@@ -1531,6 +1531,243 @@ xclaimJustIds
 xclaimJustIds stream group consumer minIdleTime opts messageIds = sendRequest $
     (xclaimRequest stream group consumer minIdleTime opts messageIds) ++ ["JUSTID"]
 
+data GeoUnit
+    = GeoMeters
+    | GeoKilometers
+    | GeoFeet
+    | GeoMiles
+    deriving (Show, Eq)
+
+instance RedisArg GeoUnit where
+    encode GeoMeters = "m"
+    encode GeoKilometers = "km"
+    encode GeoFeet = "ft"
+    encode GeoMiles = "mi"
+
+data GeoOrder
+    = GeoAsc
+    | GeoDesc
+    deriving (Show, Eq)
+
+instance RedisArg GeoOrder where
+    encode GeoAsc = "ASC"
+    encode GeoDesc = "DESC"
+
+data GeoCoordinates = GeoCoordinates
+    { geoLongitude :: Double
+    , geoLatitude :: Double
+    } deriving (Show, Eq)
+
+instance RedisResult GeoCoordinates where
+    decode (MultiBulk (Just [lon, lat])) =
+        GeoCoordinates <$> decode lon <*> decode lat
+    decode r = Left r
+
+data GeoLocation = GeoLocation
+    { geoLocationMember :: ByteString
+    , geoLocationDist :: Maybe Double
+    , geoLocationHash :: Maybe Integer
+    , geoLocationCoordinates :: Maybe GeoCoordinates
+    } deriving (Show, Eq)
+
+instance RedisResult GeoLocation where
+    decode r@(Bulk (Just _)) =
+        GeoLocation <$> decode r <*> pure Nothing <*> pure Nothing <*> pure Nothing
+    decode r@(SingleLine _) =
+        GeoLocation <$> decode r <*> pure Nothing <*> pure Nothing <*> pure Nothing
+    decode (MultiBulk (Just (memberReply:details))) = do
+        geoLocationMember <- decode memberReply
+        (geoLocationDist, geoLocationHash, geoLocationCoordinates) <- decodeGeoLocationDetails details
+        pure GeoLocation {..}
+      where
+        decodeGeoLocationDetails :: [Reply] -> Either Reply (Maybe Double, Maybe Integer, Maybe GeoCoordinates)
+        decodeGeoLocationDetails = go Nothing Nothing Nothing
+
+        go md mh mc [] = Right (md, mh, mc)
+        go md mh mc (x:xs) = case x of
+            MultiBulk _ -> do
+                coord <- decode x
+                go md mh (Just coord) xs
+            Integer _ -> do
+                hashValue <- decode x
+                go md (Just hashValue) mc xs
+            _ -> do
+                dist <- decode x
+                go (Just dist) mh mc xs
+    decode r = Left r
+
+data GeoSearchFrom
+    = GeoSearchFromMember ByteString
+    | GeoSearchFromLonLat Double Double
+    deriving (Show, Eq)
+
+data GeoSearchBy
+    = GeoSearchByRadius Double GeoUnit
+    | GeoSearchByBox Double Double GeoUnit
+    deriving (Show, Eq)
+
+data GeoSearchOpts = GeoSearchOpts
+    { geoSearchWithCoord :: Bool
+    , geoSearchWithDist :: Bool
+    , geoSearchWithHash :: Bool
+    , geoSearchCount :: Maybe Integer
+    , geoSearchCountAny :: Bool
+    , geoSearchOrder :: Maybe GeoOrder
+    } deriving (Show, Eq)
+
+defaultGeoSearchOpts :: GeoSearchOpts
+defaultGeoSearchOpts = GeoSearchOpts
+    { geoSearchWithCoord = False
+    , geoSearchWithDist = False
+    , geoSearchWithHash = False
+    , geoSearchCount = Nothing
+    , geoSearchCountAny = False
+    , geoSearchOrder = Nothing
+    }
+
+data GeoSearchStoreOpts = GeoSearchStoreOpts
+    { geoSearchStoreCount :: Maybe Integer
+    , geoSearchStoreCountAny :: Bool
+    , geoSearchStoreOrder :: Maybe GeoOrder
+    , geoSearchStoreStoredist :: Bool
+    } deriving (Show, Eq)
+
+defaultGeoSearchStoreOpts :: GeoSearchStoreOpts
+defaultGeoSearchStoreOpts = GeoSearchStoreOpts
+    { geoSearchStoreCount = Nothing
+    , geoSearchStoreCountAny = False
+    , geoSearchStoreOrder = Nothing
+    , geoSearchStoreStoredist = False
+    }
+
+-- |Adds one or more members to a geospatial index (<https://redis.io/commands/geoadd>). The Redis command @GEOADD@ is split up into 'geoadd' and 'geoAddOpts'. Since Redis 3.2.0
+data GeoAddOpts = GeoAddOpts
+    { geoAddCondition :: Maybe Condition
+    , geoAddChange :: Bool
+    {- ^ Modify the return value from the number of new elements added, to the number of elements changed.
+
+    Since Redis 6.2.0
+    -}
+    } deriving (Show, Eq)
+
+-- |Redis default 'GeoAddOpts'. Equivalent to omitting all optional parameters.
+defaultGeoAddOpts :: GeoAddOpts
+defaultGeoAddOpts = GeoAddOpts
+    { geoAddCondition = Nothing
+    , geoAddChange = False
+    }
+
+-- |Adds one or more members to a geospatial index (<https://redis.io/commands/geoadd>).
+-- The Redis command @GEOADD@ is split up into 'geoadd' and 'geoAddOpts'.
+--
+-- Note: there is no @geodel@ command because you can use 'zrem' to remove elements.
+-- The Geo index structure is just a sorted set.
+--
+-- Since Redis 3.2.0
+--
+-- Redis tags: write, geo, slow
+geoadd
+    :: (RedisCtx m f)
+    => ByteString
+    -> [(Double, Double, ByteString)]
+    -> m (f Integer)
+geoadd key values = geoaddOpts key values defaultGeoAddOpts
+
+-- |Adds one or more members to a geospatial index (<https://redis.io/commands/geoadd>).
+-- The Redis command @GEOADD@ is split up into 'geoadd' and 'geoAddOpts'.
+--
+-- Since Redis 6.2.0
+geoaddOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> [(Double, Double, ByteString)]
+    -> GeoAddOpts
+    -> m (f Integer)
+geoaddOpts key values GeoAddOpts{..} =
+    sendRequest $ ["GEOADD", key] ++ conditionArg ++ changeArg ++ concatMap encodeGeoValue values
+  where
+    conditionArg = foldMap (\condition -> [encode condition]) geoAddCondition
+    changeArg = ["CH" | geoAddChange]
+    encodeGeoValue (lon, lat, member) = [encode lon, encode lat, member]
+
+-- |Returns the distance between two members of a geospatial index (<https://redis.io/commands/geodist>). Since Redis 3.2.0
+--
+-- Redis tags: read, geo, slow
+geodist
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> ByteString
+    -> Maybe GeoUnit
+    -> m (f (Maybe Double))
+geodist key member1 member2 munit =
+    sendRequest $ ["GEODIST", key, member1, member2] ++ maybeToList (encode <$> munit)
+
+-- |Returns the longitude and latitude of members from a geospatial index (<https://redis.io/commands/geopos>). Since Redis 3.2.0
+--
+-- ACL categories: @read, @geo, @slow.
+geopos
+    :: (RedisCtx m f)
+    => ByteString
+    -> [ByteString]
+    -> m (f [Maybe GeoCoordinates])
+geopos key members = sendRequest $ ["GEOPOS", key] ++ members
+
+-- |Queries a geospatial index for members inside an area of a box or a circle (<https://redis.io/commands/geosearch>). Since Redis 6.2.0
+--
+-- $O(N+\log(M))$ where N is the number of elements in the grid-aligned bounding box area around the shape provided as the filter and M is the number of items inside the shape
+--
+-- ACL: @read, @geo, @slow
+--
+-- Since: Redis 6.2.0
+geoSearch
+    :: (RedisCtx m f)
+    => ByteString
+    -> GeoSearchFrom
+    -> GeoSearchBy
+    -> GeoSearchOpts
+    -> m (f [GeoLocation])
+geoSearch key from by opts =
+    sendRequest $ ["GEOSEARCH", key] ++ geoSearchFromArgs from ++ geoSearchByArgs by ++ geoSearchOptsArgs opts
+
+-- |Queries a geospatial index for members inside an area of a box or a circle, optionally stores the result (<https://redis.io/commands/geosearchstore>). Since Redis 6.2.0
+geoSearchStore
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> GeoSearchFrom
+    -> GeoSearchBy
+    -> GeoSearchStoreOpts
+    -> m (f Integer)
+geoSearchStore destination source from by opts =
+    sendRequest $ ["GEOSEARCHSTORE", destination, source] ++ geoSearchFromArgs from ++ geoSearchByArgs by ++ geoSearchStoreOptsArgs opts
+
+geoSearchFromArgs :: GeoSearchFrom -> [ByteString]
+geoSearchFromArgs (GeoSearchFromMember member) = ["FROMMEMBER", member]
+geoSearchFromArgs (GeoSearchFromLonLat lon lat) = ["FROMLONLAT", encode lon, encode lat]
+
+geoSearchByArgs :: GeoSearchBy -> [ByteString]
+geoSearchByArgs (GeoSearchByRadius radius unit) = ["BYRADIUS", encode radius, encode unit]
+geoSearchByArgs (GeoSearchByBox width height unit) = ["BYBOX", encode width, encode height, encode unit]
+
+geoSearchOptsArgs :: GeoSearchOpts -> [ByteString]
+geoSearchOptsArgs GeoSearchOpts{..} =
+    orderArg ++ countArg ++ withCoord ++ withDist ++ withHash
+  where
+    orderArg = maybe [] (\order -> [encode order]) geoSearchOrder
+    countArg = maybe [] (\count -> ["COUNT", encode count] ++ ["ANY" | geoSearchCountAny]) geoSearchCount
+    withCoord = ["WITHCOORD" | geoSearchWithCoord]
+    withDist = ["WITHDIST" | geoSearchWithDist]
+    withHash = ["WITHHASH" | geoSearchWithHash]
+
+geoSearchStoreOptsArgs :: GeoSearchStoreOpts -> [ByteString]
+geoSearchStoreOptsArgs GeoSearchStoreOpts{..} =
+    orderArg ++ countArg ++ storeDistArg
+  where
+    orderArg = maybe [] (\order -> [encode order]) geoSearchStoreOrder
+    countArg = maybe [] (\count -> ["COUNT", encode count] ++ ["ANY" | geoSearchStoreCountAny]) geoSearchStoreCount
+    storeDistArg = ["STOREDIST" | geoSearchStoreStoredist]
+
 -- | Data structure that is returned as a result of  'xinfoConsumers'
 data XInfoConsumersResponse = XInfoConsumersResponse
     { xinfoConsumerName :: ByteString -- ^ The name of the consumer.
