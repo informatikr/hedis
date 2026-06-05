@@ -17,7 +17,7 @@
 --
 module Database.Redis.ProtocolPipelining (
   Connection,
-  connect, connectWithHooks, beginReceiving, disconnect, request, send, recv, flush, fromCtx, hooks
+  connect, connectWithHooks, beginReceiving, disconnect, request, send, recv, flush, fromCtx, fromCtxWithHooks, hooks
 ) where
 
 import           Prelude
@@ -48,6 +48,9 @@ data Connection = Conn
 
 fromCtx :: CC.ConnectionContext -> IO Connection
 fromCtx ctx = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0 <*> pure defaultHooks
+
+fromCtxWithHooks :: CC.ConnectionContext -> Hooks -> IO Connection
+fromCtxWithHooks ctx hooks = Conn ctx <$> newIORef [] <*> newIORef [] <*> newIORef 0 <*> pure hooks
 
 connect :: CC.ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> IO Connection
 connect connectAddr timeoutOpt mTlsParams = connectWithHooks connectAddr timeoutOpt mTlsParams defaultHooks

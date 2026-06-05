@@ -13,6 +13,7 @@ import Network.Socket (PortNumber)
 import System.Environment (lookupEnv)
 import Tests
 import Text.Read (readMaybe)
+import PubSubTest (testPubSubThreaded)
 
 main :: IO ()
 main = do
@@ -38,6 +39,7 @@ tests host port conn = map ($ conn) $ concat @[]
     , testsConnection host port, testsClient, testsServer, [testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending7, testXClaim, testXInfo, testXDel, testXTrim]
       -- should always be run last as connection gets closed after it
+    , testPubSubThreaded
     , [testQuit]
     ]
 
