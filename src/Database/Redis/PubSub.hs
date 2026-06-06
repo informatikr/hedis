@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, OverloadedStrings, RecordWildCards, EmptyDataDecls,
     FlexibleInstances, FlexibleContexts, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, TupleSections, ConstraintKinds #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Database.Redis.PubSub (
     publish,
@@ -19,7 +20,10 @@ module Database.Redis.PubSub (
     PubSubController, newPubSubController, currentChannels, currentPChannels,
     addChannels, addChannelsAndWait, removeChannels, removeChannelsAndWait,
     UnregisterCallbacksAction,
-    pendingChannels, pendingPatternChannels
+    pendingChannels, pendingPatternChannels,
+    -- ** Short lived connections
+    -- $shortlivedexpl
+    withPubSub
 ) where
 
 #if __GLASGOW_HASKELL__ < 710
@@ -27,14 +31,17 @@ import Control.Applicative
 import Data.Monoid hiding (<>)
 #endif
 import Control.Arrow (second)
-import Control.Concurrent.Async (withAsync, waitEitherCatch, waitEitherCatchSTM)
+import Control.Concurrent.Async (withAsync, waitEitherCatch, waitEitherCatchSTM, concurrently)
 import Control.Concurrent.STM
-import Control.Exception (throwIO)
+import Control.Exception (throwIO, finally)
+import qualified Database.Redis.ProtocolPipelining as PP
 import Control.Monad
 import Control.Monad.Reader (asks)
 import Control.Monad.State
 import Data.ByteString.Char8 (ByteString)
+import Data.Function (fix)
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (isJust)
 import Data.Pool
 #if __GLASGOW_HASKELL__ < 808
@@ -46,7 +53,6 @@ import qualified Data.HashSet as HS
 import qualified Database.Redis.Cluster as Cluster
 import qualified Database.Redis.Core as Core
 import qualified Database.Redis.Connection as Connection
-import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Protocol (Reply(..), renderRequest)
 import Database.Redis.Types
 import Control.Monad.IO.Unlift (MonadUnliftIO(withRunInIO))
@@ -753,3 +759,67 @@ errMsg r = error $ "Hedis: expected pub/sub-message but got: " ++ show r
 -- of the public API) are shared, so functions or types in one of the following sections cannot
 -- be used for the other.  In particular, be aware that they use different utility functions to subscribe
 -- and unsubscribe to channels.
+
+
+-- $shortlivedexpl
+-- Another approach to Pub/Sub that allows creating a short-lived Pub/Sub connection is to use 'withPubSub', which takes a callback that receives messages and returns when the callback returns. This is simpler than 'pubSubForever' but does not support changing subscriptions while it is running, so it is only useful for short-lived Pub/Sub connections. For example, you could use 'withPubSub'
+-- to subscribe to a channel, consume a stream of messages, and then return. This approach is worth using when you want a few short-lived
+-- subscriptions. However, each call to 'withPubSub' consumes a connection from the pool, so if you have a lot of short-lived subscriptions, it is more
+
+-- |
+-- Creates a subscription and automatically unsubscribes when callback returns, this function keeps
+-- flow control in the callback, so it is useful for short-lived subscriptions, when the callback knows
+-- when to exit. The function is quite simple and does not make any attempts to handle connection loss.
+--
+-- Note that this function does not support changing subscriptions while it is running, so it is only useful for short-lived Pub/Sub connections.
+--
+-- An example of usage, that is hard to implement with 'pubSubForever' is to subscribe to a channel:
+--
+-- @
+-- withPubSub conn [\"mychannel\"] [] $ \\waitMsg -> do
+--    d <- registerDelay 1000000 -- 1 second (requires -threaded runtime)
+--    atomically $ asum [ readTVar >>= guard >> return Nothing
+--                      , Just <$> waitMsg
+--                      ]
+-- @
+--
+-- In case if connection is lost, user callback will receive 'BlockedIndefinitelyOnSTM' exception.
+withPubSub :: Connection.Connection -> [ByteString] -> [ByteString] -> (STM Message -> IO r) -> IO r
+withPubSub (Connection.NonClusteredConnection pool) chans pchans f = withResource pool $ \rawConn -> do
+    newTChanIO >>= \messageChan -> withPubSubOnConn messageChan chans pchans rawConn f
+withPubSub (Connection.ClusteredConnection _ pool) chans pchans f = withResource pool $ \clusterConn -> do
+    masterNodeConns <- Cluster.masterNodes clusterConn
+    nodeConn <- case masterNodeConns of
+      [] -> ioError $ userError "Hedis: clustered withPubSub requires at least one master node"
+      x:_ -> pure x
+    rawConn <- PP.fromCtxWithHooks (Cluster.nodeConnectionContext nodeConn) (Cluster.hooks clusterConn)
+    PP.beginReceiving rawConn
+    newTChanIO >>= \messageChan -> withPubSubOnConn messageChan chans pchans rawConn f
+
+withPubSubOnConn :: TChan Message -> [ByteString] -> [ByteString] -> PP.Connection -> (STM Message -> IO r) -> IO r
+withPubSubOnConn messageChan chans pchans rawConn f = do
+    subscribeAll
+    (_, r) <- concurrently lThread (f (readTChan messageChan) `finally` unsubscribeAll)
+    pure r
+  where
+    subscribeAll = do
+        forM_ (NE.nonEmpty chans) \ne_chans ->
+            PP.send rawConn $ renderRequest ("SUBSCRIBE" : NE.toList ne_chans)
+        forM_ (NE.nonEmpty pchans) \ne_pchans ->
+            PP.send rawConn $ renderRequest ("PSUBSCRIBE" : NE.toList ne_pchans)
+        PP.flush rawConn
+    unsubscribeAll = do
+        forM_ (NE.nonEmpty chans) \ne_chans ->
+            PP.send rawConn $ renderRequest ("UNSUBSCRIBE" : NE.toList ne_chans)
+        forM_ (NE.nonEmpty pchans) \ne_pchans ->
+            PP.send rawConn $ renderRequest ("PUNSUBSCRIBE" : NE.toList ne_pchans)
+        PP.flush rawConn
+    lThread = fix \next -> do
+        msg <- PP.recv rawConn
+        case decodeMsg msg of
+            Msg m -> do
+                atomically (writeTChan messageChan m)
+                next
+            Unsubscribed _ 0 -> pure ()
+            PUnsubscribed _ 0 -> pure ()
+            _ -> next
