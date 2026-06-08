@@ -1,13 +1,15 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RecordWildCards,
     MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, CPP,
-    DeriveDataTypeable, StandaloneDeriving #-}
+    DeriveDataTypeable, StandaloneDeriving, UndecidableInstances #-}
 
 module Database.Redis.Core (
     Redis(), unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
+    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook,
     send, recv, sendRequest,
     runRedisInternal,
     runRedisClusteredInternal,
+    defaultHooks,
     RedisEnv(..),
 ) where
 
@@ -24,6 +26,7 @@ import qualified Database.Redis.ProtocolPipelining as PP
 import Database.Redis.Types
 import Database.Redis.Cluster(ShardMap)
 import qualified Database.Redis.Cluster as Cluster
+import Database.Redis.Hooks
 
 --------------------------------------------------------------------------------
 -- The Redis Monad
@@ -40,6 +43,12 @@ class (MonadRedis m) => RedisCtx m f | m -> f where
 class (Monad m) => MonadRedis m where
     liftRedis :: Redis a -> m a
 
+instance {-# OVERLAPPABLE #-}
+  ( MonadTrans t
+  , MonadRedis m
+  , Monad (t m)
+  ) => MonadRedis (t m) where
+  liftRedis = lift . liftRedis
 
 instance RedisCtx Redis (Either Reply) where
     returnDecode = return . decode
@@ -74,9 +83,9 @@ runRedisInternal conn (Redis redis) = do
 
 runRedisClusteredInternal :: Cluster.Connection -> IO ShardMap -> Redis a -> IO a
 runRedisClusteredInternal connection refreshShardmapAction (Redis redis) = do
-    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection)
-    r `seq` return ()
-    return r
+    ref <- newIORef (SingleLine "no reply yet")
+    r <- runReaderT redis (ClusteredEnv refreshShardmapAction connection ref)
+    r `seq` return r
 
 setLastReply :: Reply -> ReaderT RedisEnv IO ()
 setLastReply r = do
@@ -112,8 +121,11 @@ sendRequest req = do
         env <- ask
         case env of
             NonClusteredEnv{..} -> do
-                r <- liftIO $ PP.request envConn (renderRequest req)
+                r <- liftIO $ sendRequestHook (PP.hooks envConn) (PP.request envConn . renderRequest) req
                 setLastReply r
                 return r
-            ClusteredEnv{..} -> liftIO $ Cluster.requestPipelined refreshAction connection req
+            ClusteredEnv{..} -> do
+                r <- liftIO $ sendRequestHook (Cluster.hooks connection) (Cluster.requestPipelined refreshAction connection) req
+                setLastReply r
+                return r
     returnDecode r'

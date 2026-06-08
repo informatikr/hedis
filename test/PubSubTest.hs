@@ -1,15 +1,18 @@
-{-# LANGUAGE CPP, OverloadedStrings, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE BlockArguments #-}
 module PubSubTest (testPubSubThreaded) where
 
 import Control.Concurrent
 import Control.Monad
 import Control.Concurrent.Async
 import Control.Exception
-import Data.Typeable
+import Data.Function (fix)
 import qualified Data.List
-import Data.Text
+import Data.Text (Text)
+import Data.Typeable
 import Data.ByteString
 import Control.Concurrent.STM
+import System.Timeout (timeout)
 import qualified Test.Framework as Test
 import qualified Test.Framework.Providers.HUnit as Test (testCase)
 import qualified Test.HUnit as HUnit
@@ -17,7 +20,16 @@ import qualified Test.HUnit as HUnit
 import Database.Redis
 
 testPubSubThreaded :: [Connection -> Test.Test]
-testPubSubThreaded = [removeAllTest, callbackErrorTest, removeFromUnregister]
+testPubSubThreaded =
+  [ removeAllTest
+  , callbackErrorTest
+  , removeFromUnregister
+  , pendingChannelsTrackingTest
+  , subscribeReplyDecodingTracksPendingSets
+  , withPubSubTest
+  , withPubSubTimeoutTest
+  , withPubSubTestBoth
+  ]
 
 -- | A handler label to be able to distinguish the handlers from one another
 -- to help make sure we unregister the correct handler.
@@ -100,7 +112,7 @@ removeAllTest conn = Test.testCase "Multithreaded Pub/Sub - basic" $ do
     waitForPMessage msgVar "InitialBar2" "bar2:aaa" "0987"
 
 data TestError = TestError ByteString
-  deriving (Eq, Show, Typeable)
+  deriving (Eq, Show)
 instance Exception TestError
 
 -- | Test an error thrown from a message handler
@@ -171,3 +183,124 @@ removeFromUnregister conn = Test.testCase "Multithreaded Pub/Sub - unregister ha
 
     runRedis conn $ publish "def:cccc" "World6"
     waitForPMessage msgVar "InitialDef" "def:cccc" "World6"
+
+waitUntilPendingEmpty :: PubSubController -> IO ()
+waitUntilPendingEmpty ctrl = do
+  ret <- timeout (5 * 1000 * 1000) loop
+  case ret of
+    Nothing -> HUnit.assertFailure "Timed out waiting for pending PubSub channels to be cleared"
+    Just _ -> return ()
+  where
+    loop = do
+      pendingCh <- pendingChannels ctrl
+      pendingPCh <- pendingPatternChannels ctrl
+      unless (Prelude.null pendingCh && Prelude.null pendingPCh) $ do
+        threadDelay (10 * 1000)
+        loop
+
+assertDoesNotHappen :: String -> IO a -> IO ()
+assertDoesNotHappen label action = do
+  ret <- timeout (700 * 1000) action
+  case ret of
+    Nothing -> return ()
+    Just _ -> HUnit.assertFailure $ "Unexpectedly observed: " ++ label
+
+-- | Verify exported pending sets track add/remove operations before Redis acknowledges requests.
+pendingChannelsTrackingTest :: Connection -> Test.Test
+pendingChannelsTrackingTest _ = Test.testCase "Multithreaded Pub/Sub - pending channels tracking" $ do
+  msgVar <- newTVarIO []
+  ctrl <- newPubSubController [] []
+
+  _ <- addChannels ctrl
+      [("pending:chan", handler "PendingChan" msgVar)]
+      [("pending:*", phandler "PendingPattern" msgVar)]
+
+  pendingCh <- pendingChannels ctrl
+  pendingPCh <- pendingPatternChannels ctrl
+  HUnit.assertBool "channel should be marked pending" ("pending:chan" `Prelude.elem` pendingCh)
+  HUnit.assertBool "pattern channel should be marked pending" ("pending:*" `Prelude.elem` pendingPCh)
+
+  removeChannels ctrl ["pending:chan"] ["pending:*"]
+
+  pendingCh2 <- pendingChannels ctrl
+  pendingPCh2 <- pendingPatternChannels ctrl
+  HUnit.assertBool "removed channel should no longer be pending" (not $ "pending:chan" `Prelude.elem` pendingCh2)
+  HUnit.assertBool "removed pattern channel should no longer be pending" (not $ "pending:*" `Prelude.elem` pendingPCh2)
+
+-- | Exercise subscribe/unsubscribe decoding paths and ensure pending sets are drained per channel type.
+subscribeReplyDecodingTracksPendingSets :: Connection -> Test.Test
+subscribeReplyDecodingTracksPendingSets conn = Test.testCase "Multithreaded Pub/Sub - decode subscribe/unsubscribe replies" $ do
+  msgVar <- newTVarIO []
+  initialComplete <- newTVarIO False
+  ctrl <- newPubSubController [] []
+
+  withAsync (pubSubForever conn ctrl (atomically $ writeTVar initialComplete True)) $ \_ -> do
+    atomically $ readTVar initialComplete >>= \b -> if b then return () else retry
+
+    _ <- addChannels ctrl
+        [("decode:chan", handler "DecodeChan" msgVar)]
+        [("decode:*", phandler "DecodePattern" msgVar)]
+
+    waitUntilPendingEmpty ctrl
+
+    runRedis conn $ publish "decode:chan" "msg-1"
+    waitForMessage msgVar "DecodeChan" "msg-1"
+
+    runRedis conn $ publish "decode:abc" "msg-2"
+    waitForPMessage msgVar "DecodePattern" "decode:abc" "msg-2"
+
+    removeChannelsAndWait ctrl ["decode:chan"] ["decode:*"]
+
+    waitUntilPendingEmpty ctrl
+
+    runRedis conn $ publish "decode:chan" "msg-3"
+    assertDoesNotHappen "channel callback after unsubscribe" $ waitForMessage msgVar "DecodeChan" "msg-3"
+
+    runRedis conn $ publish "decode:def" "msg-4"
+    assertDoesNotHappen "pattern callback after unsubscribe" $ waitForPMessage msgVar "DecodePattern" "decode:def" "msg-4"
+
+withPubSubTest :: Connection -> Test.Test
+withPubSubTest conn = Test.testCase "Multithreaded Pub/Sub - withPubSub" $ do
+  lock <- newEmptyMVar
+  _ <- forkIO $ do
+    () <- takeMVar lock
+    _ <- runRedis conn $ publish "foo9" "bar"
+    pure ()
+  result <- withPubSub conn ["foo9"] [] $ \messageSTM -> do
+    putMVar lock ()
+    atomically messageSTM
+  case result of
+    Message "foo9" "bar" -> pure ()
+    x -> HUnit.assertFailure $ "Received unexpected message: " ++ show x
+
+withPubSubTestBoth :: Connection -> Test.Test
+withPubSubTestBoth conn = Test.testCase "Multithreaded Pub/Sub - withPubSub (both chan and pchan)" $ do
+  lock <- newEmptyMVar
+  _ <- forkIO $ do
+    () <- takeMVar lock
+    _ <- runRedis conn $ publish "foo100" "bar"
+    _ <- runRedis conn $ publish "foo200" "bar"
+    pure ()
+  result <- withPubSub conn ["foo100"] ["foo2*"] $ \fetch -> do
+    putMVar lock ()
+    x <- timeout 1000000 $ do
+      flip fix (False, False) \next (seenFoo100, seenFoo200) -> do
+        unless (seenFoo100 && seenFoo200) do
+          msg <- atomically fetch
+          case msg of
+            Message "foo100" "bar" -> putStrLn "A" >> next (True, seenFoo200)
+            PMessage "foo2*" "foo200" "bar" -> putStrLn "B" >>next (seenFoo100, True)
+            x -> HUnit.assertFailure $ "Received unexpected message: " ++ show x
+    putStrLn "C"
+    return x
+  case result of
+    Nothing -> HUnit.assertFailure $ "Messages were not received"
+    Just{} -> pure ()
+
+withPubSubTimeoutTest :: Connection -> Test.Test
+withPubSubTimeoutTest conn = Test.testCase "Multithreaded Pub/Sub - withPubSub with timeout" $ do
+  result <- withPubSub conn ["foo100"] [] $ \messageSTM -> do
+    timeout (100000) $ atomically messageSTM
+  case result of
+    Nothing -> pure ()
+    Just x -> HUnit.assertFailure $ "Expected to timeout without receiving a message, but received: " ++ show x

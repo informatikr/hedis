@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Database.Redis.Core.Internal where
 #if __GLASGOW_HASKELL__ > 711 && __GLASGOW_HASKELL__ < 808
 import Control.Monad.Fail (MonadFail)
 #endif
+import Control.Monad.Catch
 import Control.Monad.Reader
 import Data.IORef
 import Database.Redis.Protocol
@@ -20,13 +22,18 @@ import qualified Database.Redis.Cluster as Cluster
 --  possibility of Redis returning an 'Error' reply.
 newtype Redis a =
   Redis (ReaderT RedisEnv IO a)
-  deriving (Monad, MonadIO, Functor, Applicative, MonadUnliftIO)
+  deriving (Monad, MonadIO, Functor, Applicative, MonadUnliftIO, MonadThrow, MonadCatch, MonadMask)
 #if __GLASGOW_HASKELL__ > 711
 deriving instance MonadFail Redis
 #endif
 data RedisEnv
-    = NonClusteredEnv { envConn :: PP.Connection, envLastReply :: IORef Reply }
+    = NonClusteredEnv { envConn :: PP.Connection, nonClusteredLastReply :: IORef Reply }
     | ClusteredEnv
         { refreshAction :: IO Cluster.ShardMap
         , connection :: Cluster.Connection
+        , clusteredLastReply :: IORef Reply
         }
+
+envLastReply :: RedisEnv -> IORef Reply
+envLastReply NonClusteredEnv{..} = nonClusteredLastReply
+envLastReply ClusteredEnv{..} = clusteredLastReply

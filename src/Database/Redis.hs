@@ -18,7 +18,7 @@ module Database.Redis (
     -- import Data.Default.Class (def)
     -- (Just certStore) <- readCertificateStore "azure-redis.crt"
     -- let tlsParams = (defaultParamsClient "foobar.redis.cache.windows.net" "") { clientSupported = def { supportedCiphers = ciphersuite_strong }, clientShared = def { sharedCAStore = certStore } }
-    -- let redisConnInfo = defaultConnectInfo { connectHost = "foobar.redis.cache.windows.net", connectPort = PortNumber 6380, connectTLSParams = Just tlsParams, connectAuth = Just "Foobar!" }
+    -- let redisConnInfo = defaultConnectInfo { connectAddr = ConnectAddrHostPort "foobar.redis.cache.windows.net" 6380, connectTLSParams = Just tlsParams, connectAuth = Just "Foobar!" }
     -- conn <- checkedConnect redisConnInfo
     -- @
     --
@@ -162,10 +162,10 @@ module Database.Redis (
     RedisCtx(..), MonadRedis(..),
 
     -- * Connection
-    Connection, ConnectError(..), connect, checkedConnect, disconnect,
-    withConnect, withCheckedConnect,
-    ConnectInfo(..), defaultConnectInfo, parseConnectInfo, connectCluster,
-    PortID(..),
+    Connection, ConnectError(..), connect, checkedConnect,
+    ClusterConnectError (..), connectCluster, checkedConnectCluster,
+    disconnect, withConnect, withCheckedConnect,
+    ConnectInfo(..), defaultConnectInfo, parseConnectInfo, ConnectAddr(..),
 
     -- * Commands
     module Database.Redis.Commands,
@@ -176,9 +176,12 @@ module Database.Redis (
     -- * Pub\/Sub
     module Database.Redis.PubSub,
 
+    -- * Hooks
+    Hooks(..), SendRequestHook, SendPubSubHook, CallbackHook, SendHook, ReceiveHook, defaultHooks,
+
     -- * Low-Level Command API
     sendRequest,
-    Reply(..), Status(..), RedisResult(..), ConnectionLostException(..),
+    Reply(..), Status(..), RedisArg(..), RedisResult(..), ConnectionLostException(..),
     ConnectTimeout(..),
 
     -- |[Solution to Exercise]
@@ -204,11 +207,14 @@ import Database.Redis.Connection
     , disconnect
     , checkedConnect
     , connect
+    , checkedConnectCluster
+    , connectCluster
     , ConnectError(..)
+    , ClusterConnectError(..)
     , Connection(..)
     , withConnect
     , withCheckedConnect)
-import Database.Redis.ConnectionContext(PortID(..), ConnectionLostException(..), ConnectTimeout(..))
+import Database.Redis.ConnectionContext(ConnectAddr(..), ConnectionLostException(..), ConnectTimeout(..))
 import Database.Redis.PubSub
 import Database.Redis.Protocol
 import Database.Redis.Transactions

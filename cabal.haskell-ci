@@ -1,0 +1,10 @@
+branches:        master
+
+doctest:         True
+doctest-version: ^>=0.24
+
+tests:           True
+
+benchmarks:      True
+
+run-tests:       True

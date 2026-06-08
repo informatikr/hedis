@@ -97,6 +97,20 @@ instance RedisResult CommandInfo where
         , MultiBulk _  -- ACL categories
         ])) =
         decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
+    -- since redis 7.0
+    decode (MultiBulk (Just
+        [ name@(Bulk (Just _))
+        , arity@(Integer _)
+        , flags@(MultiBulk (Just _))
+        , firstPos@(Integer _)
+        , lastPos@(Integer _)
+        , step@(Integer _)
+        , MultiBulk _  -- ACL categories
+        , MultiBulk _  -- Tips
+        , MultiBulk _  -- Key specifications
+        , MultiBulk _  -- Subcommands
+        ])) =
+        decode (MultiBulk (Just [name, arity, flags, firstPos, lastPos, step]))
 
     decode e = Left e
 
@@ -111,6 +125,14 @@ keysForRequest _ ["DEBUG", "OBJECT", key] =
 keysForRequest _ ["QUIT"] =
     -- The `QUIT` command is not listed in the `COMMAND` output.
     Just []
+keysForRequest _ ["OBJECT", "refcount", key] =
+    Just [key]
+keysForRequest _ ["OBJECT", "encoding", key] =
+    Just [key]
+keysForRequest _ ["OBJECT", "idletime", key] =
+    Just [key]
+keysForRequest _ ("XINFO":_:key:_) =
+    Just [key]
 keysForRequest (InfoMap infoMap) request@(command:_) = do
     info <- HM.lookup (map toLower $ Char8.unpack command) infoMap
     keysForRequest' info request
@@ -150,9 +172,9 @@ readXreadKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
 readXreadKeys _ = Nothing
 
 readXreadgroupKeys :: [BS.ByteString] -> Maybe [BS.ByteString]
-readXreadgroupKeys ("COUNT":_:rest) = readXreadKeys rest
-readXreadgroupKeys ("BLOCK":_:rest) = readXreadKeys rest
-readXreadgroupKeys ("NOACK":rest) = readXreadKeys rest
+readXreadgroupKeys ("COUNT":_:rest) = readXreadgroupKeys rest
+readXreadgroupKeys ("BLOCK":_:rest) = readXreadgroupKeys rest
+readXreadgroupKeys ("NOACK":rest) = readXreadgroupKeys rest
 readXreadgroupKeys ("STREAMS":rest) = Just $ take (length rest `div` 2) rest
 readXreadgroupKeys _ = Nothing
 
