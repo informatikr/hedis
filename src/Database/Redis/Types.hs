@@ -121,6 +121,10 @@ instance (RedisResult a, RedisResult b) => RedisResult (a,b) where
     decode (MultiBulk (Just [x, y])) = (,) <$> decode x <*> decode y
     decode r                         = Left r
 
+instance (RedisResult a, RedisResult b, RedisResult c) => RedisResult (a,b,c) where
+    decode (MultiBulk (Just [x, y, z])) = (,,) <$> decode x <*> decode y <*> decode z
+    decode r                            = Left r
+
 instance (RedisResult k, RedisResult v) => RedisResult [(k,v)] where
     decode r = case r of
                 (MultiBulk (Just rs)) -> pairs rs

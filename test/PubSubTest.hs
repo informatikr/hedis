@@ -288,10 +288,9 @@ withPubSubTestBoth conn = Test.testCase "Multithreaded Pub/Sub - withPubSub (bot
         unless (seenFoo100 && seenFoo200) do
           msg <- atomically fetch
           case msg of
-            Message "foo100" "bar" -> putStrLn "A" >> next (True, seenFoo200)
-            PMessage "foo2*" "foo200" "bar" -> putStrLn "B" >>next (seenFoo100, True)
+            Message "foo100" "bar" -> next (True, seenFoo200)
+            PMessage "foo2*" "foo200" "bar" -> next (seenFoo100, True)
             x -> HUnit.assertFailure $ "Received unexpected message: " ++ show x
-    putStrLn "C"
     return x
   case result of
     Nothing -> HUnit.assertFailure $ "Messages were not received"

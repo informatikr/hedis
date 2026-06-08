@@ -1,5 +1,18 @@
 # Changelog for Hedis
 
+## 0.16.2
+
+- Add support for additional Redis 6.2 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)
+
+## 0.16.1
+
+- PR #248 Introduced nix flakes and reproducible build environment. Thanks to Christian Georgii
+- PR #249 PubSub supported on a cluster
+- PR #250 All geospatial commands were supported.
+- PR #251 New withPubSub for lightweight connections were introduced
+- PR #253 Add runRedisNonBlocking function that will skip action if no connections in the pool are
+  available. Thanks to Chordify
+
 ## 0.16
 
 - PR #176. Exposed RedisArg type class so it's possible to (de)serialize application data structures.

@@ -159,6 +159,10 @@ parseMovable :: [BS.ByteString] -> Maybe [BS.ByteString]
 parseMovable ("SORT":key:_) = Just [key]
 parseMovable ("EVAL":_:rest) = readNumKeys rest
 parseMovable ("EVALSHA":_:rest) = readNumKeys rest
+parseMovable ("ZDIFF":rest) = readNumKeys rest
+parseMovable ("ZINTER":rest) = readNumKeys rest
+parseMovable ("ZUNION":rest) = readNumKeys rest
+parseMovable ("ZDIFFSTORE":_:rest) = readNumKeys rest
 parseMovable ("ZUNIONSTORE":_:rest) = readNumKeys rest
 parseMovable ("ZINTERSTORE":_:rest) = readNumKeys rest
 parseMovable ("XREAD":rest) = readXreadKeys rest

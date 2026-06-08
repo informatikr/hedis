@@ -36,7 +36,7 @@ tests host port conn = map ($ conn) $ concat
 
 
 testsClient :: [Test]
-testsClient = [testClientId, testClientName]
+testsClient = [testClientId, testClientName, testClientUnpause]
 
 testsServer :: [Test]
 testsServer =
@@ -56,4 +56,4 @@ testsConnection host port =
     ]
 
 testsKeys :: [Test]
-testsKeys = [ testKeys, testKeysNoncluster, testExpireAt, testSort, testGetType, testObject ]
+testsKeys = [ testKeys, testCopy, testKeysNoncluster, testExpireAt, testSort, testGetType, testObject ]
