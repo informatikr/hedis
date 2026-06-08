@@ -20,6 +20,10 @@ select,
 del,
 dump,
 exists,
+copy,
+CopyOpts(..),
+defaultCopyOpts,
+copyOpts,
 expire,
 ExpireOpts(..),
 expireOpts,
@@ -71,6 +75,9 @@ hkeys,
 hlen,
 hmget,
 hmset,
+hrandfield,
+hrandfieldCount,
+hrandfieldCountWithValues,
 hscan,
 hscanOpts,
 hset,
@@ -86,6 +93,8 @@ pfmerge,
 -- ** Lists
 blpop,
 blpopFloat,
+blmove,
+ListDirection(..),
 brpop,
 brpopFloat,
 brpoplpush,
@@ -93,8 +102,15 @@ lindex,
 linsertBefore,
 linsertAfter,
 llen,
+lpos,
+LPosOpts(..),
+defaultLPosOpts,
+lposOpts,
+lposCount,
+lposCountOpts,
 lpop,
 lpopCount,
+lmove,
 lpush,
 lpushx,
 lrange,
@@ -127,6 +143,7 @@ clientList,
 clientPause,
 ReplyMode,
 clientReply,
+clientUnpause,
 clientSetname,
 commandCount,
 commandInfo,
@@ -161,6 +178,7 @@ sinter,
 sinterstore,
 sismember,
 smembers,
+smismember,
 smove,
 spop,
 spopN,
@@ -173,22 +191,45 @@ sunion,
 sunionstore,
 
 -- ** Sorted Sets
+bzpopmax,
+bzpopmin,
 ZaddOpts(..),
 defaultZaddOpts,
 zadd,
 zaddOpts,
-SizeCondition(..),
 zcard,
 zcount,
+zdiff,
+zdiffWithscores,
+zdiffstore,
+SizeCondition(..),
 zincrby,
 Aggregate(..),
+ZAggregateOpts(..),
+defaultZAggregateOpts,
+zinter,
+zinterWithscores,
+zinterOpts,
+zinterWithscoresOpts,
 zinterstore,
 zinterstoreWeights,
 zlexcount,
+zmscore,
+zpopmin,
+zpopmax,
+zrandmember,
+zrandmemberN,
+zrandmemberWithscores,
 zrange,
 zrangeWithscores,
+ZRangeStoreRange(..),
+ZRangeStoreOpts(..),
+defaultZRangeStoreOpts,
+zrangestore,
+zrangestoreOpts,
 RangeLex(..),
-zrangebylex, zrangebylexLimit,
+zrangebylex,
+zrangebylexLimit,
 zrangebyscore, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
 zrangebyscoreWithscores, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
 zrangebyscoreLimit, -- |Return a range of members in a sorted set, by score (<http://redis.io/commands/zrangebyscore>). The Redis command @ZRANGEBYSCORE@ is split up into 'zrangebyscore', 'zrangebyscoreWithscores', 'zrangebyscoreLimit', 'zrangebyscoreWithscoresLimit'. Since Redis 1.0.5
@@ -210,6 +251,10 @@ zrevrankWithScore,
 zscan, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
 zscanOpts, -- |Incrementally iterate sorted sets elements and associated scores (<http://redis.io/commands/zscan>). The Redis command @ZSCAN@ is split up into 'zscan', 'zscanOpts'. Since Redis 2.8.0
 zscore,
+zunion,
+zunionWithscores,
+zunionOpts,
+zunionWithscoresOpts,
 zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 
@@ -229,6 +274,11 @@ decr,
 decrby,
 get,
 getbit,
+getdel,
+getex,
+GetExOpts(..),
+defaultGetExOpts,
+getexOpts,
 getrange,
 getset,
 incr,
@@ -249,6 +299,7 @@ setex,
 setnx,
 setrange,
 strlen,
+substr,
 
 
 -- ** Streams
@@ -606,6 +657,26 @@ brpopFloat
     -> m (f (Maybe (ByteString,ByteString)))
 brpopFloat key timeout = sendRequest (["BRPOP"] ++ map encode key ++ [encode timeout])
 
+-- |Remove and return the member with the highest score from one or more sorted sets, or block until one is available (<http://redis.io/commands/bzpopmax>).
+--
+-- Since Redis 5.0.0
+bzpopmax
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ keys
+    -> Double -- ^ timeout
+    -> m (f (Maybe (ByteString, ByteString, Double)))
+bzpopmax (key:|keys_) timeout = sendRequest $ "BZPOPMAX" : key : keys_ ++ [encode timeout]
+
+-- |Remove and return the member with the lowest score from one or more sorted sets, or block until one is available (<http://redis.io/commands/bzpopmin>).
+--
+-- Since Redis 5.0.0
+bzpopmin
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ keys
+    -> Double -- ^ timeout
+    -> m (f (Maybe (ByteString, ByteString, Double)))
+bzpopmin (key:|keys_) timeout = sendRequest $ "BZPOPMIN" : key : keys_ ++ [encode timeout]
+
 -- |Asynchronously rewrite the append-only file (<http://redis.io/commands/bgrewriteaof>). Since Redis 1.0.0
 bgrewriteaof
     :: (RedisCtx m f)
@@ -683,6 +754,24 @@ zremrangebyrank
     -> m (f Integer)
 zremrangebyrank key start stop =
   sendRequest ["ZREMRANGEBYRANK",encode key,encode start,encode stop]
+
+-- |Remove and return the member with the lowest score in a sorted set (<http://redis.io/commands/zpopmin>).
+--
+-- Since Redis 5.0.0
+zpopmin
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe (ByteString, Double)))
+zpopmin key = sendRequest ["ZPOPMIN", key]
+
+-- |Remove and return the member with the highest score in a sorted set (<http://redis.io/commands/zpopmax>).
+--
+-- Since Redis 5.0.0
+zpopmax
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> m (f (Maybe (ByteString, Double)))
+zpopmax key = sendRequest ["ZPOPMAX", key]
 
 -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
 -- Since Redis 1.0.0

@@ -60,6 +60,128 @@ linsertAfter
 linsertAfter key pivot value =
         sendRequest ["LINSERT", encode key, "AFTER", encode pivot, encode value]
 
+data ListDirection = ListLeft | ListRight deriving (Show, Eq)
+
+instance RedisArg ListDirection where
+    encode ListLeft = "LEFT"
+    encode ListRight = "RIGHT"
+
+data LPosOpts = LPosOpts
+    { lposRank :: Maybe Integer
+    , lposMaxlen :: Maybe Integer
+    } deriving (Show, Eq)
+
+defaultLPosOpts :: LPosOpts
+defaultLPosOpts = LPosOpts
+    { lposRank = Nothing -- ^ The RANK option specifies the "rank" of the first element to return, in case there are multiple matches. A rank of 1 means to return the first match, 2 to return the second match, and so forth.
+    , lposMaxlen = Nothing -- ^ The MAXLEN option limits the number of elements to examine, which can improve performance for large lists.
+    }
+
+-- |Returns the index of the first matching element in a list (<https://redis.io/commands/lpos>).
+--
+-- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+--
+-- Since Redis 6.0.6
+lpos
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> m (f (Maybe Integer))
+lpos key element = lposOpts key element defaultLPosOpts
+
+-- |Returns the index of the first matching element in a list (<https://redis.io/commands/lpos>).
+--
+-- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+--
+-- Since Redis 6.0.6
+lposOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> LPosOpts
+    -> m (f (Maybe Integer))
+lposOpts key element opts =
+    sendRequest $ ["LPOS", key, element] ++ lposOptsToArgs opts
+
+-- |Returns the indexes of matching elements in a list (<https://redis.io/commands/lpos>).
+--
+-- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+--
+-- Since Redis 6.0.6
+lposCount
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> Integer
+    -> m (f [Integer])
+lposCount key element count = lposCountOpts key element count defaultLPosOpts
+
+-- |Returns the indexes of matching elements in a list (<https://redis.io/commands/lpos>).
+--
+-- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+--
+-- Since Redis 6.0.6
+lposCountOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> Integer
+    -> LPosOpts
+    -> m (f [Integer])
+lposCountOpts key element count opts =
+    sendRequest $ ["LPOS", key, element] ++ rankArg ++ ["COUNT", encode count] ++ maxlenArg
+  where
+    (rankArg, maxlenArg) = lposOptsParts opts
+
+lposOptsToArgs :: LPosOpts -> [ByteString]
+lposOptsToArgs opts =
+    rankArg ++ maxlenArg
+  where
+    (rankArg, maxlenArg) = lposOptsParts opts
+
+lposOptsParts :: LPosOpts -> ([ByteString], [ByteString])
+lposOptsParts LPosOpts{..} =
+    ( rankArg
+    , maxlenArg
+    )
+  where
+    rankArg = maybe [] (\rank -> ["RANK", encode rank]) lposRank
+    maxlenArg = maybe [] (\maxlen -> ["MAXLEN", encode maxlen]) lposMaxlen
+
+-- |Move an element after taking it from one list and pushing it to another (<https://redis.io/commands/lmove>).
+--
+-- In clustered environments source and destination keys must be in the same hash slot, which can be ensured by using hash tags (e.g. @{tag}source@ and @{tag}destination@).
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+lmove
+    :: (RedisCtx m f)
+    => ByteString    -- ^ Source
+    -> ByteString    -- ^ Destination
+    -> ListDirection -- ^ Direction where to get the element from in the source list
+    -> ListDirection -- ^ Direction where to push the element to in the destination list
+    -> m (f (Maybe ByteString))
+lmove source destination from to =
+    sendRequest ["LMOVE", source, destination, encode from, encode to]
+
+-- |Move an element after taking it from one list and pushing it to another, or blocks until one is available (<https://redis.io/commands/blmove>).
+--
+-- In clustered environments source and destination keys must be in the same hash slot, which can be ensured by using hash tags (e.g. @{tag}source@ and @{tag}destination@).
+--
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+blmove
+    :: (RedisCtx m f)
+    => ByteString    -- ^ Source
+    -> ByteString    -- ^ Destination
+    -> ListDirection -- ^ Direction where to get the element from in the source list
+    -> ListDirection -- ^ Direction where to push the element to in the destination list
+    -> Integer
+    -> m (f (Maybe ByteString))
+blmove source destination from to timeout =
+    sendRequest ["BLMOVE", source, destination, encode from, encode to, encode timeout]
+
 -- |Determine the type stored at key (<http://redis.io/commands/type>). Since Redis 1.0.0
 getType
     :: (RedisCtx m f)
@@ -364,6 +486,178 @@ zstoreInternal cmd dest keys weights aggregate = sendRequest $
         Min -> "MIN"
         Max -> "MAX"
 
+-- |Returns the difference between multiple sorted sets (<https://redis.io/commands/zdiff>).
+--
+-- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zdiff
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> m (f [ByteString])
+zdiff keys = sendRequest $ zAggregateKeysArgs "ZDIFF" keys
+
+-- |Returns the difference between multiple sorted sets with scores (<https://redis.io/commands/zdiff>).
+--
+-- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zdiffWithscores
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> m (f [(ByteString, Double)])
+zdiffWithscores keys = sendRequest $ zAggregateKeysArgs "ZDIFF" keys ++ ["WITHSCORES"]
+
+-- |Stores the difference of multiple sorted sets in a key (<https://redis.io/commands/zdiffstore>).
+--
+-- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Keys that do not exist are considered to be empty sets.
+--
+-- If destination already exists, it is overwritten.
+--
+-- Since Redis 6.2.0
+zdiffstore
+    :: (RedisCtx m f)
+    => ByteString -- ^ Destination key.
+    -> NonEmpty ByteString -- ^ Sorted set keys.
+    -> m (f Integer)
+zdiffstore destination keys =
+    sendRequest $ ["ZDIFFSTORE", destination] ++ tail (zAggregateKeysArgs "ZDIFF" keys)
+
+-- |Returns the intersection of multiple sorted sets (<https://redis.io/commands/zinter>).
+--
+-- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zinter
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> m (f [ByteString])
+zinter keys = zinterOpts keys defaultZAggregateOpts
+
+
+data ZAggregateOpts = ZAggregateOpts
+    { zAggregateWeights :: [Double] -- ^ WEIGHTS option, it is possible to specify a multiplication factor for each input sorted set. Each element's score is multiplied by its corresponding weight before aggregation. When WEIGHTS is not given, the multiplication factors default to 1.
+    , zAggregateAggregate :: Aggregate -- ^ AGGREGATE option, it is possible to specify how the results of the union are aggregated
+    } deriving (Show, Eq)
+
+defaultZAggregateOpts :: ZAggregateOpts
+defaultZAggregateOpts = ZAggregateOpts
+    { zAggregateWeights = []
+    , zAggregateAggregate = Sum
+    }
+
+-- |Returns the intersection of multiple sorted sets with scores (<https://redis.io/commands/zinter>).
+--
+-- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zinterWithscores
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> m (f [(ByteString, Double)])
+zinterWithscores keys = zinterWithscoresOpts keys defaultZAggregateOpts
+
+-- |Returns the intersection of multiple sorted sets (<https://redis.io/commands/zinter>).
+--
+-- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zinterOpts
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> ZAggregateOpts
+    -> m (f [ByteString])
+zinterOpts keys opts = sendRequest $ zAggregateInternalArgs "ZINTER" keys opts False
+
+-- |Returns the intersection of multiple sorted sets with scores (<https://redis.io/commands/zinter>).
+--
+-- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 6.2.0
+zinterWithscoresOpts
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> ZAggregateOpts
+    -> m (f [(ByteString, Double)])
+zinterWithscoresOpts keys opts = sendRequest $ zAggregateInternalArgs "ZINTER" keys opts True
+
+-- |Returns the union of multiple sorted sets (<https://redis.io/commands/zunion>).
+--
+-- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+--
+-- Since Redis 6.2.0
+zunion
+    :: (RedisCtx m f)
+    => NonEmpty ByteString -- ^ Sorted set keys.
+    -> m (f [ByteString])
+zunion keys = zunionOpts keys defaultZAggregateOpts
+
+-- |Returns the union of multiple sorted sets with scores (<https://redis.io/commands/zunion>).
+--
+-- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+--
+-- Since Redis 6.2.0
+zunionWithscores
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> m (f [(ByteString, Double)])
+zunionWithscores keys = zunionWithscoresOpts keys defaultZAggregateOpts
+
+-- |Returns the union of multiple sorted sets (<https://redis.io/commands/zunion>).
+--
+-- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+--
+-- Since Redis 6.2.0
+zunionOpts
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ZAggregateOpts
+    -> m (f [ByteString])
+zunionOpts keys opts = sendRequest $ zAggregateInternalArgs "ZUNION" keys opts False
+
+-- |Returns the union of multiple sorted sets with scores (<https://redis.io/commands/zunion>).
+--
+-- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+--
+-- Since Redis 6.2.0
+zunionWithscoresOpts
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ZAggregateOpts
+    -> m (f [(ByteString, Double)])
+zunionWithscoresOpts keys opts = sendRequest $ zAggregateInternalArgs "ZUNION" keys opts True
+
+zAggregateKeysArgs :: ByteString -> NonEmpty ByteString -> [ByteString]
+zAggregateKeysArgs cmd keys =
+    [cmd, encode . toInteger $ NE.length keys] ++ NE.toList keys
+
+zAggregateInternalArgs :: ByteString -> NonEmpty ByteString -> ZAggregateOpts -> Bool -> [ByteString]
+zAggregateInternalArgs cmd keys ZAggregateOpts{..} withScores =
+    zAggregateKeysArgs cmd keys ++ weightsArg ++ aggregateArg ++ withScoresArg
+  where
+    weightsArg = ["WEIGHTS" | not (null zAggregateWeights)] ++ map encode zAggregateWeights
+    aggregateArg = ["AGGREGATE", aggregateValue zAggregateAggregate]
+    withScoresArg = ["WITHSCORES" | withScores]
+    aggregateValue Sum = "SUM"
+    aggregateValue Min = "MIN"
+    aggregateValue Max = "MAX"
+
 -- |Execute a Lua script server side (<http://redis.io/commands/eval>). Since Redis 2.6.0
 eval
     :: (RedisCtx m f, RedisResult a)
@@ -493,9 +787,9 @@ migrateMultiple
 migrateMultiple host port destinationDb timeout MigrateOpts{..} keys =
     sendRequest $
     concat [["MIGRATE", host, port, empty, encode destinationDb, encode timeout],
-            auth_, copy, replace, keys]
+            auth_, copyArg, replace, keys]
   where
-    copy = ["COPY" | migrateCopy]
+    copyArg = ["COPY" | migrateCopy]
     replace = ["REPLACE" | migrateReplace]
     auth_ = case migrateAuth of
      Nothing -> []
@@ -546,6 +840,46 @@ restoreReplace
     -> m (f Status)
 restoreReplace key timeToLive serializedValue =
   sendRequest ["RESTORE", key, encode timeToLive, serializedValue, "REPLACE"]
+
+data CopyOpts = CopyOpts
+  { copyDestinationDb :: Maybe Integer
+  , copyReplace :: Bool
+  } deriving (Show, Eq)
+
+defaultCopyOpts :: CopyOpts
+defaultCopyOpts = CopyOpts
+  { copyDestinationDb = Nothing
+  , copyReplace = False
+  }
+
+-- |Copies the value of a key to a new key (<https://redis.io/commands/copy>).
+--
+-- $O(N)$ worst case for collections, where $N$ is the number of nested items. $O(1)$ for string values.
+--
+-- Since Redis 6.2.0
+copy
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> m (f Bool)
+copy source destination = copyOpts source destination defaultCopyOpts
+
+-- |Copies the value of a key to a new key (<https://redis.io/commands/copy>).
+--
+-- $O(N)$ worst case for collections, where $N$ is the number of nested items. $O(1)$ for string values.
+--
+-- Since Redis 6.2.0
+copyOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> CopyOpts
+    -> m (f Bool)
+copyOpts source destination CopyOpts{..} =
+    sendRequest $ ["COPY", source, destination] ++ dbArg ++ replaceArg
+  where
+    dbArg = maybe [] (\destinationDb -> ["DB", encode destinationDb]) copyDestinationDb
+    replaceArg = ["REPLACE" | copyReplace]
 
 
 set
@@ -618,6 +952,64 @@ setGetOpts
     -> SetOpts
     -> m (f ByteString)
 setGetOpts key value opts = sendRequest $ ["SET", key, value, "GET"] ++ internalSetOptsToArgs opts
+
+data GetExOpts = GetExOpts
+  { getExSeconds :: Maybe Integer
+  , getExMilliseconds :: Maybe Integer
+  , getExUnixSeconds :: Maybe Integer
+  , getExUnixMilliseconds :: Maybe Integer
+  , getExPersist :: Bool
+  } deriving (Show, Eq)
+
+defaultGetExOpts :: GetExOpts
+defaultGetExOpts = GetExOpts
+  { getExSeconds = Nothing
+  , getExMilliseconds = Nothing
+  , getExUnixSeconds = Nothing
+  , getExUnixMilliseconds = Nothing
+  , getExPersist = False
+  }
+
+-- |Returns the string value of a key after deleting the key (<https://redis.io/commands/getdel>).
+--
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+getdel
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f (Maybe ByteString))
+getdel key = sendRequest ["GETDEL", key]
+
+-- |Returns the string value of a key after setting its expiration time (<https://redis.io/commands/getex>).
+--
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+getex
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f (Maybe ByteString))
+getex key = getexOpts key defaultGetExOpts
+
+-- |Returns the string value of a key after setting its expiration time (<https://redis.io/commands/getex>).
+--
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+getexOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> GetExOpts
+    -> m (f (Maybe ByteString))
+getexOpts key GetExOpts{..} =
+    sendRequest $ ["GETEX", key] ++ exArg ++ pxArg ++ exatArg ++ pxatArg ++ persistArg
+  where
+    exArg = maybe [] (\seconds -> ["EX", encode seconds]) getExSeconds
+    pxArg = maybe [] (\milliseconds -> ["PX", encode milliseconds]) getExMilliseconds
+    exatArg = maybe [] (\seconds -> ["EXAT", encode seconds]) getExUnixSeconds
+    pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) getExUnixMilliseconds
+    persistArg = ["PERSIST" | getExPersist]
 
 
 data DebugMode = Yes | Sync | No deriving (Show, Eq)
@@ -719,6 +1111,16 @@ clientReply
 clientReply mode =
     sendRequest ["CLIENT REPLY", encode mode]
 
+-- |Resumes processing commands from paused clients (<https://redis.io/commands/client-unpause>).
+--
+-- $O(N)$ where $N$ is the number of paused clients.
+--
+-- Since Redis 6.2.0
+clientUnpause
+    :: (RedisCtx m f)
+    => m (f Status)
+clientUnpause = sendRequest ["CLIENT", "UNPAUSE"]
+
 -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmember
     :: (RedisCtx m f)
@@ -749,6 +1151,18 @@ spopN
     -> Integer -- ^ count
     -> m (f [ByteString])
 spopN key count = sendRequest ["SPOP", key, encode count]
+
+-- |Determines whether multiple members belong to a set (<https://redis.io/commands/smismember>).
+--
+-- $O(N)$ where $N$ is the number of elements being checked for membership.
+--
+-- Since Redis 6.2.0
+smismember
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [Bool])
+smismember key (member:|members) = sendRequest ("SMISMEMBER" : key : member : members)
 
 
 info
@@ -870,6 +1284,50 @@ hscanOpts
     -> m (f (Cursor, [(ByteString, ByteString)])) -- ^ next cursor and values
 hscanOpts key cursor opts = sendRequest $ addScanOpts ["HSCAN", key, encode cursor] opts
 
+-- |Returns a random field from a hash (<https://redis.io/commands/hrandfield>).
+--
+-- $O(1)$
+--
+-- Since Redis 6.2.0
+hrandfield
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f (Maybe ByteString))
+hrandfield key = sendRequest ["HRANDFIELD", key]
+
+-- |Returns one or more random fields from a hash (<https://redis.io/commands/hrandfield>).
+--
+-- $O(N)$ where $N$ is the number of fields returned.
+--
+-- If the provided count argument is positive, return an array of distinct fields. The array's length is either count or the hash's number of fields (HLEN), whichever is lower.
+--
+-- If called with a negative count, the behavior changes and the command is allowed to return the same field multiple times. In this case, the number of returned fields is the absolute value of the specified count.
+--
+-- Since Redis 6.2.0
+hrandfieldCount
+    :: (RedisCtx m f)
+    => ByteString
+    -> Integer
+    -> m (f [ByteString])
+hrandfieldCount key count = sendRequest ["HRANDFIELD", key, encode count]
+
+-- |Returns one or more random fields and their values from a hash (<https://redis.io/commands/hrandfield>).
+--
+-- $O(N)$ where $N$ is the number of fields returned.
+--
+-- If the provided count argument is positive, return an array of distinct fields. The array's length is either count or the hash's number of fields (HLEN), whichever is lower.
+--
+-- If called with a negative count, the behavior changes and the command is allowed to return the same field multiple times. In this case, the number of returned fields is the absolute value of the specified count.
+--
+-- Since Redis 6.2.0
+hrandfieldCountWithValues
+    :: (RedisCtx m f)
+    => ByteString
+    -> Integer
+    -> m (f [(ByteString, ByteString)])
+hrandfieldCountWithValues key count =
+    sendRequest ["HRANDFIELD", key, encode count, "WITHVALUES"]
+
 
 zscan
     :: (RedisCtx m f)
@@ -887,7 +1345,7 @@ zscanOpts
     -> m (f (Cursor, [(ByteString, Double)])) -- ^ next cursor and values
 zscanOpts key cursor opts = sendRequest $ addScanOpts ["ZSCAN", key, encode cursor] opts
 
-data RangeLex a = Incl a | Excl a | Minr | Maxr
+data RangeLex a = Incl a | Excl a | Minr | Maxr deriving (Show, Eq)
 
 instance RedisArg a => RedisArg (RangeLex a) where
   encode (Incl bs) = "[" `append` encode bs
@@ -915,6 +1373,117 @@ zrangebylexLimit
 zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
+
+-- |Returns the score of one or more members in a sorted set (<https://redis.io/commands/zmscore>).
+--
+-- $O(N)$ where $N$ is the number of members being requested.
+--
+-- Since Redis 6.2.0
+zmscore
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [Maybe Double])
+zmscore key (member:|members) = sendRequest ("ZMSCORE" : key : member : members)
+
+-- |Returns a random member from a sorted set (<https://redis.io/commands/zrandmember>).
+--
+-- $O(1)$ without the optional count argument.
+--
+-- Since Redis 6.2.0
+zrandmember
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f (Maybe ByteString))
+zrandmember key = sendRequest ["ZRANDMEMBER", key]
+
+-- |Returns one or more random members from a sorted set (<https://redis.io/commands/zrandmember>).
+--
+-- $O(N)$ where $N$ is the number of members returned.
+--
+-- Since Redis 6.2.0
+zrandmemberN
+    :: (RedisCtx m f)
+    => ByteString
+    -> Integer
+    -> m (f [ByteString])
+zrandmemberN key count = sendRequest ["ZRANDMEMBER", key, encode count]
+
+-- |Returns one or more random members and their scores from a sorted set (<https://redis.io/commands/zrandmember>).
+--
+-- $O(N)$ where $N$ is the number of members returned.
+--
+-- Since Redis 6.2.0
+zrandmemberWithscores
+    :: (RedisCtx m f)
+    => ByteString
+    -> Integer
+    -> m (f [(ByteString, Double)])
+zrandmemberWithscores key count =
+    sendRequest ["ZRANDMEMBER", key, encode count, "WITHSCORES"]
+
+data ZRangeStoreRange
+    = ZRangeStoreByIndex Integer Integer
+    | ZRangeStoreByScore Double Double
+    | ZRangeStoreByLex (RangeLex ByteString) (RangeLex ByteString)
+    deriving (Show, Eq)
+
+data ZRangeStoreOpts = ZRangeStoreOpts
+    { zRangeStoreRev :: Bool
+    , zRangeStoreLimit :: Maybe (Integer, Integer)
+    } deriving (Show, Eq)
+
+defaultZRangeStoreOpts :: ZRangeStoreOpts
+defaultZRangeStoreOpts = ZRangeStoreOpts
+    { zRangeStoreRev = False
+    , zRangeStoreLimit = Nothing
+    }
+
+-- |Stores a range of members from a sorted set in a destination key (<https://redis.io/commands/zrangestore>).
+--
+-- $O(\log(N) + M)$ with $N$ being the number of elements in the sorted set and $M$ the number of elements stored into the destination key.
+--
+-- Since Redis 6.2.0
+zrangestore
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> Integer
+    -> Integer
+    -> m (f Integer)
+zrangestore destination source start stop =
+    zrangestoreOpts destination source (ZRangeStoreByIndex start stop) defaultZRangeStoreOpts
+
+-- |Stores a range of members from a sorted set in a destination key (<https://redis.io/commands/zrangestore>).
+--
+-- $O(\log(N) + M)$ with $N$ being the number of elements in the sorted set and $M$ the number of elements stored into the destination key.
+--
+-- Since Redis 6.2.0
+zrangestoreOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> ByteString
+    -> ZRangeStoreRange
+    -> ZRangeStoreOpts
+    -> m (f Integer)
+zrangestoreOpts destination source range opts =
+    sendRequest $ ["ZRANGESTORE", destination, source] ++ zRangeStoreRangeArgs range ++ zRangeStoreOptsArgs opts
+
+zRangeStoreRangeArgs :: ZRangeStoreRange -> [ByteString]
+zRangeStoreRangeArgs range = case range of
+    ZRangeStoreByIndex start stop ->
+        [encode start, encode stop]
+    ZRangeStoreByScore minScore maxScore ->
+        [encode minScore, encode maxScore, "BYSCORE"]
+    ZRangeStoreByLex minMember maxMember ->
+        [encode minMember, encode maxMember, "BYLEX"]
+
+zRangeStoreOptsArgs :: ZRangeStoreOpts -> [ByteString]
+zRangeStoreOptsArgs ZRangeStoreOpts{..} =
+    revArg ++ limitArg
+  where
+    revArg = ["REV" | zRangeStoreRev]
+    limitArg = maybe [] (\(offset, count) -> ["LIMIT", encode offset, encode count]) zRangeStoreLimit
 
 -- | Trimming strategy.
 --
@@ -2485,3 +3054,16 @@ bitposOpts key_ bit opts = sendRequest ("BITPOS": key_:encode bit: rest) where
     BitposOptsStart s -> [encode s]
     BitposOptsStartEnd start end bits ->
       [encode start, encode end] ++ [ encode bits_ | Just bits_ <- pure bits]
+
+-- |Get a substring of the string stored at a key (<http://redis.io/commands/substr>).
+--
+-- Deprecated in Redis. Use 'getrange' instead.
+--
+-- Since Redis 1.0.0
+substr
+    :: (RedisCtx m f)
+    => ByteString -- ^ key
+    -> Integer -- ^ start
+    -> Integer -- ^ end
+    -> m (f ByteString)
+substr key start end = sendRequest ["SUBSTR", key, encode start, encode end]

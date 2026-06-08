@@ -211,6 +211,14 @@ testKeys = testCase "keys" $ do
                 renamenx "{same}key'" "{same}key" >>=? True
                 del (NE.fromList ["{same}key"])   >>=? 1
 
+testCopy :: Test
+testCopy = testCase "copy" $ do
+    set "dolly" "sheep" >>=? Ok
+    copy "dolly" "clone" >>=? True
+    get "clone" >>=? Just "sheep"
+    copy "dolly" "clone" >>=? False
+    copyOpts "dolly" "clone" defaultCopyOpts { copyReplace = True } >>=? True
+
 testKeysNoncluster :: Test
 testKeysNoncluster = testCase "keysNoncluster" $ do
     set "key" "value"     >>=? Ok
@@ -280,7 +288,7 @@ testObject = testCase "object" $ do
 -- Strings
 --
 testsStrings :: [Test]
-testsStrings = [testStrings, testBitops]
+testsStrings = [testStrings, testStringCommands6, testBitops]
 
 testStrings :: Test
 testStrings = testCase "strings" $ do
@@ -290,6 +298,7 @@ testStrings = testCase "strings" $ do
     strlen "key"                                  >>=? 10
     setrange "key" 0 "hello"                      >>=? 10
     getrange "key" 0 4                            >>=? "hello"
+    substr "key" 0 4                              >>=? "hello"
     mset [("{same}k1","v1"), ("{same}k2","v2")]   >>=? Ok
     msetnx [("{same}k1","v1"), ("{same}k2","v2")] >>=? False
     mget ["key"]                                  >>=? [Just "helloworld"]
@@ -305,6 +314,16 @@ testStrings = testCase "strings" $ do
     getbit "key" 42                               >>=? 1
     bitcount "key"                                >>=? 1
     bitcountRange "key" 0 (-1)                    >>=? 1
+
+testStringCommands6 :: Test
+testStringCommands6 = testCase "strings redis 6" $ do
+    set "mykey" "Hello" >>=? Ok
+    getdel "mykey" >>=? Just "Hello"
+    get "mykey" >>=? Nothing
+    set "mykey" "Hello" >>=? Ok
+    getexOpts "mykey" defaultGetExOpts { getExSeconds = Just 10 } >>=? Just "Hello"
+    ttl "mykey" >>@? \value ->
+        HUnit.assertBool "GETEX should set ttl" (value >= 0 && value <= 10)
 
 testBitops :: Test
 testBitops = testCase "bitops" $ do
@@ -335,13 +354,24 @@ testHashes = testCase "hashes" $ do
     hmset "key" [("field","40")] >>=? Ok
     hincrby "key" "field" 2      >>=? 42
     hincrbyfloat "key" "field" 2 >>=? 44
+    hset "coin" [("heads","obverse"),("tails","reverse"),("edge","null")] >>=? 3
+    hrandfield "coin" >>@? \field ->
+        HUnit.assertBool "HRANDFIELD should return an existing field" (field `elem` ([Just "heads", Just "tails", Just "edge"] :: [Maybe ByteString]))
+    hrandfieldCount "coin" 2 >>@? \fields -> do
+        HUnit.assertEqual "HRANDFIELD count" 2 (length fields)
+        HUnit.assertBool "HRANDFIELD count should return distinct fields" (fields == L.nub fields)
+        HUnit.assertBool "HRANDFIELD count should return existing fields" (all (`elem` (["heads", "tails", "edge"] :: [ByteString])) fields)
+    hrandfieldCountWithValues "coin" 2 >>@? \fields -> do
+        HUnit.assertEqual "HRANDFIELD WITHVALUES count" 2 (length fields)
+        HUnit.assertBool "HRANDFIELD WITHVALUES should return existing field/value pairs" $
+            all (`elem` ([("heads", "obverse"), ("tails", "reverse"), ("edge", "null")] :: [(ByteString, ByteString)])) fields
 
 ------------------------------------------------------------------------------
 -- Lists
 --
 testsLists :: [Test]
 testsLists =
-    [testLists, testBpop]
+    [testLists, testListCommands6, testBpop]
 
 testLists :: Test
 testLists = testCase "lists" $ do
@@ -372,6 +402,23 @@ testLists = testCase "lists" $ do
     del ("key" NE.:| [])
     return ()
 
+testListCommands6 :: Test
+testListCommands6 = testCase "lists redis 6" $ do
+    rpush "mylist" ["a", "b", "c", "d", "1", "2", "3", "4", "3", "3", "3"] >>=? 11
+    lpos "mylist" "3" >>=? Just 6
+    lposCount "mylist" "3" 0 >>=? [6, 8, 9, 10]
+    lposOpts "mylist" "3" defaultLPosOpts { lposRank = Just 2 } >>=? Just 8
+
+    rpush "{same}src" ["one", "two", "three"] >>=? 3
+    lmove "{same}src" "{same}dst" ListLeft ListRight >>=? Just "one"
+    lrange "{same}src" 0 (-1) >>=? ["two", "three"]
+    lrange "{same}dst" 0 (-1) >>=? ["one"]
+
+    rpush "{same}src2" ["one", "two", "three"] >>=? 3
+    blmove "{same}src2" "{same}dst2" ListRight ListLeft 1 >>=? Just "three"
+    lrange "{same}src2" 0 (-1) >>=? ["one", "two"]
+    lrange "{same}dst2" 0 (-1) >>=? ["three"]
+
 testBpop :: Test
 testBpop = testCase "blocking push/pop" $ do
     lpush "{same}key" ["v3","v2","v1"] >>=? 3
@@ -385,7 +432,7 @@ testBpop = testCase "blocking push/pop" $ do
 -- Sets
 --
 testsSets :: [Test]
-testsSets = [testSets, testSetAlgebra]
+testsSets = [testSets, testSMIsMember, testSetAlgebra]
 
 testSets :: Test
 testSets = testCase "sets" $ do
@@ -402,6 +449,11 @@ testSets = testCase "sets" $ do
     _ <- sadd "set" (NE.fromList ["member1", "member2"])
     (fmap L.sort <$> srandmemberN "set" 2) >>=? ["member1", "member2"]
 
+testSMIsMember :: Test
+testSMIsMember = testCase "smismember" $ do
+    sadd "myset" (NE.fromList ["one"]) >>=? 1
+    smismember "myset" ("one" NE.:| ["notamember"]) >>=? [True, False]
+
 testSetAlgebra :: Test
 testSetAlgebra = testCase "set algebra" $ do
     sadd "{same}s1" (NE.fromList ["member"])        >>=? 1
@@ -416,7 +468,7 @@ testSetAlgebra = testCase "set algebra" $ do
 -- Sorted Sets
 --
 testsZSets :: [Test]
-testsZSets = [testZSets, testZStore]
+testsZSets = [testZSets, testSortedSetCommands6, testZStore]
 
 testZSets :: Test
 testZSets = testCase "sorted sets" $ do
@@ -446,6 +498,39 @@ testZSets = testCase "sorted sets" $ do
     zrem "key" (NE.fromList ["v2"])                   >>=? 1
     zremrangebyscore "key" 10 100                     >>=? 1
     zremrangebyrank "key" 0 0                         >>=? 1
+
+testSortedSetCommands6 :: Test
+testSortedSetCommands6 = testCase "sorted sets redis 6" $ do
+    zadd "{same}zset1" [(1, "one"), (2, "two"), (3, "three")] >>=? 3
+    zadd "{same}zset2" [(1, "one"), (2, "two")] >>=? 2
+
+    zdiff ("{same}zset1" NE.:| ["{same}zset2"]) >>=? ["three"]
+    zdiffWithscores ("{same}zset1" NE.:| ["{same}zset2"]) >>=? [("three", 3)]
+    zdiffstore "{same}out" ("{same}zset1" NE.:| ["{same}zset2"]) >>=? 1
+    zrangeWithscores "{same}out" 0 (-1) >>=? [("three", 3)]
+
+    zinter ("{same}zset1" NE.:| ["{same}zset2"]) >>=? ["one", "two"]
+    zinterWithscores ("{same}zset1" NE.:| ["{same}zset2"]) >>=? [("one", 2), ("two", 4)]
+    zinterWithscoresOpts ("{same}zset1" NE.:| ["{same}zset2"])
+        defaultZAggregateOpts { zAggregateWeights = [2, 3], zAggregateAggregate = Max }
+        >>=? [("one", 3), ("two", 6)]
+
+    zunion ("{same}zset1" NE.:| ["{same}zset2"]) >>=? ["one", "three", "two"]
+    zunionWithscores ("{same}zset1" NE.:| ["{same}zset2"]) >>=? [("one", 2), ("three", 3), ("two", 4)]
+    zmscore "{same}zset1" ("one" NE.:| ["notamember"]) >>=? [Just 1, Nothing]
+
+    zrandmember "{same}zset1" >>@? \member ->
+        HUnit.assertBool "ZRANDMEMBER should return an existing member" (member `elem` ([Just "one", Just "two", Just "three"] :: [Maybe ByteString]))
+    zrandmemberN "{same}zset1" 2 >>@? \members -> do
+        HUnit.assertEqual "ZRANDMEMBER count" 2 (length members)
+        HUnit.assertBool "ZRANDMEMBER count should return existing members" (all (`elem` (["one", "two", "three"] :: [ByteString])) members)
+    zrandmemberWithscores "{same}zset1" 2 >>@? \members -> do
+        HUnit.assertEqual "ZRANDMEMBER WITHSCORES count" 2 (length members)
+        HUnit.assertBool "ZRANDMEMBER WITHSCORES should return valid pairs" $
+            all (`elem` ([("one", 1), ("two", 2), ("three", 3)] :: [(ByteString, Double)])) members
+
+    zrangestore "{same}newzset" "{same}zset1" 2 (-1) >>=? 1
+    zrange "{same}newzset" 0 (-1) >>=? ["three"]
 
 --  testZSets7 :: Test
 --  testZSets7 = testCase "sorted sets: redis 7" $ do
@@ -682,6 +767,10 @@ testConnectDbUnexisting host port = testCase "connect/db/unexisting" $ do
                   "Expected ConnectSelectError, got " ++ show res
 
     where connInfo = defaultConnectInfo { connectDatabase = 100, connectAddr = ConnectAddrHostPort host port }
+
+testClientUnpause :: Test
+testClientUnpause = testCase "client/unpause" $
+    clientUnpause >>=? Ok
 
 testEcho :: Test
 testEcho = testCase "echo" $
