@@ -212,6 +212,17 @@ runRedis (NonClusteredConnection pool) redis =
 runRedis (ClusteredConnection _ pool) redis =
     withResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
 
+-- |Interact with a Redis datastore specified by the given 'Connection', but return early
+--  if acquiring from the connection pool would block.
+--
+--  Like 'runRedis', but if all connections in the 'Connection' pool are used, it
+--  immediately returns 'Nothing'. This can be useful for logging purposes.
+runRedisNonBlocking :: Connection -> Redis a -> IO (Maybe a)
+runRedisNonBlocking (NonClusteredConnection pool) redis =
+  tryWithResource pool $ \conn -> runRedisInternal conn redis
+runRedisNonBlocking (ClusteredConnection _ pool) redis =
+    tryWithResource pool $ \conn -> runRedisClusteredInternal conn (refreshShardMap conn) redis
+
 newtype ClusterConnectError = ClusterConnectError Reply
     deriving (Eq, Show)
 

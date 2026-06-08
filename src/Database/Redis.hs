@@ -157,7 +157,7 @@ module Database.Redis (
     --
 
     -- * The Redis Monad
-    Redis(), runRedis,
+    Redis(), runRedis, runRedisNonBlocking,
     unRedis, reRedis,
     RedisCtx(..), MonadRedis(..),
 
@@ -200,6 +200,8 @@ module Database.Redis (
 import Database.Redis.Core
 import Database.Redis.Connection
     ( runRedis
+    , runRedisNonBlocking
+    , connectCluster
     , defaultConnectInfo
     , ConnectInfo(..)
     , disconnect
