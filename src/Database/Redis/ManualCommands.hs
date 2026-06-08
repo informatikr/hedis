@@ -1273,6 +1273,126 @@ getexOpts key GetExOpts{..} =
     pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) getExUnixMilliseconds
     persistArg = ["PERSIST" | getExPersist]
 
+data HGetExOpts = HGetExOpts
+  { hGetExSeconds :: Maybe Integer
+  , hGetExMilliseconds :: Maybe Integer
+  , hGetExUnixSeconds :: Maybe Integer
+  , hGetExUnixMilliseconds :: Maybe Integer
+  , hGetExPersist :: Bool
+  } deriving (Show, Eq)
+
+defaultHGetExOpts :: HGetExOpts
+defaultHGetExOpts = HGetExOpts
+  { hGetExSeconds = Nothing
+  , hGetExMilliseconds = Nothing
+  , hGetExUnixSeconds = Nothing
+  , hGetExUnixMilliseconds = Nothing
+  , hGetExPersist = False
+  }
+
+-- |Returns the values associated with the specified fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hgetex>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 8.0.0
+hgetex
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [Maybe ByteString])
+hgetex key fields = hgetexOpts key fields defaultHGetExOpts
+
+-- |Returns the values associated with the specified fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hgetex>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 8.0.0
+hgetexOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> HGetExOpts
+    -> m (f [Maybe ByteString])
+hgetexOpts key fields HGetExOpts{..} =
+    sendRequest $ ["HGETEX", key] ++ exArg ++ pxArg ++ exatArg ++ pxatArg ++ persistArg ++ hashFieldArgs fields
+  where
+    exArg = maybe [] (\seconds -> ["EX", encode seconds]) hGetExSeconds
+    pxArg = maybe [] (\milliseconds -> ["PX", encode milliseconds]) hGetExMilliseconds
+    exatArg = maybe [] (\seconds -> ["EXAT", encode seconds]) hGetExUnixSeconds
+    pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) hGetExUnixMilliseconds
+    persistArg = ["PERSIST" | hGetExPersist]
+
+-- |Returns the values associated with the specified fields in a hash and deletes those fields (<https://redis.io/commands/hgetdel>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 8.0.0
+hgetdel
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [Maybe ByteString])
+hgetdel key fields =
+    sendRequest $ ["HGETDEL", key] ++ hashFieldArgs fields
+
+data HSetExCondition = HSetExFnx | HSetExFxx deriving (Show, Eq)
+
+instance RedisArg HSetExCondition where
+    encode HSetExFnx = "FNX"
+    encode HSetExFxx = "FXX"
+
+data HSetExOpts = HSetExOpts
+  { hSetExSeconds :: Maybe Integer
+  , hSetExMilliseconds :: Maybe Integer
+  , hSetExUnixSeconds :: Maybe Integer
+  , hSetExUnixMilliseconds :: Maybe Integer
+  , hSetExCondition :: Maybe HSetExCondition
+  , hSetExKeepTTL :: Bool
+  } deriving (Show, Eq)
+
+defaultHSetExOpts :: HSetExOpts
+defaultHSetExOpts = HSetExOpts
+  { hSetExSeconds = Nothing
+  , hSetExMilliseconds = Nothing
+  , hSetExUnixSeconds = Nothing
+  , hSetExUnixMilliseconds = Nothing
+  , hSetExCondition = Nothing
+  , hSetExKeepTTL = False
+  }
+
+-- |Sets fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hsetex>).
+--
+-- $O(N)$ where $N$ is the number of fields set.
+--
+-- Since Redis 8.0.0
+hsetex
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty (ByteString, ByteString)
+    -> m (f Bool)
+hsetex key fieldValues = hsetexOpts key fieldValues defaultHSetExOpts
+
+-- |Sets fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hsetex>).
+--
+-- $O(N)$ where $N$ is the number of fields set.
+--
+-- Since Redis 8.0.0
+hsetexOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty (ByteString, ByteString)
+    -> HSetExOpts
+    -> m (f Bool)
+hsetexOpts key fieldValues HSetExOpts{..} =
+    sendRequest $ ["HSETEX", key] ++ conditionArg ++ exArg ++ pxArg ++ exatArg ++ pxatArg ++ keepTTLArg ++ ["FIELDS", encode (toInteger $ NE.length fieldValues)] ++ concatMap (\(field, value) -> [field, value]) (NE.toList fieldValues)
+  where
+    conditionArg = maybe [] (\condition -> [encode condition]) hSetExCondition
+    exArg = maybe [] (\seconds -> ["EX", encode seconds]) hSetExSeconds
+    pxArg = maybe [] (\milliseconds -> ["PX", encode milliseconds]) hSetExMilliseconds
+    exatArg = maybe [] (\seconds -> ["EXAT", encode seconds]) hSetExUnixSeconds
+    pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) hSetExUnixMilliseconds
+    keepTTLArg = ["KEEPTTL" | hSetExKeepTTL]
+
 data HashFieldExpirationStatus
     = HashFieldExpirationNoSuchField
     | HashFieldExpirationConditionNotMet
