@@ -679,6 +679,91 @@ testZAdd7 = testCase "ZADD" $ do
     zaddOpts "set" [(46, "7")] (defaultZaddOpts {zaddSizeCondition = Just CLT}) >>=? 1
     return ()
 
+testExpireTime7 :: Test
+testExpireTime7 = testCase "expiretime" $ do
+    set "mykey" "Hello" >>=? Ok
+    expireat "mykey" 33177117420 >>=? True
+    expiretime "mykey" >>=? 33177117420
+    pexpireat "mykey" 33177117420000 >>=? True
+    pexpiretime "mykey" >>=? 33177117420000
+
+testSintercard7 :: Test
+testSintercard7 = testCase "sintercard" $ do
+    sadd "{same}bikes:racing:france" ("bike:1" NE.:| ["bike:2", "bike:3"]) >>=? 3
+    sadd "{same}bikes:racing:usa" ("bike:1" NE.:| ["bike:4"]) >>=? 2
+    sadd "{same}bikes:racing:japan" ("bike:1" NE.:| ["bike:3"]) >>=? 2
+    sintercard ("{same}bikes:racing:france" NE.:| ["{same}bikes:racing:usa", "{same}bikes:racing:japan"]) >>=? 1
+    sintercardOpts ("{same}bikes:racing:france" NE.:| ["{same}bikes:racing:usa", "{same}bikes:racing:japan"])
+        defaultSintercardOpts { sintercardLimit = Just 1 } >>=? 1
+
+testLMPop7 :: Test
+testLMPop7 = testCase "lmpop" $ do
+    lmpop ("non1" NE.:| ["non2"]) ListLeft >>=? Nothing
+    lpush "mylist" ["one", "two", "three", "four", "five"] >>=? 5
+    lmpop ("mylist" NE.:| []) ListLeft >>=? Just ("mylist", ["five"])
+    lrange "mylist" 0 (-1) >>=? ["four", "three", "two", "one"]
+
+    lpush "mylist2" ["a", "b", "c", "d", "e"] >>=? 5
+    lpush "mylist3" ["one", "two", "three", "four", "five"] >>=? 5
+    lmpopCount ("mylist" NE.:| ["mylist2"]) ListRight 3 >>=? Just ("mylist", ["one", "two", "three"])
+    blmpopCount 1 ("mylist3" NE.:| ["mylist2"]) ListRight 5 >>=? Just ("mylist3", ["one", "two", "three", "four", "five"])
+    blmpopCount 1 ("mylist3" NE.:| ["mylist2"]) ListRight 10 >>=? Just ("mylist2", ["a", "b", "c", "d", "e"])
+
+testZMPop7 :: Test
+testZMPop7 = testCase "zmpop" $ do
+    zadd "{same}zset1" [(1, "one"), (2, "two"), (3, "three")] >>=? 3
+    zadd "{same}zset2" [(10, "ten")] >>=? 1
+    zmpop ("{same}zset1" NE.:| ["{same}zset2"]) ZPopMax >>=? Just ZPopResponse
+        { zPopResponseKey = Just "{same}zset1"
+        , zPopResponseValues = [("three", 3)]
+        }
+    zmpopCount ("{same}zset1" NE.:| ["{same}zset2"]) ZPopMin 2 >>=? Just ZPopResponse
+        { zPopResponseKey = Just "{same}zset1"
+        , zPopResponseValues = [("one", 1), ("two", 2)]
+        }
+    bzmpopCount 1 ("{same}zset1" NE.:| ["{same}zset2"]) ZPopMax 2 >>=? Just ZPopResponse
+        { zPopResponseKey = Just "{same}zset2"
+        , zPopResponseValues = [("ten", 10)]
+        }
+
+testFunction7 :: Test
+testFunction7 = testCase "function" $ do
+    functionFlushOpts FlushOptsSync >>=? Ok
+    functionHelp >>@? \helpText ->
+        HUnit.assertBool "FUNCTION HELP should return help text" (not (null helpText))
+
+    let libraryCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)\nredis.register_function{function_name='myro', callback=function(keys, args) return redis.call('GET', keys[1]) end, flags={ 'no-writes' }}"
+
+    functionLoad libraryCode >>=? "mylib"
+    fcall "myfunc" [] ["hello"] >>=? ("hello" :: ByteString)
+    set "mykey" "value" >>=? Ok
+    fcallReadonly "myro" ["mykey"] [] >>=? ("value" :: ByteString)
+    functionList >>@? \reply ->
+        case reply of
+            MultiBulk (Just _) -> pure ()
+            _ -> HUnit.assertFailure $ "Unexpected FUNCTION LIST reply: " ++ show reply
+    functionListOpts defaultFunctionListOpts { functionListLibraryName = Just "mylib", functionListWithCode = True } >>@? \reply ->
+        case reply of
+            MultiBulk (Just _) -> pure ()
+            _ -> HUnit.assertFailure $ "Unexpected FUNCTION LIST WITHCODE reply: " ++ show reply
+    functionStats >>@? \reply ->
+        case reply of
+            MultiBulk (Just _) -> pure ()
+            _ -> HUnit.assertFailure $ "Unexpected FUNCTION STATS reply: " ++ show reply
+    payload <- functionDump
+    case payload of
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected FUNCTION DUMP reply: " ++ show reply
+        Right dumped -> do
+            functionDelete "mylib" >>=? Ok
+            functionRestore dumped Nothing >>=? Ok
+            fcall "myfunc" [] ["restored"] >>=? ("restored" :: ByteString)
+    functionFlushOpts FlushOptsSync >>=? Ok
+
+testCommandList7 :: Test
+testCommandList7 = testCase "command list" $ do
+    commandList >>@? \commands ->
+        HUnit.assertBool "COMMAND LIST should contain GET" ("get" `elem` commands)
+
 ------------------------------------------------------------------------------
 -- Scripting
 --

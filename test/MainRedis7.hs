@@ -15,4 +15,17 @@ main = do
     Test.defaultMain (tests conn)
 
 tests :: Connection -> [Test.Test]
-tests conn = map ($ conn) $ [testXCreateGroup7, testXpending7, testXAutoClaim7, testQuit]
+tests conn = map ($ conn)
+    [ testSet7
+    , testZAdd7
+    , testExpireTime7
+    , testSintercard7
+    , testLMPop7
+    , testZMPop7
+    , testFunction7
+    , testCommandList7
+    , testXCreateGroup7
+    , testXpending7
+    , testXAutoClaim7
+    , testQuit
+    ]
