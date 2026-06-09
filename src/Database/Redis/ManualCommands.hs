@@ -1123,9 +1123,9 @@ copyOpts source destination CopyOpts{..} =
 
 -- |Returns the expiration time of a key as a Unix timestamp (<https://redis.io/commands/expiretime>).
 --
--- $O(1)$
+-- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
 --
--- Since Redis 7.0.0
+-- $O(1)$. Since Redis 7.0.0
 expiretime
     :: (RedisCtx m f)
     => ByteString
@@ -1134,9 +1134,9 @@ expiretime key = sendRequest ["EXPIRETIME", key]
 
 -- |Returns the expiration time of a key as a Unix timestamp in milliseconds (<https://redis.io/commands/pexpiretime>).
 --
--- $O(1)$
+-- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
 --
--- Since Redis 7.0.0
+-- $O(1)$. Since Redis 7.0.0
 pexpiretime
     :: (RedisCtx m f)
     => ByteString
@@ -1272,6 +1272,221 @@ getexOpts key GetExOpts{..} =
     exatArg = maybe [] (\seconds -> ["EXAT", encode seconds]) getExUnixSeconds
     pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) getExUnixMilliseconds
     persistArg = ["PERSIST" | getExPersist]
+
+data HashFieldExpirationStatus
+    = HashFieldExpirationNoSuchField
+    | HashFieldExpirationConditionNotMet
+    | HashFieldExpirationSet
+    | HashFieldExpirationDeleted
+    deriving (Show, Eq)
+
+instance RedisResult HashFieldExpirationStatus where
+    decode r = do
+        value <- decode r :: Either Reply Integer
+        case value of
+            -2 -> Right HashFieldExpirationNoSuchField
+            0 -> Right HashFieldExpirationConditionNotMet
+            1 -> Right HashFieldExpirationSet
+            2 -> Right HashFieldExpirationDeleted
+            _ -> Left r
+
+data HashFieldExpirationInfo
+    = HashFieldExpirationInfoNoSuchField
+    | HashFieldExpirationInfoNoExpiration
+    | HashFieldExpirationInfo Integer
+    deriving (Show, Eq)
+
+instance RedisResult HashFieldExpirationInfo where
+    decode r = do
+        value <- decode r :: Either Reply Integer
+        case value of
+            -2 -> Right HashFieldExpirationInfoNoSuchField
+            -1 -> Right HashFieldExpirationInfoNoExpiration
+            n -> Right (HashFieldExpirationInfo n)
+
+hashFieldExpirationOptsToArgs :: ExpireOpts -> [ByteString]
+hashFieldExpirationOptsToArgs opts =
+    [encode opts]
+
+hashFieldArgs :: NonEmpty ByteString -> [ByteString]
+hashFieldArgs fields =
+    ["FIELDS", encode (toInteger $ NE.length fields)] ++ NE.toList fields
+
+-- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Set an expiration (TTL or time to live) on one or more fields of a given hash key. You must specify at least one field. Field(s) will automatically be deleted from the hash key when their TTLs expire.
+--
+-- Field expirations will only be cleared by commands that delete or overwrite the contents of the hash fields, including HDEL and HSET commands. This means that all the operations that conceptually alter the value stored at a hash key's field without replacing it with a new one will leave the TTL untouched.
+--
+-- You can clear the TTL using the 'hpersist' command, which turns the hash field back into a persistent field.
+--
+-- Note that calling 'hexpire'/'hpexpire' with a zero TTL or 'hexpireat'/'hpexpireat' with a time in the past will result in the hash field being deleted.
+--
+-- Since Redis 7.4.0
+hexpire
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Seconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hexpire key seconds fields =
+    sendRequest $ ["HEXPIRE", key, encode seconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Seconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hexpireOpts key seconds fields opts =
+    sendRequest $ ["HEXPIRE", key, encode seconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpire
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Milliseconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hpexpire key milliseconds fields =
+    sendRequest $ ["HPEXPIRE", key, encode milliseconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Milliseconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireOpts key milliseconds fields opts =
+    sendRequest $ ["HPEXPIRE", key, encode milliseconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in seconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hexpireat key unixTimeSeconds fields =
+    sendRequest $ ["HEXPIREAT", key, encode unixTimeSeconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in seconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hexpireatOpts key unixTimeSeconds fields opts =
+    sendRequest $ ["HEXPIREAT", key, encode unixTimeSeconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in milliseconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireat key unixTimeMilliseconds fields =
+    sendRequest $ ["HPEXPIREAT", key, encode unixTimeMilliseconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in milliseconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireatOpts key unixTimeMilliseconds fields opts =
+    sendRequest $ ["HPEXPIREAT", key, encode unixTimeMilliseconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Returns the TTL in seconds of hash fields (<https://redis.io/commands/httl>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+httl
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> NonEmpty ByteString -- ^ List of fields to get TTL for.
+    -> m (f [HashFieldExpirationInfo])
+httl key fields =
+    sendRequest $ ["HTTL", key] ++ hashFieldArgs fields
+
+-- |Returns the TTL in milliseconds of hash fields (<https://redis.io/commands/hpttl>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpttl
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hpttl key fields =
+    sendRequest $ ["HPTTL", key] ++ hashFieldArgs fields
+
+-- |Returns the expiration time of hash fields as a Unix timestamp in seconds (<https://redis.io/commands/hexpiretime>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hexpiretime key fields =
+    sendRequest $ ["HEXPIRETIME", key] ++ hashFieldArgs fields
+
+-- |Returns the expiration time of hash fields as a Unix timestamp in milliseconds (<https://redis.io/commands/hpexpiretime>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hpexpiretime key fields =
+    sendRequest $ ["HPEXPIRETIME", key] ++ hashFieldArgs fields
 
 
 data DebugMode = Yes | Sync | No deriving (Show, Eq)
@@ -1724,8 +1939,6 @@ data ZPopResponse = ZPopResponse
 instance RedisResult ZPopResponse where
     decode (MultiBulk (Just [Bulk (Just key), MultiBulk (Just values)])) =
         ZPopResponse (Just key) <$> mapM decode values
-    decode (MultiBulk (Just values)) =
-        ZPopResponse Nothing <$> mapM decode values
     decode r = Left r
 
 -- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys (<https://redis.io/commands/zmpop>).

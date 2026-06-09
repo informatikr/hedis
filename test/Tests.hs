@@ -687,6 +687,65 @@ testExpireTime7 = testCase "expiretime" $ do
     pexpireat "mykey" 33177117420000 >>=? True
     pexpiretime "mykey" >>=? 33177117420000
 
+testHashExpire7 :: Test
+testHashExpire7 = testCase "hash expire" $ do
+    hset "mykey" [("field1", "hello"), ("field2", "world")] >>=? 2
+
+    hexpire "mykey" 60 ("field1" NE.:| ["field2", "missing"]) >>=? 
+        [ HashFieldExpirationSet
+        , HashFieldExpirationSet
+        , HashFieldExpirationNoSuchField
+        ]
+
+    httl "mykey" ("field1" NE.:| ["field2", "missing"]) >>@? \values ->
+        case values of
+            [HashFieldExpirationInfo ttl1, HashFieldExpirationInfo ttl2, HashFieldExpirationInfoNoSuchField] -> do
+                HUnit.assertBool "HTTL field1 should be positive" (ttl1 > 0 && ttl1 <= 60)
+                HUnit.assertBool "HTTL field2 should be positive" (ttl2 > 0 && ttl2 <= 60)
+            _ -> HUnit.assertFailure $ "Unexpected HTTL reply: " ++ show values
+
+    hpexpire "mykey" 2000 ("field1" NE.:| ["field2"]) >>=?
+        [ HashFieldExpirationSet
+        , HashFieldExpirationSet
+        ]
+
+    hpttl "mykey" ("field1" NE.:| ["field2"]) >>@? \values ->
+        case values of
+            [HashFieldExpirationInfo ttl1, HashFieldExpirationInfo ttl2] -> do
+                HUnit.assertBool "HPTTL field1 should be positive" (ttl1 > 0 && ttl1 <= 2000)
+                HUnit.assertBool "HPTTL field2 should be positive" (ttl2 > 0 && ttl2 <= 2000)
+            _ -> HUnit.assertFailure $ "Unexpected HPTTL reply: " ++ show values
+
+    now <- round <$> liftIO getPOSIXTime
+    hexpireat "mykey" (now + 60) ("field1" NE.:| ["field2"]) >>=?
+        [ HashFieldExpirationSet
+        , HashFieldExpirationSet
+        ]
+
+    hexpiretime "mykey" ("field1" NE.:| ["field2"]) >>@? \values ->
+        case values of
+            [HashFieldExpirationInfo ts1, HashFieldExpirationInfo ts2] -> do
+                HUnit.assertBool "HEXPIRETIME field1 should be near target" (ts1 >= now && ts1 <= now + 60)
+                HUnit.assertBool "HEXPIRETIME field2 should be near target" (ts2 >= now && ts2 <= now + 60)
+            _ -> HUnit.assertFailure $ "Unexpected HEXPIRETIME reply: " ++ show values
+
+    nowMs <- round . (* 1000) <$> liftIO getPOSIXTime
+    hpexpireat "mykey" (nowMs + 2000) ("field1" NE.:| ["field2"]) >>=?
+        [ HashFieldExpirationSet
+        , HashFieldExpirationSet
+        ]
+
+    hpexpiretime "mykey" ("field1" NE.:| ["field2"]) >>@? \values ->
+        case values of
+            [HashFieldExpirationInfo ts1, HashFieldExpirationInfo ts2] -> do
+                HUnit.assertBool "HPEXPIRETIME field1 should be near target" (ts1 >= nowMs && ts1 <= nowMs + 2000)
+                HUnit.assertBool "HPEXPIRETIME field2 should be near target" (ts2 >= nowMs && ts2 <= nowMs + 2000)
+            _ -> HUnit.assertFailure $ "Unexpected HPEXPIRETIME reply: " ++ show values
+
+    hexpireOpts "mykey" 10 ("field1" NE.:| [])
+        (ExpireOptsTime Nx)
+        >>=? [HashFieldExpirationConditionNotMet]
+
 testSintercard7 :: Test
 testSintercard7 = testCase "sintercard" $ do
     sadd "{same}bikes:racing:france" ("bike:1" NE.:| ["bike:2", "bike:3"]) >>=? 3

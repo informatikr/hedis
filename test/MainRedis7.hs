@@ -19,6 +19,7 @@ tests conn = map ($ conn)
     [ testSet7
     , testZAdd7
     , testExpireTime7
+    , testHashExpire7
     , testSintercard7
     , testLMPop7
     , testZMPop7
