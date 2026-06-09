@@ -55,17 +55,6 @@ jobs:
             redis-version: 8
             allow-failure: false
       fail-fast: false
-    services:
-      redis:
-        image: "redis:${{ matrix.redis-version }}"
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps port 6379 on service container to the host
-          - 6379:6379
     steps:
       - name: apt-get install
         run: |
@@ -94,6 +83,36 @@ jobs:
           HCKIND: ${{ matrix.compilerKind }}
           HCNAME: ${{ matrix.compiler }}
           HCVER: ${{ matrix.compilerVersion }}
+      - name: Install redis
+        run: |
+          apt-get update
+          apt-get install -y curl gpg lsb-release
+
+          mkdir -p /etc/apt/keyrings
+
+          curl -fsSL https://packages.redis.io/gpg \
+            | gpg --dearmor -o /etc/apt/keyrings/redis-archive-keyring.gpg
+
+          chmod 644 /etc/apt/keyrings/redis-archive-keyring.gpg
+
+          echo "deb [signed-by=/etc/apt/keyrings/redis-archive-keyring.gpg] \
+            https://packages.redis.io/deb $(lsb_release -cs) main" \
+            > /etc/apt/sources.list.d/redis.list
+
+          apt-get update
+
+          apt-get install -y redis redis-tools
+
+          redis-server --version
+          redis-cli --version
+      - name: start redis
+        run: |
+
+          BLOOM_SO="$(dpkg -L redis-server | grep '/redisbloom.so$' | head -n1)"
+          echo "$BLOOM_SO"
+
+          redis-server --daemonize yes --loadmodule "$BLOOM_SO"
+          redis-cli ping
       - name: Set PATH and environment variables
         run: |
           echo "$HOME/.cabal/bin" >> $GITHUB_PATH
@@ -233,15 +252,35 @@ jobs:
       - name: hedis test
         run: ${CABAL} v2-test test:hedis-test $ARG_COMPILER  --test-show-details=streaming
         env:
-          REDIS_HOST: redis
+          REDIS_HOST: 127.0.0.1
+      # - name: stop redis stack
+      #   if: always()
+      #   run: |
+      #     redis-cli shutdown nosave || true
+      #     sleep 2
+      # - name: start redis 8
+      #   run: |
+      #     set -euxo pipefail
+
+      #     redis-server --daemonize yes
+
+      #     for _ in $(seq 1 30); do
+      #       if redis-cli ping | grep -q PONG; then
+      #         break
+      #       fi
+      #       sleep 1
+      #     done
+
+      #     redis-cli ping
+      #     redis-cli INFO server | grep redis_version
       - name: redis 7 test
         run: ${CABAL} v2-test test:redis7 $ARG_COMPILER  --test-show-details=streaming
         env:
-          REDIS_HOST: redis
+          REDIS_HOST: 127.0.0.1
       - name: redis 8 test
         run: ${CABAL} v2-test test:redis8 $ARG_COMPILER  --test-show-details=streaming
         env:
-          REDIS_HOST: redis
+          REDIS_HOST: 127.0.0.1
       - name: cabal check
         run: |
           cd ${PKGDIR_hedis} || false

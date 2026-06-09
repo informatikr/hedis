@@ -299,7 +299,7 @@ withPubSubTestBoth conn = Test.testCase "Multithreaded Pub/Sub - withPubSub (bot
 withPubSubTimeoutTest :: Connection -> Test.Test
 withPubSubTimeoutTest conn = Test.testCase "Multithreaded Pub/Sub - withPubSub with timeout" $ do
   result <- withPubSub conn ["foo100"] [] $ \messageSTM -> do
-    timeout (100000) $ atomically messageSTM
+    timeout (300000) $ atomically messageSTM
   case result of
     Nothing -> pure ()
     Just x -> HUnit.assertFailure $ "Expected to timeout without receiving a message, but received: " ++ show x
