@@ -182,6 +182,60 @@ blmove
 blmove source destination from to timeout =
     sendRequest ["BLMOVE", source, destination, encode from, encode to, encode timeout]
 
+-- |Pops one or more elements from the first non-empty list from a list of keys (<https://redis.io/commands/lmpop>).
+--
+-- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+--
+-- Since Redis 7.0.0
+lmpop
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ListDirection
+    -> m (f (Maybe (ByteString, [ByteString])))
+lmpop keys direction = lmpopCount keys direction 1
+
+-- |Pops one or more elements from the first non-empty list from a list of keys (<https://redis.io/commands/lmpop>).
+--
+-- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+--
+-- Since Redis 7.0.0
+lmpopCount
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ListDirection
+    -> Integer
+    -> m (f (Maybe (ByteString, [ByteString])))
+lmpopCount keys direction count =
+    sendRequest $ ["LMPOP", encode (toInteger $ NE.length keys)] ++ NE.toList keys ++ [encode direction, "COUNT", encode count]
+
+-- |Pops one or more elements from the first non-empty list from a list of keys, or blocks until one is available (<https://redis.io/commands/blmpop>).
+--
+-- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+--
+-- Since Redis 7.0.0
+blmpop
+    :: (RedisCtx m f)
+    => Double
+    -> NonEmpty ByteString
+    -> ListDirection
+    -> m (f (Maybe (ByteString, [ByteString])))
+blmpop timeout keys direction = blmpopCount timeout keys direction 1
+
+-- |Pops one or more elements from the first non-empty list from a list of keys, or blocks until one is available (<https://redis.io/commands/blmpop>).
+--
+-- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+--
+-- Since Redis 7.0.0
+blmpopCount
+    :: (RedisCtx m f)
+    => Double
+    -> NonEmpty ByteString
+    -> ListDirection
+    -> Integer
+    -> m (f (Maybe (ByteString, [ByteString])))
+blmpopCount timeout keys direction count =
+    sendRequest $ ["BLMPOP", encode timeout, encode (toInteger $ NE.length keys)] ++ NE.toList keys ++ [encode direction, "COUNT", encode count]
+
 -- |Determine the type stored at key (<http://redis.io/commands/type>). Since Redis 1.0.0
 getType
     :: (RedisCtx m f)
@@ -683,6 +737,192 @@ evalsha script keys args =
   where
     numkeys = toInteger (length keys)
 
+-- |Invokes a function (<https://redis.io/commands/fcall>).
+--
+-- Complexity depends on the function that is executed.
+--
+-- Since Redis 7.0.0
+fcall
+    :: (RedisCtx m f, RedisResult a)
+    => ByteString
+    -> [ByteString]
+    -> [ByteString]
+    -> m (f a)
+fcall functionName keys args =
+    sendRequest $ ["FCALL", functionName, encode numkeys] ++ keys ++ args
+  where
+    numkeys = toInteger (length keys)
+
+-- |Invokes a read-only function (<https://redis.io/commands/fcall_ro>).
+--
+-- Complexity depends on the function that is executed.
+--
+-- Since Redis 7.0.0
+fcallReadonly
+    :: (RedisCtx m f, RedisResult a)
+    => ByteString
+    -> [ByteString]
+    -> [ByteString]
+    -> m (f a)
+fcallReadonly functionName keys args =
+    sendRequest $ ["FCALL_RO", functionName, encode numkeys] ++ keys ++ args
+  where
+    numkeys = toInteger (length keys)
+
+data FunctionListOpts = FunctionListOpts
+    { functionListLibraryName :: Maybe ByteString
+    , functionListWithCode :: Bool
+    } deriving (Show, Eq)
+
+defaultFunctionListOpts :: FunctionListOpts
+defaultFunctionListOpts = FunctionListOpts
+    { functionListLibraryName = Nothing
+    , functionListWithCode = False
+    }
+
+data FunctionRestorePolicy
+    = FunctionRestoreAppend
+    | FunctionRestoreFlush
+    | FunctionRestoreReplace
+    deriving (Show, Eq)
+
+instance RedisArg FunctionRestorePolicy where
+    encode FunctionRestoreAppend = "APPEND"
+    encode FunctionRestoreFlush = "FLUSH"
+    encode FunctionRestoreReplace = "REPLACE"
+
+-- |Deletes a library and its functions (<https://redis.io/commands/function-delete>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.0.0
+functionDelete
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f Status)
+functionDelete libraryName = sendRequest ["FUNCTION", "DELETE", libraryName]
+
+-- |Dumps all libraries into a serialized binary payload (<https://redis.io/commands/function-dump>).
+--
+-- $O(N)$ where $N$ is the number of functions.
+--
+-- Since Redis 7.0.0
+functionDump
+    :: (RedisCtx m f)
+    => m (f ByteString)
+functionDump = sendRequest ["FUNCTION", "DUMP"]
+
+-- |Deletes all libraries and functions (<https://redis.io/commands/function-flush>).
+--
+-- $O(N)$ where $N$ is the number of functions deleted.
+--
+-- Since Redis 7.0.0
+functionFlush
+    :: (RedisCtx m f)
+    => m (f Status)
+functionFlush = sendRequest ["FUNCTION", "FLUSH"]
+
+-- |Deletes all libraries and functions (<https://redis.io/commands/function-flush>).
+--
+-- $O(N)$ where $N$ is the number of functions deleted.
+--
+-- Since Redis 7.0.0
+functionFlushOpts
+    :: (RedisCtx m f)
+    => FlushOpts
+    -> m (f Status)
+functionFlushOpts opts = sendRequest ["FUNCTION", "FLUSH", encode opts]
+
+-- |Returns helpful text about FUNCTION subcommands (<https://redis.io/commands/function-help>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.0.0
+functionHelp
+    :: (RedisCtx m f)
+    => m (f [ByteString])
+functionHelp = sendRequest ["FUNCTION", "HELP"]
+
+-- |Terminates a function during execution (<https://redis.io/commands/function-kill>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.0.0
+functionKill
+    :: (RedisCtx m f)
+    => m (f Status)
+functionKill = sendRequest ["FUNCTION", "KILL"]
+
+-- |Returns information about all libraries (<https://redis.io/commands/function-list>).
+--
+-- $O(N)$ where $N$ is the number of functions.
+--
+-- Since Redis 7.0.0
+functionList
+    :: (RedisCtx m f)
+    => m (f Reply)
+functionList = functionListOpts defaultFunctionListOpts
+
+-- |Returns information about all libraries (<https://redis.io/commands/function-list>).
+--
+-- $O(N)$ where $N$ is the number of functions.
+--
+-- Since Redis 7.0.0
+functionListOpts
+    :: (RedisCtx m f)
+    => FunctionListOpts
+    -> m (f Reply)
+functionListOpts FunctionListOpts{..} =
+    sendRequest $ ["FUNCTION", "LIST"] ++ libraryArg ++ withCodeArg
+  where
+    libraryArg = maybe [] (\libraryName -> ["LIBRARYNAME", libraryName]) functionListLibraryName
+    withCodeArg = ["WITHCODE" | functionListWithCode]
+
+-- |Creates a library (<https://redis.io/commands/function-load>).
+--
+-- $O(N)$ where $N$ is the number of bytes in the function's source code.
+--
+-- Since Redis 7.0.0
+functionLoad
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f ByteString)
+functionLoad libraryCode = sendRequest ["FUNCTION", "LOAD", libraryCode]
+
+-- |Creates a library, replacing an existing one with the same name (<https://redis.io/commands/function-load>).
+--
+-- $O(N)$ where $N$ is the number of bytes in the function's source code.
+--
+-- Since Redis 7.0.0
+functionLoadReplace
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f ByteString)
+functionLoadReplace libraryCode = sendRequest ["FUNCTION", "LOAD", "REPLACE", libraryCode]
+
+-- |Restores all libraries from a payload (<https://redis.io/commands/function-restore>).
+--
+-- $O(N)$ where $N$ is the number of functions restored.
+--
+-- Since Redis 7.0.0
+functionRestore
+    :: (RedisCtx m f)
+    => ByteString
+    -> Maybe FunctionRestorePolicy
+    -> m (f Status)
+functionRestore payload restorePolicy =
+    sendRequest $ ["FUNCTION", "RESTORE", payload] ++ maybe [] (\policy -> [encode policy]) restorePolicy
+
+-- |Returns information about a function during execution (<https://redis.io/commands/function-stats>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.0.0
+functionStats
+    :: (RedisCtx m f)
+    => m (f Reply)
+functionStats = sendRequest ["FUNCTION", "STATS"]
+
 bitcount
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -881,6 +1121,28 @@ copyOpts source destination CopyOpts{..} =
     dbArg = maybe [] (\destinationDb -> ["DB", encode destinationDb]) copyDestinationDb
     replaceArg = ["REPLACE" | copyReplace]
 
+-- |Returns the expiration time of a key as a Unix timestamp (<https://redis.io/commands/expiretime>).
+--
+-- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
+--
+-- $O(1)$. Since Redis 7.0.0
+expiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f Integer)
+expiretime key = sendRequest ["EXPIRETIME", key]
+
+-- |Returns the expiration time of a key as a Unix timestamp in milliseconds (<https://redis.io/commands/pexpiretime>).
+--
+-- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
+--
+-- $O(1)$. Since Redis 7.0.0
+pexpiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> m (f Integer)
+pexpiretime key = sendRequest ["PEXPIRETIME", key]
+
 
 set
     :: (RedisCtx m f)
@@ -1011,6 +1273,221 @@ getexOpts key GetExOpts{..} =
     pxatArg = maybe [] (\milliseconds -> ["PXAT", encode milliseconds]) getExUnixMilliseconds
     persistArg = ["PERSIST" | getExPersist]
 
+data HashFieldExpirationStatus
+    = HashFieldExpirationNoSuchField
+    | HashFieldExpirationConditionNotMet
+    | HashFieldExpirationSet
+    | HashFieldExpirationDeleted
+    deriving (Show, Eq)
+
+instance RedisResult HashFieldExpirationStatus where
+    decode r = do
+        value <- decode r :: Either Reply Integer
+        case value of
+            -2 -> Right HashFieldExpirationNoSuchField
+            0 -> Right HashFieldExpirationConditionNotMet
+            1 -> Right HashFieldExpirationSet
+            2 -> Right HashFieldExpirationDeleted
+            _ -> Left r
+
+data HashFieldExpirationInfo
+    = HashFieldExpirationInfoNoSuchField
+    | HashFieldExpirationInfoNoExpiration
+    | HashFieldExpirationInfo Integer
+    deriving (Show, Eq)
+
+instance RedisResult HashFieldExpirationInfo where
+    decode r = do
+        value <- decode r :: Either Reply Integer
+        case value of
+            -2 -> Right HashFieldExpirationInfoNoSuchField
+            -1 -> Right HashFieldExpirationInfoNoExpiration
+            n -> Right (HashFieldExpirationInfo n)
+
+hashFieldExpirationOptsToArgs :: ExpireOpts -> [ByteString]
+hashFieldExpirationOptsToArgs opts =
+    [encode opts]
+
+hashFieldArgs :: NonEmpty ByteString -> [ByteString]
+hashFieldArgs fields =
+    ["FIELDS", encode (toInteger $ NE.length fields)] ++ NE.toList fields
+
+-- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Set an expiration (TTL or time to live) on one or more fields of a given hash key. You must specify at least one field. Field(s) will automatically be deleted from the hash key when their TTLs expire.
+--
+-- Field expirations will only be cleared by commands that delete or overwrite the contents of the hash fields, including HDEL and HSET commands. This means that all the operations that conceptually alter the value stored at a hash key's field without replacing it with a new one will leave the TTL untouched.
+--
+-- You can clear the TTL using the 'hpersist' command, which turns the hash field back into a persistent field.
+--
+-- Note that calling 'hexpire'/'hpexpire' with a zero TTL or 'hexpireat'/'hpexpireat' with a time in the past will result in the hash field being deleted.
+--
+-- Since Redis 7.4.0
+hexpire
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Seconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hexpire key seconds fields =
+    sendRequest $ ["HEXPIRE", key, encode seconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Seconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hexpireOpts key seconds fields opts =
+    sendRequest $ ["HEXPIRE", key, encode seconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpire
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Milliseconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hpexpire key milliseconds fields =
+    sendRequest $ ["HPEXPIRE", key, encode milliseconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Milliseconds until expiration.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireOpts key milliseconds fields opts =
+    sendRequest $ ["HPEXPIRE", key, encode milliseconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in seconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hexpireat key unixTimeSeconds fields =
+    sendRequest $ ["HEXPIREAT", key, encode unixTimeSeconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in seconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hexpireatOpts key unixTimeSeconds fields opts =
+    sendRequest $ ["HEXPIREAT", key, encode unixTimeSeconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireat
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in milliseconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireat key unixTimeMilliseconds fields =
+    sendRequest $ ["HPEXPIREAT", key, encode unixTimeMilliseconds] ++ hashFieldArgs fields
+
+-- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpireatOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> Integer -- ^ Absolute Unix timestamp in milliseconds at which the hash fields will expire.
+    -> NonEmpty ByteString -- ^ List of fields to set expiration for.
+    -> ExpireOpts -- ^ Expiration options.
+    -> m (f [HashFieldExpirationStatus])
+hpexpireatOpts key unixTimeMilliseconds fields opts =
+    sendRequest $ ["HPEXPIREAT", key, encode unixTimeMilliseconds] ++ hashFieldExpirationOptsToArgs opts ++ hashFieldArgs fields
+
+-- |Returns the TTL in seconds of hash fields (<https://redis.io/commands/httl>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+httl
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the hash.
+    -> NonEmpty ByteString -- ^ List of fields to get TTL for.
+    -> m (f [HashFieldExpirationInfo])
+httl key fields =
+    sendRequest $ ["HTTL", key] ++ hashFieldArgs fields
+
+-- |Returns the TTL in milliseconds of hash fields (<https://redis.io/commands/hpttl>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpttl
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hpttl key fields =
+    sendRequest $ ["HPTTL", key] ++ hashFieldArgs fields
+
+-- |Returns the expiration time of hash fields as a Unix timestamp in seconds (<https://redis.io/commands/hexpiretime>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hexpiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hexpiretime key fields =
+    sendRequest $ ["HEXPIRETIME", key] ++ hashFieldArgs fields
+
+-- |Returns the expiration time of hash fields as a Unix timestamp in milliseconds (<https://redis.io/commands/hpexpiretime>).
+--
+-- $O(N)$ where $N$ is the number of specified fields.
+--
+-- Since Redis 7.4.0
+hpexpiretime
+    :: (RedisCtx m f)
+    => ByteString
+    -> NonEmpty ByteString
+    -> m (f [HashFieldExpirationInfo])
+hpexpiretime key fields =
+    sendRequest $ ["HPEXPIRETIME", key] ++ hashFieldArgs fields
+
 
 data DebugMode = Yes | Sync | No deriving (Show, Eq)
 
@@ -1121,6 +1598,42 @@ clientUnpause
     => m (f Status)
 clientUnpause = sendRequest ["CLIENT", "UNPAUSE"]
 
+-- | The CLIENT NO-TOUCH command controls whether commands sent by the client will alter the LRU/LFU of the keys they access (<https://redis.io/commands/client-notouch>).
+--
+-- When turned on, the current client will not change LFU/LRU stats, unless it sends the TOUCH command.
+--
+-- When turned off, the client touches LFU/LRU stats just as a normal client.
+--
+-- $O(1)$
+--
+-- Since Redis 7.2.0
+clientNoTouch
+    :: (RedisCtx m f)
+    => Bool
+    -> m (f Status)
+clientNoTouch flag = sendRequest ["CLIENT NO-TOUCH", encodedFlag] where
+    encodedFlag = if flag then "ON" else "OFF"
+
+data ClientSetInfoOpts
+    = ClientSetInfoLibName ByteString
+    | ClientSetInfoLibVer ByteString
+    deriving (Show, Eq)
+
+-- | The CLIENT SETINFO command assigns various info attributes to the current connection which are displayed in the output of CLIENT LIST and CLIENT INFO (<https://redis.io/commands/client-setinfo>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.2.0
+clientSetinfo
+  :: (RedisCtx m f)
+  => ClientSetInfoOpts
+  -> m (f Status)
+clientSetinfo info_ = sendRequest $ "CLIENT SETINFO": clientSetInfoArg
+  where
+    clientSetInfoArg = case info_ of
+      ClientSetInfoLibName s -> ["LIB-NAME", encode s]
+      ClientSetInfoLibVer s -> ["LIB-VER", encode s]
+
 -- |Get one or multiple random members from a set (<http://redis.io/commands/srandmember>). The Redis command @SRANDMEMBER@ is split up into 'srandmember', 'srandmemberN'. Since Redis 1.0.0
 srandmember
     :: (RedisCtx m f)
@@ -1164,6 +1677,44 @@ smismember
     -> m (f [Bool])
 smismember key (member:|members) = sendRequest ("SMISMEMBER" : key : member : members)
 
+data SintercardOpts = SintercardOpts
+    { sintercardLimit :: Maybe Integer
+    } deriving (Show, Eq)
+
+defaultSintercardOpts :: SintercardOpts
+defaultSintercardOpts = SintercardOpts
+    { sintercardLimit = Nothing
+    }
+
+-- |Returns the cardinality of the intersection of multiple sets (<https://redis.io/commands/sintercard>).
+--
+-- $O(N*M)$ worst case where $N$ is the cardinality of the smallest set and $M$ is the number of sets.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+sintercard
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> m (f Integer)
+sintercard keys = sintercardOpts keys defaultSintercardOpts
+
+-- |Returns the cardinality of the intersection of multiple sets (<https://redis.io/commands/sintercard>).
+--
+-- $O(N*M)$ worst case where $N$ is the cardinality of the smallest set and $M$ is the number of sets.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+sintercardOpts
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> SintercardOpts
+    -> m (f Integer)
+sintercardOpts keys SintercardOpts{..} =
+    sendRequest $ ["SINTERCARD", encode (toInteger $ NE.length keys)] ++ NE.toList keys ++ limitArg
+  where
+    limitArg = maybe [] (\limit -> ["LIMIT", encode limit]) sintercardLimit
 
 info
     :: (RedisCtx m f)
@@ -1373,6 +1924,84 @@ zrangebylexLimit
 zrangebylexLimit key min max offset count  =
     sendRequest ["ZRANGEBYLEX", encode key, encode min, encode max,
                  "LIMIT", encode offset, encode count]
+
+data ZPopMinMax = ZPopMin | ZPopMax deriving (Show, Eq)
+
+instance RedisArg ZPopMinMax where
+    encode ZPopMin = "MIN"
+    encode ZPopMax = "MAX"
+
+data ZPopResponse = ZPopResponse
+    { zPopResponseKey :: Maybe ByteString
+    , zPopResponseValues :: [(ByteString, Double)]
+    } deriving (Show, Eq)
+
+instance RedisResult ZPopResponse where
+    decode (MultiBulk (Just [Bulk (Just key), MultiBulk (Just values)])) =
+        ZPopResponse (Just key) <$> mapM decode values
+    decode r = Left r
+
+-- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys (<https://redis.io/commands/zmpop>).
+--
+-- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+zmpop
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ZPopMinMax
+    -> m (f (Maybe ZPopResponse))
+zmpop keys where_ = zmpopCount keys where_ 1
+
+-- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys (<https://redis.io/commands/zmpop>).
+--
+-- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+zmpopCount
+    :: (RedisCtx m f)
+    => NonEmpty ByteString
+    -> ZPopMinMax
+    -> Integer
+    -> m (f (Maybe ZPopResponse))
+zmpopCount keys where_ count =
+    sendRequest $ ["ZMPOP", encode (toInteger $ NE.length keys)] ++ NE.toList keys ++ [encode where_, "COUNT", encode count]
+
+-- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys, or blocks until one is available (<https://redis.io/commands/bzmpop>).
+--
+-- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+bzmpop
+    :: (RedisCtx m f)
+    => Double
+    -> NonEmpty ByteString
+    -> ZPopMinMax
+    -> m (f (Maybe ZPopResponse))
+bzmpop timeout keys where_ = bzmpopCount timeout keys where_ 1
+
+-- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys, or blocks until one is available (<https://redis.io/commands/bzmpop>).
+--
+-- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+--
+-- In clustered environment, commands must operate on keys within the same hash slot.
+--
+-- Since Redis 7.0.0
+bzmpopCount
+    :: (RedisCtx m f)
+    => Double
+    -> NonEmpty ByteString
+    -> ZPopMinMax
+    -> Integer
+    -> m (f (Maybe ZPopResponse))
+bzmpopCount timeout keys where_ count =
+    sendRequest $ ["BZMPOP", encode timeout, encode (toInteger $ NE.length keys)] ++ NE.toList keys ++ [encode where_, "COUNT", encode count]
 
 -- |Returns the score of one or more members in a sorted set (<https://redis.io/commands/zmscore>).
 --
@@ -2812,6 +3441,16 @@ instance RedisResult ClusterInfoResponse where
 clusterInfo :: RedisCtx m f => m (f ClusterInfoResponse)
 clusterInfo = sendRequest ["CLUSTER", "INFO"]
 
+-- |Returns the shard ID of a node (<https://redis.io/commands/cluster-myshardid>).
+--
+-- $O(1)$
+--
+-- Since Redis 7.2.0
+clusterMyshardid
+    :: (RedisCtx m f)
+    => m (f ByteString)
+clusterMyshardid = sendRequest ["CLUSTER", "MYSHARDID"]
+
 data ClusterNodesResponse = ClusterNodesResponse
     { clusterNodesResponseEntries :: [ClusterNodesResponseEntry]
     } deriving (Show, Eq)
@@ -2970,6 +3609,16 @@ clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (enco
 
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]
+
+-- |Returns a list of command names (<https://redis.io/commands/command-list>).
+--
+-- $O(N)$ where $N$ is the total number of Redis commands.
+--
+-- Since Redis 7.0.0
+commandList
+    :: (RedisCtx m f)
+    => m (f [ByteString])
+commandList = sendRequest ["COMMAND", "LIST"]
 
 
 data ExpireOpts
