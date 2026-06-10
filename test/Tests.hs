@@ -366,6 +366,36 @@ testHashes = testCase "hashes" $ do
         HUnit.assertBool "HRANDFIELD WITHVALUES should return existing field/value pairs" $
             all (`elem` ([("heads", "obverse"), ("tails", "reverse"), ("edge", "null")] :: [(ByteString, ByteString)])) fields
 
+testHashes8 :: Test
+testHashes8 = testCase "hashes redis 8" $ do
+    hsetexOpts "myhash" (("field1", "Hello") NE.:| [("field2", "World")])
+        defaultHSetExOpts { hSetExSeconds = Just 60 }
+        >>=? True
+    httl "myhash" ["field1"] >>@? \case
+        (HashFieldExpirationInfo value:_) ->
+           HUnit.assertBool ("HSETEX should set ttl: " <> show value) (value >= 0 && value <= 60)
+        x -> HUnit.assertFailure $ "HTTL should return field expiration info for field1" <> show x
+
+    hgetexOpts "myhash" ("field1" NE.:| ["field2", "missing"])
+        defaultHGetExOpts { hGetExPersist = True }
+        >>=? [Just "Hello", Just "World", Nothing]
+    ttl "myhash" >>=? (-1)
+
+    hgetdel "myhash" ("field1" NE.:| ["field2", "missing"])
+        >>=? [Just "Hello", Just "World", Nothing]
+    hgetall "myhash" >>=? []
+
+    hsetexOpts "myhash" (("field1", "Hello") NE.:| [])
+        defaultHSetExOpts { hSetExCondition = Just HSetExFnx }
+        >>=? True
+    hsetexOpts "myhash" (("field1", "World") NE.:| [])
+        defaultHSetExOpts { hSetExCondition = Just HSetExFnx }
+        >>=? False
+    hsetexOpts "myhash" (("field1", "World") NE.:| [])
+        defaultHSetExOpts { hSetExCondition = Just HSetExFxx }
+        >>=? True
+    hget "myhash" "field1" >>=? Just "World"
+
 ------------------------------------------------------------------------------
 -- Lists
 --
@@ -691,7 +721,7 @@ testHashExpire7 :: Test
 testHashExpire7 = testCase "hash expire" $ do
     hset "mykey" [("field1", "hello"), ("field2", "world")] >>=? 2
 
-    hexpire "mykey" 60 ("field1" NE.:| ["field2", "missing"]) >>=? 
+    hexpire "mykey" 60 ("field1" NE.:| ["field2", "missing"]) >>=?
         [ HashFieldExpirationSet
         , HashFieldExpirationSet
         , HashFieldExpirationNoSuchField
