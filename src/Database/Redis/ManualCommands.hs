@@ -2663,6 +2663,49 @@ xgroupDestroy
     -> m (f Bool)  -- ^ Tells if the group was destroyed or not.
 xgroupDestroy stream group = sendRequest ["XGROUP", "DESTROY", stream, group]
 
+data XRefPolicy
+    = XRefPolicyKeepRef -- ^ Deletes the specified entries from the stream, but preserves existing references to these entries in all consumer groups
+    | XRefPolicyDelRef -- ^ Deletes the specified entries from the stream and also removes all references to these entries from all consumer groups' pending entry lists, effectively cleaning up all traces of the messages. If an entry ID is not in the stream, but there are dangling references, XDELEX with DELREF would still remove all those references.
+    | XRefPolicyAcked -- ^ Deletes the specified entries from the stream only if they have been acknowledged by all consumer groups.
+    deriving (Show, Eq)
+
+instance RedisArg XRefPolicy where
+    encode XRefPolicyKeepRef = "KEEPREF"
+    encode XRefPolicyDelRef = "DELREF"
+    encode XRefPolicyAcked = "ACKED"
+
+data XEntryDeletionOpts = XEntryDeletionOpts
+    { xEntryDeletionRefPolicy :: XRefPolicy
+    } deriving (Show, Eq)
+
+defaultXEntryDeletionOpts :: XEntryDeletionOpts
+defaultXEntryDeletionOpts = XEntryDeletionOpts
+    { xEntryDeletionRefPolicy = XRefPolicyKeepRef
+    }
+
+data XEntryDeletionResult
+    = XEntryDeletionResultNotFound
+    | XEntryDeletionResultDeleted
+    | XEntryDeletionResultNotDeleted
+    deriving (Show, Eq)
+
+instance RedisResult XEntryDeletionResult where
+    decode r = do
+        result <- decode r :: Either Reply Integer
+        case result of
+            -1 -> Right XEntryDeletionResultNotFound
+            1 -> Right XEntryDeletionResultDeleted
+            2 -> Right XEntryDeletionResultNotDeleted
+            _ -> Left r
+
+xEntryDeletionOptsToArgs :: XEntryDeletionOpts -> [ByteString]
+xEntryDeletionOptsToArgs XEntryDeletionOpts{..} =
+    [encode xEntryDeletionRefPolicy]
+
+xEntryIdsBlockArgs :: NonEmpty ByteString -> [ByteString]
+xEntryIdsBlockArgs messageIds =
+    ["IDS", encode (toInteger $ NE.length messageIds)] ++ NE.toList messageIds
+
 xack
     :: (RedisCtx m f)
     => ByteString -- ^ stream
@@ -2670,6 +2713,37 @@ xack
     -> [ByteString] -- ^ message IDs
     -> m (f Integer)
 xack stream groupName messageIds = sendRequest $ ["XACK", stream, groupName] ++ messageIds
+
+-- |Acknowledges and conditionally deletes entries for a consumer group (<https://redis.io/commands/xackdel>).
+--
+-- $O(1)$ for each entry ID processed.
+--
+-- Since Redis 8.2.0
+xackdel
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> NonEmpty ByteString -- ^ Entry IDs.
+    -> m (f [XEntryDeletionResult])
+xackdel stream groupName messageIds =
+    xackdelOpts stream groupName messageIds defaultXEntryDeletionOpts
+
+-- |Acknowledges and conditionally deletes entries for a consumer group (<https://redis.io/commands/xackdel>).
+--
+-- $O(1)$ for each entry ID processed.
+--
+-- Since Redis 8.2.0
+xackdelOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> ByteString -- ^ Consumer group name.
+    -> NonEmpty ByteString -- ^ Entry IDs.
+    -> XEntryDeletionOpts -- ^ Additional options.
+    -> m (f [XEntryDeletionResult])
+xackdelOpts stream groupName messageIds opts =
+    sendRequest $ ["XACKDEL", stream, groupName]
+        ++ xEntryDeletionOptsToArgs opts
+        ++ xEntryIdsBlockArgs messageIds
 
 xrange
     :: (RedisCtx m f)
@@ -3355,6 +3429,35 @@ xdel
     -> m (f Integer)
 xdel stream (messageId:|messageIds) = sendRequest ("XDEL":stream:messageId: messageIds)
 
+-- |Conditionally deletes entries from a stream (<https://redis.io/commands/xdelex>).
+--
+-- $O(1)$ for each entry ID processed.
+--
+-- Since Redis 8.2.0
+xdelex
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> NonEmpty ByteString -- ^ Entry IDs.
+    -> m (f [XEntryDeletionResult])
+xdelex stream messageIds =
+    xdelexOpts stream messageIds defaultXEntryDeletionOpts
+
+-- |Conditionally deletes entries from a stream (<https://redis.io/commands/xdelex>).
+--
+-- $O(1)$ for each entry ID processed.
+--
+-- Since Redis 8.2.0
+xdelexOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream name.
+    -> NonEmpty ByteString -- ^ Entry IDs.
+    -> XEntryDeletionOpts -- ^ Additional options.
+    -> m (f [XEntryDeletionResult])
+xdelexOpts stream messageIds opts =
+    sendRequest $ ["XDELEX", stream]
+        ++ xEntryDeletionOptsToArgs opts
+        ++ xEntryIdsBlockArgs messageIds
+
 -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 xtrim
     :: (RedisCtx m f)
@@ -3692,6 +3795,141 @@ clusterSlots
     :: (RedisCtx m f)
     => m (f ClusterSlotsResponse)
 clusterSlots = sendRequest $ ["CLUSTER", "SLOTS"]
+
+data ClusterSlotStatsMetric
+    = ClusterSlotStatsKeyCount
+    | ClusterSlotStatsCpuUsec
+    | ClusterSlotStatsMemoryBytes
+    | ClusterSlotStatsNetworkBytesIn
+    | ClusterSlotStatsNetworkBytesOut
+    deriving (Show, Eq)
+
+instance RedisArg ClusterSlotStatsMetric where
+    encode ClusterSlotStatsKeyCount = "KEY-COUNT"
+    encode ClusterSlotStatsCpuUsec = "CPU-USEC"
+    encode ClusterSlotStatsMemoryBytes = "MEMORY-BYTES"
+    encode ClusterSlotStatsNetworkBytesIn = "NETWORK-BYTES-IN"
+    encode ClusterSlotStatsNetworkBytesOut = "NETWORK-BYTES-OUT"
+
+data ClusterSlotStatsOrderByOpts = ClusterSlotStatsOrderByOpts
+    { clusterSlotStatsOrderByLimit :: Maybe Integer
+    , clusterSlotStatsOrderByDirection :: SortOrder
+    } deriving (Show, Eq)
+
+defaultClusterSlotStatsOrderByOpts :: ClusterSlotStatsOrderByOpts
+defaultClusterSlotStatsOrderByOpts = ClusterSlotStatsOrderByOpts
+    { clusterSlotStatsOrderByLimit = Nothing
+    , clusterSlotStatsOrderByDirection = Desc
+    }
+
+data ClusterSlotStatsQuery
+    = ClusterSlotStatsSlotsRange Integer Integer
+    | ClusterSlotStatsOrderBy ClusterSlotStatsMetric ClusterSlotStatsOrderByOpts
+    deriving (Show, Eq)
+
+data ClusterSlotStatsResponse = ClusterSlotStatsResponse
+    { clusterSlotStatsResponseEntries :: [ClusterSlotStatsResponseEntry]
+    } deriving (Show, Eq)
+
+data ClusterSlotStatsResponseEntry = ClusterSlotStatsResponseEntry
+    { clusterSlotStatsResponseEntrySlot :: Integer
+    , clusterSlotStatsResponseEntryKeyCount :: Maybe Integer
+    , clusterSlotStatsResponseEntryCpuUsec :: Maybe Integer
+    , clusterSlotStatsResponseEntryMemoryBytes :: Maybe Integer
+    , clusterSlotStatsResponseEntryNetworkBytesIn :: Maybe Integer
+    , clusterSlotStatsResponseEntryNetworkBytesOut :: Maybe Integer
+    } deriving (Show, Eq)
+
+instance RedisResult ClusterSlotStatsResponse where
+    decode (MultiBulk (Just entries)) =
+        ClusterSlotStatsResponse <$> mapM decode entries
+    decode r = Left r
+
+instance RedisResult ClusterSlotStatsResponseEntry where
+    decode r@(MultiBulk (Just entries)) =
+        parseClusterSlotStatsEntry entries
+      where
+        parseClusterSlotStatsEntry :: [Reply] -> Either Reply ClusterSlotStatsResponseEntry
+        parseClusterSlotStatsEntry ((Integer slot):statsReply:[]) =
+            parseClusterSlotStatsFields slot =<< parseClusterSlotStatsMetricPairs statsReply
+        parseClusterSlotStatsEntry fields =
+            case parseClusterSlotStatsFieldPairs fields of
+                Right kvs -> do
+                    slot <- maybe (Left r) Right (lookup "slot" kvs)
+                    parseClusterSlotStatsFields slot (filter ((/= "slot") . fst) kvs)
+                Left _ -> Left r
+
+        parseClusterSlotStatsMetricPairs :: Reply -> Either Reply [(ByteString, Integer)]
+        parseClusterSlotStatsMetricPairs (MultiBulk (Just replies)) =
+            case parseClusterSlotStatsFieldPairs replies of
+                Right kvs -> Right kvs
+                Left _ -> mapM parseNestedPair replies
+          where
+            parseNestedPair (MultiBulk (Just [keyReply, valueReply])) =
+                (,) <$> decode keyReply <*> decode valueReply
+            parseNestedPair nestedReply = Left nestedReply
+        parseClusterSlotStatsMetricPairs reply' = Left reply'
+
+        parseClusterSlotStatsFieldPairs :: [Reply] -> Either Reply [(ByteString, Integer)]
+        parseClusterSlotStatsFieldPairs [] = Right []
+        parseClusterSlotStatsFieldPairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> decode valueReply)
+                <*> parseClusterSlotStatsFieldPairs rest
+        parseClusterSlotStatsFieldPairs [badReply] = Left badReply
+
+        parseClusterSlotStatsFields :: Integer -> [(ByteString, Integer)] -> Either Reply ClusterSlotStatsResponseEntry
+        parseClusterSlotStatsFields slot fields =
+            Right ClusterSlotStatsResponseEntry
+                { clusterSlotStatsResponseEntrySlot = slot
+                , clusterSlotStatsResponseEntryKeyCount = lookup "key-count" fields
+                , clusterSlotStatsResponseEntryCpuUsec = lookup "cpu-usec" fields
+                , clusterSlotStatsResponseEntryMemoryBytes = lookup "memory-bytes" fields
+                , clusterSlotStatsResponseEntryNetworkBytesIn = lookup "network-bytes-in" fields
+                , clusterSlotStatsResponseEntryNetworkBytesOut = lookup "network-bytes-out" fields
+                }
+    decode r = Left r
+
+clusterSlotStats
+    :: (RedisCtx m f)
+    => ClusterSlotStatsQuery
+    -> m (f ClusterSlotStatsResponse)
+clusterSlotStats query = sendRequest $ ["CLUSTER", "SLOT-STATS"] ++ clusterSlotStatsQueryArgs query
+
+clusterSlotStatsSlotsRange
+    :: (RedisCtx m f)
+    => Integer
+    -> Integer
+    -> m (f ClusterSlotStatsResponse)
+clusterSlotStatsSlotsRange startSlot endSlot =
+    clusterSlotStats (ClusterSlotStatsSlotsRange startSlot endSlot)
+
+clusterSlotStatsOrderBy
+    :: (RedisCtx m f)
+    => ClusterSlotStatsMetric
+    -> m (f ClusterSlotStatsResponse)
+clusterSlotStatsOrderBy metric =
+    clusterSlotStatsOrderByOpts metric defaultClusterSlotStatsOrderByOpts
+
+clusterSlotStatsOrderByOpts
+    :: (RedisCtx m f)
+    => ClusterSlotStatsMetric
+    -> ClusterSlotStatsOrderByOpts
+    -> m (f ClusterSlotStatsResponse)
+clusterSlotStatsOrderByOpts metric opts =
+    clusterSlotStats (ClusterSlotStatsOrderBy metric opts)
+
+clusterSlotStatsQueryArgs :: ClusterSlotStatsQuery -> [ByteString]
+clusterSlotStatsQueryArgs query =
+    case query of
+        ClusterSlotStatsSlotsRange startSlot endSlot ->
+            ["SLOTSRANGE", encode startSlot, encode endSlot]
+        ClusterSlotStatsOrderBy metric ClusterSlotStatsOrderByOpts{..} ->
+            ["ORDERBY", encode metric]
+                ++ maybe [] (\limit -> ["LIMIT", encode limit]) clusterSlotStatsOrderByLimit
+                ++ [case clusterSlotStatsOrderByDirection of
+                        Asc -> "ASC"
+                        Desc -> "DESC"
+                   ]
 
 clusterSetSlotImporting
     :: (RedisCtx m f)

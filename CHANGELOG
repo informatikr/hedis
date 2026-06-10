@@ -2,8 +2,8 @@
 
 ## 0.16.2
 
-- Add support for additional Redis 6.2 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)
-- Add support for additional Redis 6.2/7.0 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)
+- Add support for Redis 8.2 stream and cluster commands: `XACKDEL`, `XDELEX`, and `CLUSTER SLOT-STATS`.
+- Add support for additional Redis 6.2, 7.0, 8.0 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)
 
 ## 0.16.1
 
