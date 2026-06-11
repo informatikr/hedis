@@ -14,6 +14,7 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Except
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as Char8
 import Data.Either (isRight)
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -72,6 +73,16 @@ a <|?> b = do
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
+
+isUnknownCommandReply :: Reply -> Bool
+isUnknownCommandReply (Error message) = "unknown command" `BS.isInfixOf` message
+isUnknownCommandReply _ = False
+
+isHotkeysInactiveReply :: Reply -> Bool
+isHotkeysInactiveReply (Error message) =
+    "not currently active" `BS.isInfixOf` message || "tracking is not active" `BS.isInfixOf` message
+isHotkeysInactiveReply (Bulk Nothing) = True
+isHotkeysInactiveReply _ = False
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
@@ -878,6 +889,11 @@ testCommandList7 :: Test
 testCommandList7 = testCase "command list" $ do
     commandList >>@? \commands ->
         HUnit.assertBool "COMMAND LIST should contain GET" ("get" `elem` commands)
+    commandListOpts (Just $ CommandListFilterByPattern "x*") >>@? \commands -> do
+        HUnit.assertBool "pattern-filtered command list should contain xadd" ("xadd" `elem` commands)
+        HUnit.assertBool "pattern-filtered command list should exclude get" ("get" `notElem` commands)
+    commandListOpts (Just $ CommandListFilterByAclCat "connection") >>@? \commands ->
+        HUnit.assertBool "ACLCAT-filtered command list should contain ping" ("ping" `elem` commands)
 
 ------------------------------------------------------------------------------
 -- Scripting
@@ -1379,6 +1395,63 @@ testVRange84 = testCase "vrange" $ do
     vrangeCount "word_embeddings" "-" "+" 10 >>=? ["Redis", "a7", "b1", "z9"]
     vrangeCount "word_embeddings" "(a7" "+" 10 >>=? ["b1", "z9"]
     vrangeCount "word_embeddings" "-" "+" (-1) >>=? ["Redis", "a7", "b1", "z9"]
+
+testRedis86Commands :: Test
+testRedis86Commands = testCase "redis 8.6 commands" $ do
+    xadd "idmp-stream" "*" [("field", "value")] >>@? const (pure ())
+
+    xcfgset "idmp-stream" defaultXCfgSetOpts { xCfgSetIdmpDuration = Just 300 } >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected XCFGSET reply: " ++ show reply
+        Right Ok -> do
+            xcfgset "idmp-stream" defaultXCfgSetOpts
+                { xCfgSetIdmpDuration = Just 600
+                , xCfgSetIdmpMaxsize = Just 500
+                }
+                >>=? Ok
+        Right status ->
+            liftIO $ HUnit.assertFailure $ "Unexpected XCFGSET status: " ++ show status
+
+    hotkeysStop >>= \case
+        Left reply | isUnknownCommandReply reply || isHotkeysInactiveReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS STOP reply: " ++ show reply
+        Right Ok -> pure ()
+        Right status -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS STOP status: " ++ show status
+
+    hotkeysReset >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS RESET reply: " ++ show reply
+        Right Ok -> do
+            hotkeysStartOpts
+                (HotkeysMetricCPU NE.:| [HotkeysMetricNET])
+                defaultHotkeysStartOpts { hotkeysStartTopKCount = Just 2 }
+                >>= \case
+                    Left reply | isUnknownCommandReply reply -> pure ()
+                    Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS START reply: " ++ show reply
+                    Right Ok -> do
+                        set "hotkey:001" "payload" >>=? Ok
+                        replicateM_ 25 $ do
+                            incr "hotkey:counter" >>@? const (pure ())
+                            get "hotkey:001" >>=? Just "payload"
+
+                        hotkeysGet >>@? \HotkeysGetResponse{..} -> do
+                            HUnit.assertBool "tracking should be active before HOTKEYS STOP" hotkeysGetTrackingActive
+                            HUnit.assertBool "sample ratio should be positive" (hotkeysGetSampleRatio >= 1)
+                            HUnit.assertBool "selected slots should not be empty" (not $ null hotkeysGetSelectedSlots)
+                            HUnit.assertBool "collection duration should be non-negative" (hotkeysGetCollectionDurationMs >= 0)
+                            HUnit.assertBool "expected CPU hotkeys to include generated keys" $
+                                maybe False (any (\(key, _) -> "hotkey:" `Char8.isPrefixOf` key)) hotkeysGetByCpuTimeUs
+                            HUnit.assertBool "expected NET hotkeys to include generated keys" $
+                                maybe False (any (\(key, _) -> "hotkey:" `Char8.isPrefixOf` key)) hotkeysGetByNetBytes
+
+                        hotkeysStop >>=? Ok
+                        hotkeysGet >>@? \HotkeysGetResponse{..} ->
+                            HUnit.assertBool "tracking should be stopped after HOTKEYS STOP" (not hotkeysGetTrackingActive)
+                        hotkeysReset >>=? Ok
+                    Right status ->
+                        liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS START status: " ++ show status
+        Right status ->
+            liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS RESET status: " ++ show status
 
 testVectorSet8 :: Test
 testVectorSet8 = testCase "vector sets" $ do

@@ -3362,6 +3362,22 @@ defaultXEntryDeletionOpts = XEntryDeletionOpts
     { xEntryDeletionRefPolicy = XRefPolicyKeepRef
     }
 
+data XCfgSetOpts = XCfgSetOpts
+    { xCfgSetIdmpDuration :: Maybe Integer
+      -- ^ The duration in seconds that each idempotent ID is retained.
+    , xCfgSetIdmpMaxsize :: Maybe Integer
+      -- ^ The maximum number of idempotent IDs tracked per producer.
+    } deriving (Show, Eq)
+
+-- |Redis default 'XCfgSetOpts'. Equivalent to omitting all optional parameters.
+--
+-- At least one field must be set before calling 'xcfgset'.
+defaultXCfgSetOpts :: XCfgSetOpts
+defaultXCfgSetOpts = XCfgSetOpts
+    { xCfgSetIdmpDuration = Nothing
+    , xCfgSetIdmpMaxsize = Nothing
+    }
+
 data XEntryDeletionResult
     = XEntryDeletionResultNotFound
     | XEntryDeletionResultDeleted
@@ -4137,6 +4153,27 @@ xdelexOpts stream messageIds opts =
         ++ xEntryDeletionOptsToArgs opts
         ++ xEntryIdsBlockArgs messageIds
 
+-- |Sets the IDMP configuration parameters for a stream (<https://redis.io/commands/xcfgset>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+xcfgset
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the stream key. The stream must already exist.
+    -> XCfgSetOpts
+    {- ^ Configuration parameters.
+
+       At least one of `xCfgSetIdmpDuration` or `xCfgSetIdmpMaxsize` must be specified.
+       Calling `XCFGSET` clears all existing producer IDMP maps for the stream.
+     -}
+    -> m (f Status)
+xcfgset key XCfgSetOpts{..} =
+    sendRequest $
+        ["XCFGSET", key]
+            ++ maybe [] (\duration -> ["IDMP-DURATION", encode duration]) xCfgSetIdmpDuration
+            ++ maybe [] (\maxsize -> ["IDMP-MAXSIZE", encode maxsize]) xCfgSetIdmpMaxsize
+
 -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 xtrim
     :: (RedisCtx m f)
@@ -4851,7 +4888,209 @@ command = sendRequest ["COMMAND"]
 commandList
     :: (RedisCtx m f)
     => m (f [ByteString])
-commandList = sendRequest ["COMMAND", "LIST"]
+commandList = commandListOpts Nothing
+
+data CommandListFilter
+    = CommandListFilterByModule ByteString
+    | CommandListFilterByAclCat ByteString
+    | CommandListFilterByPattern ByteString
+    deriving (Show, Eq)
+
+-- |Returns a list of command names (<https://redis.io/commands/command-list>).
+--
+-- $O(N)$ where $N$ is the total number of Redis commands.
+--
+-- Since Redis 7.0.0
+commandListOpts
+    :: (RedisCtx m f)
+    => Maybe CommandListFilter
+    {- ^ Optional filtering mode.
+
+       `CommandListFilterByModule` keeps only commands that belong to the given module.
+       `CommandListFilterByAclCat` keeps only commands from the given ACL category.
+       `CommandListFilterByPattern` keeps only commands whose names match the specified glob-style pattern.
+     -}
+    -> m (f [ByteString])
+commandListOpts commandFilter =
+    sendRequest $ ["COMMAND", "LIST"] ++ filterArgs
+  where
+    filterArgs =
+        case commandFilter of
+            Nothing -> []
+            Just (CommandListFilterByModule moduleName) ->
+                ["FILTERBY", "MODULE", moduleName]
+            Just (CommandListFilterByAclCat category) ->
+                ["FILTERBY", "ACLCAT", category]
+            Just (CommandListFilterByPattern pattern_) ->
+                ["FILTERBY", "PATTERN", pattern_]
+
+data HotkeysMetric
+    = HotkeysMetricCPU
+    | HotkeysMetricNET
+    deriving (Show, Eq)
+
+instance RedisArg HotkeysMetric where
+    encode HotkeysMetricCPU = "CPU"
+    encode HotkeysMetricNET = "NET"
+
+data HotkeysStartOpts = HotkeysStartOpts
+    { hotkeysStartTopKCount :: Maybe Integer
+      -- ^ The value of K for the top-K hotkeys tracking.
+    , hotkeysStartDurationSeconds :: Maybe Integer
+      -- ^ The number of seconds to keep tracking before it stops automatically.
+    , hotkeysStartSampleRatio :: Maybe Integer
+      -- ^ The probabilistic sampling ratio. Each key is sampled with probability @1/ratio@.
+    , hotkeysStartSlots :: Maybe (NonEmpty Integer)
+      -- ^ The hash slots to track in cluster mode.
+    } deriving (Show, Eq)
+
+-- |Redis default 'HotkeysStartOpts'. Equivalent to omitting all optional parameters.
+defaultHotkeysStartOpts :: HotkeysStartOpts
+defaultHotkeysStartOpts = HotkeysStartOpts
+    { hotkeysStartTopKCount = Nothing
+    , hotkeysStartDurationSeconds = Nothing
+    , hotkeysStartSampleRatio = Nothing
+    , hotkeysStartSlots = Nothing
+    }
+
+data HotkeysSlotRange = HotkeysSlotRange
+    { hotkeysSlotRangeStart :: Integer
+    , hotkeysSlotRangeEnd :: Integer
+    } deriving (Show, Eq)
+
+instance RedisResult HotkeysSlotRange where
+    decode (MultiBulk (Just [Integer slot])) =
+        Right HotkeysSlotRange
+            { hotkeysSlotRangeStart = slot
+            , hotkeysSlotRangeEnd = slot
+            }
+    decode (MultiBulk (Just [Integer start, Integer end])) =
+        Right HotkeysSlotRange
+            { hotkeysSlotRangeStart = start
+            , hotkeysSlotRangeEnd = end
+            }
+    decode r = Left r
+
+data HotkeysGetResponse = HotkeysGetResponse
+    { hotkeysGetTrackingActive :: Bool
+    , hotkeysGetSampleRatio :: Integer
+    , hotkeysGetSelectedSlots :: [HotkeysSlotRange]
+    , hotkeysGetAllCommandsAllSlotsUs :: Integer
+    , hotkeysGetNetBytesAllCommandsAllSlots :: Integer
+    , hotkeysGetCollectionStartTimeUnixMs :: Integer
+    , hotkeysGetCollectionDurationMs :: Integer
+    , hotkeysGetTotalCpuTimeUserMs :: Maybe Integer
+    , hotkeysGetTotalCpuTimeSysMs :: Maybe Integer
+    , hotkeysGetTotalNetBytes :: Maybe Integer
+    , hotkeysGetByCpuTimeUs :: Maybe [(ByteString, Integer)]
+    , hotkeysGetByNetBytes :: Maybe [(ByteString, Integer)]
+    , hotkeysGetSampledCommandsSelectedSlotsUs :: Maybe Integer
+    , hotkeysGetAllCommandsSelectedSlotsUs :: Maybe Integer
+    , hotkeysGetNetBytesSampledCommandsSelectedSlots :: Maybe Integer
+    , hotkeysGetNetBytesAllCommandsSelectedSlots :: Maybe Integer
+    } deriving (Show, Eq)
+
+instance RedisResult HotkeysGetResponse where
+    decode (MultiBulk (Just [payload])) = decode payload
+    decode r@(MultiBulk (Just replies)) = do
+        pairs <- parsePairs replies
+        hotkeysGetTrackingActive <- require "tracking-active" pairs
+        hotkeysGetSampleRatio <- require "sample-ratio" pairs
+        hotkeysGetSelectedSlots <- require "selected-slots" pairs
+        hotkeysGetAllCommandsAllSlotsUs <- require "all-commands-all-slots-us" pairs
+        hotkeysGetNetBytesAllCommandsAllSlots <- require "net-bytes-all-commands-all-slots" pairs
+        hotkeysGetCollectionStartTimeUnixMs <- require "collection-start-time-unix-ms" pairs
+        hotkeysGetCollectionDurationMs <- require "collection-duration-ms" pairs
+        let hotkeysGetTotalCpuTimeUserMs = optional "total-cpu-time-user-ms" pairs
+            hotkeysGetTotalCpuTimeSysMs = optional "total-cpu-time-sys-ms" pairs
+            hotkeysGetTotalNetBytes = optional "total-net-bytes" pairs
+            hotkeysGetByCpuTimeUs = optional "by-cpu-time-us" pairs
+            hotkeysGetByNetBytes = optional "by-net-bytes" pairs
+            hotkeysGetSampledCommandsSelectedSlotsUs = optional "sampled-commands-selected-slots-us" pairs
+            hotkeysGetAllCommandsSelectedSlotsUs = optional "all-commands-selected-slots-us" pairs
+            hotkeysGetNetBytesSampledCommandsSelectedSlots = optional "net-bytes-sampled-commands-selected-slots" pairs
+            hotkeysGetNetBytesAllCommandsSelectedSlots = optional "net-bytes-all-commands-selected-slots" pairs
+        pure HotkeysGetResponse{..}
+      where
+        parsePairs [] = Right []
+        parsePairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> pure valueReply) <*> parsePairs rest
+        parsePairs _ = Left r
+
+        require :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Either Reply a
+        require key pairs =
+            maybe (Left r) decode (lookup key pairs)
+
+        optional :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Maybe a
+        optional key pairs = lookup key pairs >>= either (const Nothing) Just . decode
+    decode r = Left r
+
+-- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStart
+    :: (RedisCtx m f)
+    => NonEmpty HotkeysMetric
+    {- ^ The metrics to track.
+
+       The command automatically derives the `METRICS count` argument from the number of provided metrics.
+       At least one metric must be specified.
+     -}
+    -> m (f Status)
+hotkeysStart metrics = hotkeysStartOpts metrics defaultHotkeysStartOpts
+
+-- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStartOpts
+    :: (RedisCtx m f)
+    => NonEmpty HotkeysMetric -- ^ The metrics to track.
+    -> HotkeysStartOpts -- ^ Additional tracking options.
+    -> m (f Status)
+hotkeysStartOpts metrics HotkeysStartOpts{..} =
+    sendRequest $
+        ["HOTKEYS", "START", "METRICS", encode (toInteger $ NE.length metrics)]
+            ++ map encode (NE.toList metrics)
+            ++ maybe [] (\count -> ["COUNT", encode count]) hotkeysStartTopKCount
+            ++ maybe [] (\duration -> ["DURATION", encode duration]) hotkeysStartDurationSeconds
+            ++ maybe [] (\ratio -> ["SAMPLE", encode ratio]) hotkeysStartSampleRatio
+            ++ maybe [] slotsArgs hotkeysStartSlots
+  where
+    slotsArgs slots = ["SLOTS", encode (toInteger $ NE.length slots)] ++ map encode (NE.toList slots)
+
+-- |Returns tracking results and metadata from the current or most recent hotkeys tracking session (<https://redis.io/commands/hotkeys-get>).
+--
+-- $O(K)$ where $K$ is the number of hotkeys returned.
+--
+-- Since Redis 8.6.0
+hotkeysGet
+    :: (RedisCtx m f)
+    => m (f HotkeysGetResponse)
+hotkeysGet = sendRequest ["HOTKEYS", "GET"]
+
+-- |Stops hotkeys tracking (<https://redis.io/commands/hotkeys-stop>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStop
+    :: (RedisCtx m f)
+    => m (f Status)
+hotkeysStop = sendRequest ["HOTKEYS", "STOP"]
+
+-- |Release the resources used for hotkey tracking (<https://redis.io/commands/hotkeys-reset>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysReset
+    :: (RedisCtx m f)
+    => m (f Status)
+hotkeysReset = sendRequest ["HOTKEYS", "RESET"]
 
 
 data ExpireOpts
