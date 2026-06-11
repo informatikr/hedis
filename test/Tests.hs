@@ -13,6 +13,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Except
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Either (isRight)
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -324,6 +325,31 @@ testStringCommands6 = testCase "strings redis 6" $ do
     getexOpts "mykey" defaultGetExOpts { getExSeconds = Just 10 } >>=? Just "Hello"
     ttl "mykey" >>@? \value ->
         HUnit.assertBool "GETEX should set ttl" (value >= 0 && value <= 10)
+
+testStringCommands84 :: Test
+testStringCommands84 = testCase "strings redis 8.4" $ do
+    set "digest-key" "Hello world" >>=? Ok
+    digest "digest-key" >>=? Just "b6acb9d84a38ff74"
+    delexWhen "digest-key" (DelexIfEq "Goodbye") >>=? False
+    get "digest-key" >>=? Just "Hello world"
+    digest "digest-key" >>= \case
+        Left reply -> liftIO $ HUnit.assertFailure $ "Redis error: " ++ show reply
+        Right (Just digestValue) -> do
+            delexWhen "digest-key" (DelexIfDigestEq digestValue) >>=? True
+            get "digest-key" >>=? Nothing
+        Right Nothing -> liftIO $ HUnit.assertFailure "DIGEST should return a digest for an existing string key"
+
+    msetexOpts (("k1", "v1") NE.:| [("k2", "v2")]) defaultSetOpts { setSeconds = Just 60 } >>=? True
+    mget ["k1", "k2"] >>=? [Just "v1", Just "v2"]
+    ttl "k1" >>@? \value ->
+        HUnit.assertBool "MSETEX should set ttl" (value >= 0 && value <= 60)
+
+    msetexOpts (("k1", "new-v1") NE.:| [("k3", "v3")]) defaultSetOpts { setCondition = Just Nx } >>=? False
+    get "k1" >>=? Just "v1"
+    get "k3" >>=? Nothing
+
+    msetexOpts (("k1", "new-v1") NE.:| [("k2", "new-v2")]) defaultSetOpts { setCondition = Just Xx } >>=? True
+    mget ["k1", "k2"] >>=? [Just "new-v1", Just "new-v2"]
 
 testBitops :: Test
 testBitops = testCase "bitops" $ do
@@ -1244,22 +1270,22 @@ testXAutoClaim7 =
 
 testXAckDel8 :: Test
 testXAckDel8 = testCase "xackdel" $ do
-    xadd "somestream8" "121" [("key1", "value1")] >>=? "121-0"
-    xgroupCreate "somestream8" "somegroup1" "0" >>=? Ok
-    xgroupCreate "somestream8" "somegroup2" "0" >>=? Ok
-    xreadGroup "somegroup1" "consumer1" [("somestream8", ">")] >>@? const (pure ())
-    xreadGroup "somegroup2" "consumer2" [("somestream8", ">")] >>@? const (pure ())
+    xadd "somestream8-1" "121" [("key1", "value1")] >>=? "121-0"
+    xgroupCreate "somestream8-1" "somegroup1" "0" >>=? Ok
+    xgroupCreate "somestream8-1" "somegroup2" "0" >>=? Ok
+    xreadGroup "somegroup1" "consumer1" [("somestream8-1", ">")] >>@? const (pure ())
+    xreadGroup "somegroup2" "consumer2" [("somestream8-1", ">")] >>@? const (pure ())
 
     let ackedOpts = defaultXEntryDeletionOpts { xEntryDeletionRefPolicy = XRefPolicyAcked }
 
-    xackdelOpts "somestream8" "somegroup1" ("121-0" NE.:| []) ackedOpts
+    xackdelOpts "somestream8-1" "somegroup1" ("121-0" NE.:| []) ackedOpts
         >>=? [XEntryDeletionResultNotDeleted]
-    xrange "somestream8" "-" "+" Nothing >>@? \records ->
+    xrange "somestream8-1" "-" "+" Nothing >>@? \records ->
         HUnit.assertEqual "entry should remain until all groups acknowledge it" 1 (length records)
 
-    xackdelOpts "somestream8" "somegroup2" ("121-0" NE.:| []) ackedOpts
+    xackdelOpts "somestream8-1" "somegroup2" ("121-0" NE.:| []) ackedOpts
         >>=? [XEntryDeletionResultDeleted]
-    xrange "somestream8" "-" "+" Nothing >>=? []
+    xrange "somestream8-1" "-" "+" Nothing >>=? []
 
 testXDelEx8 :: Test
 testXDelEx8 = testCase "xdelex" $ do
@@ -1342,6 +1368,140 @@ testXDel = testCase "xdel" $ do
     xdel "somestream8" ["122"] >>=? 1
     xlen "somestream8" >>=? 1
 
+testVRange84 :: Test
+testVRange84 = testCase "vrange" $ do
+    vadd "word_embeddings" (0.1 NE.:| [1.2, 0.5]) "Redis" >>=? True
+    vadd "word_embeddings" (0.2 NE.:| [1.1, 0.4]) "a7" >>=? True
+    vadd "word_embeddings" (0.3 NE.:| [1.0, 0.3]) "b1" >>=? True
+    vadd "word_embeddings" (0.4 NE.:| [0.9, 0.2]) "z9" >>=? True
+
+    vrangeCount "word_embeddings" "[Redis" "+" 10 >>=? ["Redis", "a7", "b1", "z9"]
+    vrangeCount "word_embeddings" "-" "+" 10 >>=? ["Redis", "a7", "b1", "z9"]
+    vrangeCount "word_embeddings" "(a7" "+" 10 >>=? ["b1", "z9"]
+    vrangeCount "word_embeddings" "-" "+" (-1) >>=? ["Redis", "a7", "b1", "z9"]
+
+testVectorSet8 :: Test
+testVectorSet8 = testCase "vector sets" $ do
+    let key = "word_embeddings"
+        members = ["apple", "apples", "pear", "pears", "potato"]
+        insert element attrs vector =
+            vaddOpts key vector element defaultVAddOpts
+                { vAddQuantization = Just VAddNoQuant
+                , vAddAttributes = attrs
+                }
+
+    insert "apple" (Just "{\"len\":5,\"kind\":\"fruit\"}") (1.0 NE.:| [0.0, 0.0]) >>=? True
+    insert "apples" (Just "{\"len\":6,\"kind\":\"fruit\"}") (0.9 NE.:| [0.1, 0.0]) >>=? True
+    insert "pear" (Just "{\"len\":4,\"kind\":\"fruit\"}") (0.8 NE.:| [0.2, 0.0]) >>=? True
+    insert "pears" Nothing (0.75 NE.:| [0.25, 0.05]) >>=? True
+    insert "potato" (Just "{\"len\":6,\"kind\":\"vegetable\"}") (0.0 NE.:| [1.0, 0.0]) >>=? True
+
+    vcard key >>=? 5
+    vdim key >>=? 3
+    vismember key "apple" >>=? True
+    vismember key "orange" >>=? False
+
+    vemb key "apple" >>@? \case
+        [x, y, z] -> do
+            HUnit.assertBool "VEMB should approximately reconstruct the inserted vector" $
+                abs (x - 1.0) < 0.001 && abs y < 0.001 && abs z < 0.001
+        vector ->
+            HUnit.assertFailure $ "Unexpected VEMB response: " ++ show vector
+
+    vembRaw key "apple" >>@? \case
+        Just VEmbRawResponse{..} -> do
+            VQuantizationFP32 HUnit.@=? vEmbRawQuantization
+            HUnit.assertBool "raw vector blob should not be empty" (BS.length vEmbRawData > 0)
+            HUnit.assertBool "vector norm should be positive" (vEmbRawNorm > 0)
+            Nothing HUnit.@=? vEmbRawRange
+        reply ->
+            HUnit.assertFailure $ "Unexpected VEMB RAW response: " ++ show reply
+
+    vgetattr key "apple" >>=? Just "{\"len\":5,\"kind\":\"fruit\"}"
+    vsetattr key "pears" "{\"len\":5,\"kind\":\"fruit\"}" >>=? True
+    vgetattr key "pears" >>=? Just "{\"len\":5,\"kind\":\"fruit\"}"
+    vsetattr key "pears" "" >>=? True
+    vgetattr key "pears" >>=? Nothing
+
+    vinfo key >>@? \case
+        Just VInfoResponse{..} -> do
+            HUnit.assertBool "quantization should be reported as f32/fp32" $
+                vInfoQuantization == Just "f32" || vInfoQuantization == Just "fp32"
+            Just 3 HUnit.@=? vInfoVectorDim
+            Just 5 HUnit.@=? vInfoSize
+            HUnit.assertBool "max level should be reported" $
+                maybe False (>= 0) vInfoMaxLevel
+        reply ->
+            HUnit.assertFailure $ "Unexpected VINFO response: " ++ show reply
+
+    vlinks key "apple" >>@? \case
+        Just (VLinksResponse layers) ->
+            HUnit.assertBool "VLINKS should return at least one adjacent element" $
+                any (not . null) layers
+        reply ->
+            HUnit.assertFailure $ "Unexpected VLINKS response: " ++ show reply
+
+    vlinksWithScores key "apple" >>@? \case
+        Just (VLinksWithScoresResponse layers) -> do
+            HUnit.assertBool "VLINKS WITHSCORES should return at least one adjacent element" $
+                any (not . null) layers
+            HUnit.assertBool "VLINKS WITHSCORES should only return known members" $
+                all (\(neighbor, _) -> neighbor `elem` members)
+                    [ pair | layer <- layers, pair <- layer ]
+        reply ->
+            HUnit.assertFailure $ "Unexpected VLINKS WITHSCORES response: " ++ show reply
+
+    vrandmember key >>@? \member ->
+        HUnit.assertBool "VRANDMEMBER should return one of the inserted elements" $
+            maybe False (`elem` members) member
+
+    vrandmemberCount key 3 >>@? \randomMembers -> do
+        HUnit.assertEqual "VRANDMEMBER count" 3 (length randomMembers)
+        HUnit.assertBool "VRANDMEMBER count should only return known members" $
+            all (`elem` members) randomMembers
+
+    vrange key "-" "+" >>=? members
+    vrangeCount key "[apple" "[pear" 10 >>=? ["apple", "apples", "pear"]
+
+    vsim key (VSimByElement "apple") >>@? \similar -> do
+        HUnit.assertBool "VSIM should return at least one match" (not $ null similar)
+        case similar of
+            firstMatch:_ ->
+                HUnit.assertEqual "VSIM first match" "apple" firstMatch
+            [] ->
+                HUnit.assertFailure "VSIM returned no matches"
+
+    vsimOpts key (VSimByValues (1.0 NE.:| [0.0, 0.0])) defaultVSimOpts { vSimCount = Just 2 } >>@? \similar -> do
+        HUnit.assertEqual "VSIM VALUES count" 2 (length similar)
+        case similar of
+            firstMatch:_ ->
+                HUnit.assertEqual "VSIM VALUES first match" "apple" firstMatch
+            [] ->
+                HUnit.assertFailure "VSIM VALUES returned no matches"
+
+    vsimWithScoresOpts key (VSimByElement "apple") defaultVSimOpts { vSimCount = Just 3 } >>@? \similar -> do
+        HUnit.assertEqual "VSIM WITHSCORES count" 3 (length similar)
+        case similar of
+            (firstMatch, firstScore):_ -> do
+                HUnit.assertEqual "VSIM WITHSCORES first match" "apple" firstMatch
+                HUnit.assertBool "VSIM WITHSCORES self similarity should be close to 1" $
+                    firstScore > 0.99
+            [] ->
+                HUnit.assertFailure "VSIM WITHSCORES returned no matches"
+
+    vsimWithScoresWithAttribsOpts key (VSimByElement "apple") defaultVSimOpts { vSimCount = Just 3 } >>@? \VSimWithAttribsResponse{..} -> do
+        HUnit.assertEqual "VSIM WITHATTRIBS count" 3 (length vSimWithAttribsResults)
+        case vSimWithAttribsResults of
+            firstMatch:_ -> do
+                HUnit.assertEqual "VSIM WITHATTRIBS first match" "apple" (vSimResultElement firstMatch)
+                Just "{\"len\":5,\"kind\":\"fruit\"}" HUnit.@=? vSimResultAttributes firstMatch
+            [] ->
+                HUnit.assertFailure "VSIM WITHATTRIBS returned no matches"
+
+    vrem key "potato" >>=? True
+    vismember key "potato" >>=? False
+    vcard key >>=? 4
+
 testClusterSlotStats8 :: Test
 testClusterSlotStats8 = testCase "cluster slot-stats" $ do
     clusterSlotStatsSlotsRange 0 16383 >>@? \ClusterSlotStatsResponse{..} -> do
@@ -1358,6 +1518,17 @@ testClusterSlotStats8 = testCase "cluster slot-stats" $ do
         >>@? \ClusterSlotStatsResponse{..} ->
             HUnit.assertBool "ORDERBY with LIMIT should return at most one entry" $
                 length clusterSlotStatsResponseEntries <= 1
+
+testClusterMigration84 :: Test
+testClusterMigration84 = testCase "cluster migration" $ do
+    clusterMigrationCancelAll >>@? \cancelled ->
+        HUnit.assertBool "cancel count should be non-negative" (cancelled >= 0)
+
+    clusterMigrationStatusAll >>@? \ClusterMigrationStatusResponse{..} ->
+        forM_ clusterMigrationStatusTasks $ \ClusterMigrationTask{..} -> do
+            HUnit.assertBool "migration task id should not be empty" (clusterMigrationTaskId /= "")
+            HUnit.assertBool "migration task retries should be non-negative when present" $
+                maybe True (>= 0) clusterMigrationTaskRetries
 
 testXTrim ::Test
 testXTrim = testCase "xtrim" $ do
