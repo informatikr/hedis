@@ -973,6 +973,580 @@ bitop
     -> m (f Integer)
 bitop op ks = sendRequest $ "BITOP" : op : ks
 
+data VAddQuantization
+    = VAddNoQuant
+    | VAddQ8
+    | VAddBin
+    deriving (Show, Eq)
+
+instance RedisArg VAddQuantization where
+    encode VAddNoQuant = "NOQUANT"
+    encode VAddQ8 = "Q8"
+    encode VAddBin = "BIN"
+
+data VAddOpts = VAddOpts
+    { vAddReduceDim :: Maybe Integer
+    , vAddCas :: Bool
+    , vAddQuantization :: Maybe VAddQuantization
+    , vAddBuildExplorationFactor :: Maybe Integer
+    , vAddAttributes :: Maybe ByteString
+    , vAddNumLinks :: Maybe Integer
+    } deriving (Show, Eq)
+
+data VQuantization
+    = VQuantizationFP32
+    | VQuantizationBin
+    | VQuantizationQ8
+    deriving (Show, Eq)
+
+instance RedisArg VQuantization where
+    encode VQuantizationFP32 = "FP32"
+    encode VQuantizationBin = "BIN"
+    encode VQuantizationQ8 = "Q8"
+
+instance RedisResult VQuantization where
+    decode (SingleLine "fp32") = Right VQuantizationFP32
+    decode (SingleLine "f32") = Right VQuantizationFP32
+    decode (SingleLine "bin") = Right VQuantizationBin
+    decode (SingleLine "q8") = Right VQuantizationQ8
+    decode (SingleLine "int8") = Right VQuantizationQ8
+    decode (Bulk (Just "fp32")) = Right VQuantizationFP32
+    decode (Bulk (Just "f32")) = Right VQuantizationFP32
+    decode (Bulk (Just "bin")) = Right VQuantizationBin
+    decode (Bulk (Just "q8")) = Right VQuantizationQ8
+    decode (Bulk (Just "int8")) = Right VQuantizationQ8
+    decode r = Left r
+
+data VEmbRawResponse = VEmbRawResponse
+    { vEmbRawQuantization :: VQuantization
+    , vEmbRawData :: ByteString
+    , vEmbRawNorm :: Double
+    , vEmbRawRange :: Maybe Double
+    } deriving (Show, Eq)
+
+instance RedisResult VEmbRawResponse where
+    decode (MultiBulk (Just [quantizationReply, rawDataReply, normReply])) =
+        VEmbRawResponse
+            <$> decode quantizationReply
+            <*> decode rawDataReply
+            <*> decode normReply
+            <*> pure Nothing
+    decode (MultiBulk (Just [quantizationReply, rawDataReply, normReply, rangeReply])) =
+        VEmbRawResponse
+            <$> decode quantizationReply
+            <*> decode rawDataReply
+            <*> decode normReply
+            <*> (Just <$> decode rangeReply)
+    decode r = Left r
+
+data VInfoResponse = VInfoResponse
+    { vInfoQuantization :: Maybe ByteString
+    , vInfoVectorDim :: Maybe Integer
+    , vInfoSize :: Maybe Integer
+    , vInfoMaxLevel :: Maybe Integer
+    , vInfoUid :: Maybe Integer
+    , vInfoHnswMaxNodeUid :: Maybe Integer
+    } deriving (Show, Eq)
+
+instance RedisResult VInfoResponse where
+    decode r@(MultiBulk (Just replies)) =
+        parsePairs replies >>= buildInfo
+      where
+        parsePairs [] = Right []
+        parsePairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> pure valueReply) <*> parsePairs rest
+        parsePairs _ = Left r
+
+        buildInfo pairs = Right VInfoResponse
+            { vInfoQuantization = lookupDecoded "quant-type" pairs
+            , vInfoVectorDim = lookupDecoded "vector-dim" pairs
+            , vInfoSize = lookupDecoded "size" pairs
+            , vInfoMaxLevel = lookupDecoded "max-level" pairs
+            , vInfoUid = lookupDecoded "vset-uid" pairs
+            , vInfoHnswMaxNodeUid = lookupDecoded "hnsw-max-node-uid" pairs
+            }
+
+        lookupDecoded :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Maybe a
+        lookupDecoded key pairs = lookup key pairs >>= either (const Nothing) Just . decode
+    decode r = Left r
+
+newtype VLinksResponse = VLinksResponse
+    { vLinksLayers :: [[ByteString]]
+    } deriving (Show, Eq)
+
+instance RedisResult VLinksResponse where
+    decode (MultiBulk (Just layers)) = VLinksResponse <$> mapM decode layers
+    decode r = Left r
+
+newtype VLinksWithScoresResponse = VLinksWithScoresResponse
+    { vLinksWithScoresLayers :: [[(ByteString, Double)]]
+    } deriving (Show, Eq)
+
+instance RedisResult VLinksWithScoresResponse where
+    decode r@(MultiBulk (Just layers)) =
+        VLinksWithScoresResponse <$> mapM decodeLayer layers
+      where
+        decodeLayer (MultiBulk (Just entries)) = pairs entries
+        decodeLayer badReply = Left badReply
+
+        pairs [] = Right []
+        pairs (nameReply:scoreReply:rest) =
+            (:) <$> ((,) <$> decode nameReply <*> decode scoreReply) <*> pairs rest
+        pairs _ = Left r
+    decode r = Left r
+
+data VSimQuery
+    = VSimByElement ByteString
+    | VSimByFp32 ByteString
+    | VSimByValues (NonEmpty Double)
+    deriving (Show, Eq)
+
+data VSimOpts = VSimOpts
+    { vSimCount :: Maybe Integer
+    , vSimEpsilon :: Maybe Double
+    , vSimEf :: Maybe Integer
+    , vSimFilter :: Maybe ByteString
+    , vSimFilterEf :: Maybe Integer
+    , vSimTruth :: Bool
+    , vSimNoThread :: Bool
+    } deriving (Show, Eq)
+
+defaultVSimOpts :: VSimOpts
+defaultVSimOpts = VSimOpts
+    { vSimCount = Nothing
+    , vSimEpsilon = Nothing
+    , vSimEf = Nothing
+    , vSimFilter = Nothing
+    , vSimFilterEf = Nothing
+    , vSimTruth = False
+    , vSimNoThread = False
+    }
+
+data VSimWithAttribsResult = VSimWithAttribsResult
+    { vSimResultElement :: ByteString
+    , vSimResultScore :: Double
+    , vSimResultAttributes :: Maybe ByteString
+    } deriving (Show, Eq)
+
+instance RedisResult VSimWithAttribsResult where
+    decode (MultiBulk (Just [elementReply, scoreReply, Bulk Nothing])) =
+        VSimWithAttribsResult
+            <$> decode elementReply
+            <*> decode scoreReply
+            <*> pure Nothing
+    decode (MultiBulk (Just [elementReply, scoreReply, attributesReply])) =
+        VSimWithAttribsResult
+            <$> decode elementReply
+            <*> decode scoreReply
+            <*> (Just <$> decode attributesReply)
+    decode r = Left r
+
+newtype VSimWithAttribsResponse = VSimWithAttribsResponse
+    { vSimWithAttribsResults :: [VSimWithAttribsResult]
+    } deriving (Show, Eq)
+
+instance RedisResult VSimWithAttribsResponse where
+    decode r@(MultiBulk (Just replies)) =
+        VSimWithAttribsResponse <$> triples replies
+      where
+        triples [] = Right []
+        triples (elementReply:scoreReply:Bulk Nothing:rest) = do
+            result <- VSimWithAttribsResult
+                <$> decode elementReply
+                <*> decode scoreReply
+                <*> pure Nothing
+            (result :) <$> triples rest
+        triples (elementReply:scoreReply:attributesReply:rest) = do
+            result <- VSimWithAttribsResult
+                <$> decode elementReply
+                <*> decode scoreReply
+                <*> (Just <$> decode attributesReply)
+            (result :) <$> triples rest
+        triples _ = Left r
+    decode r = Left r
+
+-- |Redis default 'VAddOpts'. Equivalent to omitting all optional parameters.
+defaultVAddOpts :: VAddOpts
+defaultVAddOpts = VAddOpts
+    { vAddReduceDim = Nothing
+    , vAddCas = False
+    , vAddQuantization = Nothing
+    , vAddBuildExplorationFactor = Nothing
+    , vAddAttributes = Nothing
+    , vAddNumLinks = Nothing
+    }
+
+-- |Adds a new element to a vector set, or updates its vector if it already exists (<https://redis.io/commands/vadd>).
+--
+-- $O(log(N))$ for each element added, where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vadd
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that will hold the vector set data.
+    -> NonEmpty Double
+    {- ^ The vector values as floating point numbers.
+
+       This uses the `VALUES` argument form and automatically supplies the number of vector elements.
+     -}
+    -> ByteString -- ^ The name of the element that is being added to the vector set.
+    -> m (f Bool)
+vadd key vector element = vaddOpts key vector element defaultVAddOpts
+
+-- |Adds a new element to a vector set, or updates its vector if it already exists (<https://redis.io/commands/vadd>).
+--
+-- $O(log(N))$ for each element added, where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vaddOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that will hold the vector set data.
+    -> NonEmpty Double -- ^ The vector values as floating point numbers.
+    -> ByteString -- ^ The name of the element that is being added to the vector set.
+    -> VAddOpts
+    {- ^ Additional parameters.
+
+       `REDUCE dim` reduces the dimensionality of the vector using random projection.
+       `CAS` performs the slow neighbor candidate collection in the background.
+       `NOQUANT`, `Q8`, and `BIN` control quantization and are mutually exclusive.
+       `EF` sets the build exploration factor.
+       `SETATTR` associates attributes with the entry.
+       `M` sets the maximum number of graph links per node.
+     -}
+    -> m (f Bool)
+vaddOpts key vector element VAddOpts{..} =
+    sendRequest $
+        ["VADD", key]
+            ++ reduceArg
+            ++ ["VALUES", encode (toInteger $ NE.length vector)]
+            ++ map encode (NE.toList vector)
+            ++ [element]
+            ++ casArg
+            ++ quantizationArg
+            ++ efArg
+            ++ attributesArg
+            ++ numLinksArg
+  where
+    reduceArg = maybe [] (\dim -> ["REDUCE", encode dim]) vAddReduceDim
+    casArg = ["CAS" | vAddCas]
+    quantizationArg = maybe [] (\quantization -> [encode quantization]) vAddQuantization
+    efArg = maybe [] (\ef -> ["EF", encode ef]) vAddBuildExplorationFactor
+    attributesArg = maybe [] (\attributes -> ["SETATTR", attributes]) vAddAttributes
+    numLinksArg = maybe [] (\numLinks -> ["M", encode numLinks]) vAddNumLinks
+
+-- |Return the number of elements in the specified vector set (<https://redis.io/commands/vcard>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vcard
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> m (f Integer)
+vcard key = sendRequest ["VCARD", key]
+
+-- |Return the number of dimensions of the vectors in the specified vector set (<https://redis.io/commands/vdim>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vdim
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> m (f Integer)
+vdim key = sendRequest ["VDIM", key]
+
+-- |Return the approximate vector associated with a given element in the vector set (<https://redis.io/commands/vemb>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vemb
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element whose vector you want to retrieve.
+    -> m (f [Double])
+vemb key element = sendRequest ["VEMB", key, element]
+
+-- |Return the raw internal representation of the vector associated with a given element in the vector set (<https://redis.io/commands/vemb>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vembRaw
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element whose vector you want to retrieve.
+    -> m (f (Maybe VEmbRawResponse))
+vembRaw key element = sendRequest ["VEMB", key, element, "RAW"]
+
+-- |Retrieve the JSON attributes of an element in a vector set (<https://redis.io/commands/vgetattr>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vgetattr
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element whose attributes you want to retrieve.
+    -> m (f (Maybe ByteString))
+vgetattr key element = sendRequest ["VGETATTR", key, element]
+
+-- |Return metadata and internal details about a vector set (<https://redis.io/commands/vinfo>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vinfo
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> m (f (Maybe VInfoResponse))
+vinfo key = sendRequest ["VINFO", key]
+
+-- |Check if an element exists in a vector set (<https://redis.io/commands/vismember>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vismember
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element to check.
+    -> m (f Bool)
+vismember key element = sendRequest ["VISMEMBER", key, element]
+
+-- |Return the neighbors of a specified element in a vector set (<https://redis.io/commands/vlinks>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vlinks
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element whose HNSW neighbors you want to inspect.
+    -> m (f (Maybe VLinksResponse))
+vlinks key element = sendRequest ["VLINKS", key, element]
+
+-- |Return the neighbors of a specified element in a vector set together with their similarity scores (<https://redis.io/commands/vlinks>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vlinksWithScores
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element whose HNSW neighbors you want to inspect.
+    -> m (f (Maybe VLinksWithScoresResponse))
+vlinksWithScores key element = sendRequest ["VLINKS", key, element, "WITHSCORES"]
+
+-- |Return one random element from a vector set (<https://redis.io/commands/vrandmember>).
+--
+-- $O(N)$ where $N$ is the absolute value of the count argument.
+--
+-- Since Redis 8.0.0
+vrandmember
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> m (f (Maybe ByteString))
+vrandmember key = sendRequest ["VRANDMEMBER", key]
+
+-- |Return one or multiple random elements from a vector set (<https://redis.io/commands/vrandmember>).
+--
+-- $O(N)$ where $N$ is the absolute value of the count argument.
+--
+-- Since Redis 8.0.0
+vrandmemberCount
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> Integer
+    {- ^ The number of elements to return.
+
+       Positive values return distinct elements; negative values allow duplicates.
+     -}
+    -> m (f [ByteString])
+vrandmemberCount key count = sendRequest ["VRANDMEMBER", key, encode count]
+
+-- |Returns elements in a lexicographical range (<https://redis.io/commands/vrange>).
+--
+-- $O(log(K)+M)$ where $K$ is the number of elements in the start prefix, and $M$ is the number of elements returned. In practical terms, the command is just $O(M)$.
+--
+-- Since Redis 8.4.0
+vrange
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the vector set key from which to retrieve elements.
+    -> ByteString
+    {- ^ The starting point of the lexicographical range.
+
+       Use a value prefixed with `[` for an inclusive bound, a value prefixed with `(` for an exclusive bound, or `-` for the minimum element.
+     -}
+    -> ByteString
+    {- ^ The ending point of the lexicographical range.
+
+       Use a value prefixed with `[` for an inclusive bound, a value prefixed with `(` for an exclusive bound, or `+` for the maximum element.
+     -}
+    -> m (f [ByteString])
+vrange key start end = sendRequest ["VRANGE", key, start, end]
+
+-- |Returns elements in a lexicographical range (<https://redis.io/commands/vrange>).
+--
+-- $O(log(K)+M)$ where $K$ is the number of elements in the start prefix, and $M$ is the number of elements returned. In practical terms, the command is just $O(M)$.
+--
+-- Since Redis 8.4.0
+vrangeCount
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the vector set key from which to retrieve elements.
+    -> ByteString -- ^ The starting point of the lexicographical range.
+    -> ByteString -- ^ The ending point of the lexicographical range.
+    -> Integer
+    {- ^ The maximum number of elements to return.
+
+       If `count` is negative, the command returns all elements in the specified range.
+     -}
+    -> m (f [ByteString])
+vrangeCount key start end count =
+    sendRequest ["VRANGE", key, start, end, encode count]
+
+-- |Remove an element from a vector set (<https://redis.io/commands/vrem>).
+--
+-- $O(log(N))$ for each element removed, where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vrem
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element to remove from the vector set.
+    -> m (f Bool)
+vrem key element = sendRequest ["VREM", key, element]
+
+-- |Associate or remove the JSON attributes of an element in a vector set (<https://redis.io/commands/vsetattr>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.0.0
+vsetattr
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set.
+    -> ByteString -- ^ The name of the element in the vector set.
+    -> ByteString
+    {- ^ The attributes as a JSON object string.
+
+       Use the empty string to remove existing attributes.
+     -}
+    -> m (f Bool)
+vsetattr key element attributes = sendRequest ["VSETATTR", key, element, attributes]
+
+-- |Return elements similar to a given vector or element (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vsim
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set data.
+    -> VSimQuery
+    {- ^ Query vector source.
+
+       Use `VSimByElement` to refer to an existing element, `VSimByFp32` for binary float format, or `VSimByValues` for a list of float values.
+     -}
+    -> m (f [ByteString])
+vsim key query = vsimOpts key query defaultVSimOpts
+
+-- |Return elements similar to a given vector or element (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vsimOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set data.
+    -> VSimQuery -- ^ Query vector source.
+    -> VSimOpts
+    {- ^ Additional search options.
+
+       `COUNT` limits the number of returned results.
+       `EPSILON` filters out elements that are too far from the query vector.
+       `EF` controls the exploration factor.
+       `FILTER` applies a filtering expression and `FILTER-EF` limits filtering effort.
+       `TRUTH` forces an exact linear scan.
+       `NOTHREAD` executes the search in the main thread.
+     -}
+    -> m (f [ByteString])
+vsimOpts key query opts =
+    sendRequest $ ["VSIM", key] ++ vSimQueryArgs query ++ vSimOptsArgs opts
+
+-- |Return elements similar to a given vector or element together with their similarity scores (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vsimWithScores
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set data.
+    -> VSimQuery -- ^ Query vector source.
+    -> m (f [(ByteString, Double)])
+vsimWithScores key query = vsimWithScoresOpts key query defaultVSimOpts
+
+-- |Return elements similar to a given vector or element together with their similarity scores (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.0.0
+vsimWithScoresOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> VSimQuery
+    -> VSimOpts
+    -> m (f [(ByteString, Double)])
+vsimWithScoresOpts key query opts =
+    sendRequest $ ["VSIM", key] ++ vSimQueryArgs query ++ ["WITHSCORES"] ++ vSimOptsArgs opts
+
+-- |Return elements similar to a given vector or element together with their similarity scores and JSON attributes (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.2.0
+vsimWithScoresWithAttribs
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key that holds the vector set data.
+    -> VSimQuery -- ^ Query vector source.
+    -> m (f VSimWithAttribsResponse)
+vsimWithScoresWithAttribs key query =
+    vsimWithScoresWithAttribsOpts key query defaultVSimOpts
+
+-- |Return elements similar to a given vector or element together with their similarity scores and JSON attributes (<https://redis.io/commands/vsim>).
+--
+-- $O(log(N))$ where $N$ is the number of elements in the vector set.
+--
+-- Since Redis 8.2.0
+vsimWithScoresWithAttribsOpts
+    :: (RedisCtx m f)
+    => ByteString
+    -> VSimQuery
+    -> VSimOpts
+    -> m (f VSimWithAttribsResponse)
+vsimWithScoresWithAttribsOpts key query opts =
+    sendRequest $ ["VSIM", key] ++ vSimQueryArgs query ++ ["WITHSCORES", "WITHATTRIBS"] ++ vSimOptsArgs opts
+
+vSimQueryArgs :: VSimQuery -> [ByteString]
+vSimQueryArgs query =
+    case query of
+        VSimByElement element -> ["ELE", element]
+        VSimByFp32 rawVector -> ["FP32", rawVector]
+        VSimByValues values ->
+            ["VALUES", encode (toInteger $ NE.length values)] ++ map encode (NE.toList values)
+
+vSimOptsArgs :: VSimOpts -> [ByteString]
+vSimOptsArgs VSimOpts{..} =
+    countArg ++ epsilonArg ++ efArg ++ filterArg ++ filterEfArg ++ truthArg ++ noThreadArg
+  where
+    countArg = maybe [] (\count -> ["COUNT", encode count]) vSimCount
+    epsilonArg = maybe [] (\epsilon -> ["EPSILON", encode epsilon]) vSimEpsilon
+    efArg = maybe [] (\ef -> ["EF", encode ef]) vSimEf
+    filterArg = maybe [] (\expression -> ["FILTER", expression]) vSimFilter
+    filterEfArg = maybe [] (\filterEf -> ["FILTER-EF", encode filterEf]) vSimFilterEf
+    truthArg = ["TRUTH" | vSimTruth]
+    noThreadArg = ["NOTHREAD" | vSimNoThread]
+
 -- |Atomically transfer a key from a Redis instance to another one (<http://redis.io/commands/migrate>). The Redis command @MIGRATE@ is split up into 'migrate', 'migrateMultiple'. Since Redis 2.6.0
 migrate
     :: (RedisCtx m f)
@@ -1182,6 +1756,17 @@ data SetOpts = SetOpts
   -}
   } deriving (Show, Eq)
 
+-- |Redis default 'SetOpts'. Equivalent to omitting all optional parameters.
+defaultSetOpts :: SetOpts
+defaultSetOpts = SetOpts
+  { setSeconds = Nothing
+  , setMilliseconds = Nothing
+  , setUnixSeconds = Nothing
+  , setUnixMilliseconds = Nothing
+  , setCondition = Nothing
+  , setKeepTTL = False
+  }
+
 internalSetOptsToArgs :: SetOpts -> [ByteString]
 internalSetOptsToArgs SetOpts{..} = concat [ex, px, exat, pxat, keepttl, condition]
   where
@@ -1215,6 +1800,41 @@ setGetOpts
     -> m (f ByteString)
 setGetOpts key value opts = sendRequest $ ["SET", key, value, "GET"] ++ internalSetOptsToArgs opts
 
+-- |Atomically sets multiple string keys with an optional shared expiration in a single operation (<https://redis.io/commands/msetex>).
+--
+-- $O(N)$ where $N$ is the number of keys to set.
+--
+-- Since Redis 8.4.0
+msetex
+    :: (RedisCtx m f)
+    => NonEmpty (ByteString, ByteString) -- ^ A series of key/value pairs.
+    -> m (f Bool)
+msetex keyValues = msetexOpts keyValues defaultSetOpts
+
+-- |Atomically sets multiple string keys with an optional shared expiration in a single operation (<https://redis.io/commands/msetex>).
+--
+-- $O(N)$ where $N$ is the number of keys to set.
+--
+-- Since Redis 8.4.0
+msetexOpts
+    :: (RedisCtx m f)
+    => NonEmpty (ByteString, ByteString) -- ^ A series of key/value pairs.
+    -> SetOpts
+    {- ^ Shared condition and expiration flags.
+
+       The `MSETEX` command supports a set of options that modify its behavior:
+       `NX` sets the keys and their expiration time only if none of the specified keys exist.
+       `XX` sets the keys and their expiration time only if all of the specified keys already exist.
+       `EX`/`PX`/`EXAT`/`PXAT` set the shared expiration for the specified keys.
+       `KEEPTTL` retains the time to live associated with the keys.
+     -}
+    -> m (f Bool)
+msetexOpts keyValues opts =
+    sendRequest $
+        ["MSETEX", encode (toInteger $ NE.length keyValues)]
+            ++ concatMap (\(key, value) -> [key, value]) (NE.toList keyValues)
+            ++ internalSetOptsToArgs opts
+
 data GetExOpts = GetExOpts
   { getExSeconds :: Maybe Integer
   , getExMilliseconds :: Maybe Integer
@@ -1242,6 +1862,65 @@ getdel
     => ByteString
     -> m (f (Maybe ByteString))
 getdel key = sendRequest ["GETDEL", key]
+
+data DelexCondition
+    = DelexIfEq ByteString
+    | DelexIfNe ByteString
+    | DelexIfDigestEq ByteString
+    | DelexIfDigestNe ByteString
+    deriving (Show, Eq)
+
+delexConditionToArgs :: DelexCondition -> [ByteString]
+delexConditionToArgs condition =
+    case condition of
+        DelexIfEq value -> ["IFEQ", value]
+        DelexIfNe value -> ["IFNE", value]
+        DelexIfDigestEq digestValue -> ["IFDEQ", digestValue]
+        DelexIfDigestNe digestValue -> ["IFDNE", digestValue]
+
+-- |Conditionally removes the specified key based on value or hash digest comparison (<https://redis.io/commands/delex>).
+--
+-- $O(1)$ for /IFEQ/ and /IFNE/. $O(N)$ for /IFDEQ/ and /IFDNE/, where $N$ is the length of the string value.
+--
+-- Since Redis 8.4.0
+delex
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the string.
+    -> m (f Bool)
+delex key = sendRequest ["DELEX", key]
+
+-- |Conditionally removes the specified key based on value or hash digest comparison (<https://redis.io/commands/delex>).
+--
+-- $O(1)$ for /IFEQ/ and /IFNE/. $O(N)$ for /IFDEQ/ and /IFDNE/, where $N$ is the length of the string value.
+--
+-- Since Redis 8.4.0
+delexWhen
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the string.
+    -> DelexCondition
+    {- ^ Condition to enforce.
+
+       The `DELEX` command supports a set of options that modify its behavior.
+       Only one option can be specified:
+       `IFEQ` removes the key if the value is equal to the specified value.
+       `IFNE` removes the key if the value is not equal to the specified value.
+       `IFDEQ` removes the key if its hash digest is equal to the specified hash digest.
+       `IFDNE` removes the key if its hash digest is not equal to the specified hash digest.
+     -}
+    -> m (f Bool)
+delexWhen key condition =
+    sendRequest $ ["DELEX", key] ++ delexConditionToArgs condition
+
+-- |Returns the hash digest of a string value (<https://redis.io/commands/digest>).
+--
+-- $O(N)$ where $N$ is the length of the string value.
+--
+-- Since Redis 8.4.0
+digest
+    :: (RedisCtx m f)
+    => ByteString -- ^ Key of the string.
+    -> m (f (Maybe ByteString))
+digest key = sendRequest ["DIGEST", key]
 
 -- |Returns the string value of a key after setting its expiration time (<https://redis.io/commands/getex>).
 --
@@ -3964,6 +4643,202 @@ clusterGetKeysInSlot
     -> Integer
     -> m (f [ByteString])
 clusterGetKeysInSlot slot count = sendRequest ["CLUSTER", "GETKEYSINSLOT", (encode slot), (encode count)]
+
+data ClusterMigrationSlotRange = ClusterMigrationSlotRange
+    { clusterMigrationSlotRangeStart :: Integer
+    , clusterMigrationSlotRangeEnd :: Integer
+    } deriving (Show, Eq)
+
+data ClusterMigrationTask = ClusterMigrationTask
+    { clusterMigrationTaskId :: ByteString
+    , clusterMigrationTaskSlots :: [ClusterMigrationSlotRange]
+    , clusterMigrationTaskSource :: Maybe ByteString
+    , clusterMigrationTaskDest :: Maybe ByteString
+    , clusterMigrationTaskOperation :: Maybe ByteString
+    , clusterMigrationTaskState :: Maybe ByteString
+    , clusterMigrationTaskLastError :: Maybe ByteString
+    , clusterMigrationTaskRetries :: Maybe Integer
+    , clusterMigrationTaskCreateTime :: Maybe Integer
+    , clusterMigrationTaskStartTime :: Maybe Integer
+    , clusterMigrationTaskEndTime :: Maybe Integer
+    , clusterMigrationTaskWritePauseMs :: Maybe Integer
+    } deriving (Show, Eq)
+
+newtype ClusterMigrationStatusResponse = ClusterMigrationStatusResponse
+    { clusterMigrationStatusTasks :: [ClusterMigrationTask]
+    } deriving (Show, Eq)
+
+instance RedisResult ClusterMigrationStatusResponse where
+    decode (MultiBulk (Just tasks)) =
+        ClusterMigrationStatusResponse <$> mapM decode tasks
+    decode r = Left r
+
+instance RedisResult ClusterMigrationTask where
+    decode r@(MultiBulk (Just replies)) = do
+        pairs <- parsePairs replies
+        clusterMigrationTaskId <- lookupRequired "id" pairs
+        clusterMigrationTaskSlots <- maybe (Right []) parseSlotsReply (lookup "slots" pairs)
+        let clusterMigrationTaskSource = lookupMaybeByteString "source" pairs
+        let clusterMigrationTaskDest = lookupMaybeByteString "dest" pairs
+        let clusterMigrationTaskOperation = lookupMaybeByteString "operation" pairs
+        let clusterMigrationTaskState = lookupMaybeByteString "state" pairs
+        let clusterMigrationTaskLastError = lookupMaybeByteString "last_error" pairs
+        let clusterMigrationTaskRetries = lookupInteger "retries" pairs
+        let clusterMigrationTaskCreateTime = lookupInteger "create_time" pairs
+        let clusterMigrationTaskStartTime = lookupInteger "start_time" pairs
+        let clusterMigrationTaskEndTime = lookupInteger "end_time" pairs
+        let clusterMigrationTaskWritePauseMs = lookupInteger "write_pause_ms" pairs
+        Right ClusterMigrationTask{..}
+      where
+        parsePairs :: [Reply] -> Either Reply [(ByteString, Reply)]
+        parsePairs [] = Right []
+        parsePairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> pure valueReply) <*> parsePairs rest
+        parsePairs [nestedReply] =
+            case nestedReply of
+                MultiBulk (Just nestedReplies) -> parseNestedPairs nestedReplies
+                _ -> Left nestedReply
+
+        parseNestedPairs :: [Reply] -> Either Reply [(ByteString, Reply)]
+        parseNestedPairs nestedReplies = mapM parseNestedPair nestedReplies
+
+        parseNestedPair :: Reply -> Either Reply (ByteString, Reply)
+        parseNestedPair (MultiBulk (Just [keyReply, valueReply])) =
+            (,) <$> decode keyReply <*> pure valueReply
+        parseNestedPair nestedReply = Left nestedReply
+
+        lookupRequired :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Either Reply a
+        lookupRequired key pairs =
+            maybe (Left r) decode (lookup key pairs)
+
+        lookupMaybeByteString :: ByteString -> [(ByteString, Reply)] -> Maybe ByteString
+        lookupMaybeByteString key pairs =
+            case lookup key pairs of
+                Just (Bulk (Just "")) -> Nothing
+                Just valueReply -> either (const Nothing) id (decode valueReply)
+                Nothing -> Nothing
+
+        lookupInteger :: ByteString -> [(ByteString, Reply)] -> Maybe Integer
+        lookupInteger key pairs =
+            case lookup key pairs of
+                Just valueReply -> either (const Nothing) Just (decode valueReply)
+                Nothing -> Nothing
+
+        parseSlotsReply :: Reply -> Either Reply [ClusterMigrationSlotRange]
+        parseSlotsReply (Bulk (Just slotRanges)) =
+            mapM parseSlotToken (Char8.words $ Char8.map normalizeDelimiter slotRanges)
+          where
+            normalizeDelimiter ',' = ' '
+            normalizeDelimiter c = c
+        parseSlotsReply (MultiBulk (Just slotReplies))
+            | all isIntegerReply slotReplies = parseIntegerPairs slotReplies
+            | otherwise = mapM parseNestedRange slotReplies
+          where
+            isIntegerReply (Integer _) = True
+            isIntegerReply _ = False
+
+            parseIntegerPairs :: [Reply] -> Either Reply [ClusterMigrationSlotRange]
+            parseIntegerPairs [] = Right []
+            parseIntegerPairs (Integer startSlot:Integer endSlot:rest) =
+                (ClusterMigrationSlotRange startSlot endSlot :) <$> parseIntegerPairs rest
+            parseIntegerPairs badReplies = Left $ MultiBulk (Just badReplies)
+
+            parseNestedRange :: Reply -> Either Reply ClusterMigrationSlotRange
+            parseNestedRange (MultiBulk (Just [Integer startSlot, Integer endSlot])) =
+                Right $ ClusterMigrationSlotRange startSlot endSlot
+            parseNestedRange nestedReply = Left nestedReply
+        parseSlotsReply badReply = Left badReply
+
+        parseSlotToken :: ByteString -> Either Reply ClusterMigrationSlotRange
+        parseSlotToken token =
+            case Char8.break (== '-') token of
+                (startPart, endPart)
+                    | BS.null endPart -> do
+                        startSlot <- parseIntegerToken token
+                        Right $ ClusterMigrationSlotRange startSlot startSlot
+                    | otherwise -> do
+                        startSlot <- parseIntegerToken startPart
+                        endSlot <- parseIntegerToken (Char8.drop 1 endPart)
+                        Right $ ClusterMigrationSlotRange startSlot endSlot
+
+        parseIntegerToken :: ByteString -> Either Reply Integer
+        parseIntegerToken token =
+            maybe (Left r) Right (fst <$> Char8.readInteger token)
+    decode r = Left r
+
+-- |Starts an atomic slot migration import task on the current node (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationImport
+    :: (RedisCtx m f)
+    => NonEmpty (Integer, Integer)
+    {- ^ Slot ranges to import.
+
+       Execute this subcommand on the destination master. It accepts multiple slot ranges and returns a task ID that can later be used to monitor the migration.
+     -}
+    -> m (f ByteString)
+clusterMigrationImport slotRanges =
+    sendRequest $ ["CLUSTER", "MIGRATION", "IMPORT"]
+        ++ concatMap (\(startSlot, endSlot) -> [encode startSlot, encode endSlot]) (NE.toList slotRanges)
+
+-- |Cancels an ongoing migration task by task ID (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationCancelId
+    :: (RedisCtx m f)
+    => ByteString -- ^ Task identifier.
+    -> m (f Integer)
+clusterMigrationCancelId taskId =
+    sendRequest ["CLUSTER", "MIGRATION", "CANCEL", "ID", taskId]
+
+-- |Cancels all ongoing migration tasks (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationCancelAll
+    :: (RedisCtx m f)
+    => m (f Integer)
+clusterMigrationCancelAll =
+    sendRequest ["CLUSTER", "MIGRATION", "CANCEL", "ALL"]
+
+-- |Returns the status of current and completed atomic slot migration tasks (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationStatus
+    :: (RedisCtx m f)
+    => m (f ClusterMigrationStatusResponse)
+clusterMigrationStatus =
+    sendRequest ["CLUSTER", "MIGRATION", "STATUS"]
+
+-- |Returns the status of all current and completed atomic slot migration tasks (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationStatusAll
+    :: (RedisCtx m f)
+    => m (f ClusterMigrationStatusResponse)
+clusterMigrationStatusAll =
+    sendRequest ["CLUSTER", "MIGRATION", "STATUS", "ALL"]
+
+-- |Returns the status of a specific atomic slot migration task (<https://redis.io/commands/cluster-migration>).
+--
+-- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+--
+-- Since Redis 8.4.0
+clusterMigrationStatusId
+    :: (RedisCtx m f)
+    => ByteString -- ^ Task identifier.
+    -> m (f ClusterMigrationStatusResponse)
+clusterMigrationStatusId taskId =
+    sendRequest ["CLUSTER", "MIGRATION", "STATUS", "ID", taskId]
 
 command :: (RedisCtx m f) => m (f [CMD.CommandInfo])
 command = sendRequest ["COMMAND"]

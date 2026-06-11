@@ -16,7 +16,10 @@ main = do
 
 tests :: Connection -> [Test.Test]
 tests conn = map ($ conn)
-    [ testHashes8
+    [ testStringCommands84
+    , testHashes8
+    , testVectorSet8
+    , testVRange84
     , testXAckDel8
     , testXDelEx8
     , testQuit
