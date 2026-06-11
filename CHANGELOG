@@ -2,7 +2,8 @@
 
 ## 0.16.2
 
-- Add supoprt for Redis 8.6 commands: `commandList`, `hotkeysStart`,  `hotkeysGet`, `hotkeysStartOpts`, `hotkeysStop`, `hotkeysReset`.
+- Add support for Redis 8.8 commands: `arcount`, `ardel`, `argetrange`, `argrep`, `argrepOpts`, `argrepWithValues`, `argrepWithValuesOpts`, `arinfo`, `arinfoFull`, `arinsert`, `arlastitems`, `arlastitemsOpts`, `arlen`, `armget`, `arnext`, `aropValue`, `aropCount`, `arring`, `arscan`, `arscanOpts`, `arseek`, `arset`, `increx`, `xidmprecord`, `xcfgset`, `xnack`.
+- Add support for Redis 8.6 commands: `commandList`, `hotkeysStart`,  `hotkeysGet`, `hotkeysStartOpts`, `hotkeysStop`, `hotkeysReset`.
 - Add support for Redis 8.4 commands: `DELEX`, `DIGEST`, `MSETEX`, `VRANGE`, and `CLUSTER MIGRATION`.
 - Add support for Redis 8.2 stream and cluster commands: `XACKDEL`, `XDELEX`, and `CLUSTER SLOT-STATS`.
 - Add support for additional Redis 6.2, 7.0, 8.0 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)

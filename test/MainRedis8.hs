@@ -19,6 +19,7 @@ tests conn = map ($ conn)
     [ testStringCommands84
     , testHashes8
     , testRedis86Commands
+    , testRedis88Commands
     , testVectorSet8
     , testVRange84
     , testXAckDel8

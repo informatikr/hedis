@@ -1453,6 +1453,81 @@ testRedis86Commands = testCase "redis 8.6 commands" $ do
         Right status ->
             liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS RESET status: " ++ show status
 
+testRedis88Commands :: Test
+testRedis88Commands = testCase "redis 8.8 commands" $ do
+    increx "counter88" >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected INCREX reply: " ++ show reply
+        Right (value, applied) -> do
+            liftIO $ (1, 1) HUnit.@=? (value, applied)
+            increxBy "counter88" 5 defaultIncrexOpts
+                { increxLowerBound = Just 0
+                , increxUpperBound = Just 10
+                , increxExpiration = Just (IncrexSeconds 60)
+                }
+                >>=? (6, 5)
+            ttl "counter88" >>@? \secondsLeft ->
+                HUnit.assertBool "INCREX EX should set a TTL" (secondsLeft >= 0 && secondsLeft <= 60)
+            increxByFloat "counter88:float" 0.5 defaultIncrexOpts
+                { increxLowerBound = Just 0.0
+                , increxUpperBound = Just 1.0
+                }
+                >>@? \(floatValue, floatApplied) ->
+                    HUnit.assertBool "INCREX BYFLOAT should increment the floating-point value" $
+                        abs (floatValue - 0.5) < 0.0001 && abs (floatApplied - 0.5) < 0.0001
+
+            streamId <- xadd "stream88" "*" [("field", "value")] >>= \case
+                Left reply -> liftIO (HUnit.assertFailure $ "Unexpected XADD reply: " ++ show reply) >> pure ""
+                Right sid -> pure sid
+            xidmprecord "stream88" "producer-1" "iid-1" streamId >>= \case
+                Left reply | isUnknownCommandReply reply -> pure ()
+                Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected XIDMPRECORD reply: " ++ show reply
+                Right Ok -> pure ()
+                Right status -> liftIO $ HUnit.assertFailure $ "Unexpected XIDMPRECORD status: " ++ show status
+
+            xadd "stream88-nack" "1-0" [("field", "value")] >>=? "1-0"
+            xgroupCreate "stream88-nack" "group88" "0" >>=? Ok
+            xreadGroup "group88" "consumer88" [("stream88-nack", ">")] >>@? const (pure ())
+            xnack "stream88-nack" "group88" XNackFail ("1-0" NE.:| []) >>=? 1
+
+            arset "arr88" 0 ("alpha" NE.:| ["beta", "gamma"]) >>= \case
+                Left reply | isUnknownCommandReply reply -> pure ()
+                Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected ARSET reply: " ++ show reply
+                Right createdSlots -> do
+                    liftIO $ 3 HUnit.@=? createdSlots
+                    arcount "arr88" >>=? 3
+                    arlen "arr88" >>=? 3
+                    armget "arr88" (0 NE.:| [2, 3]) >>=? [Just "alpha", Just "gamma", Nothing]
+                    argetrange "arr88" 0 3 >>=? [Just "alpha", Just "beta", Just "gamma", Nothing]
+
+                    argrep "arr88" "-" "+" (ARGrepExact "beta" NE.:| []) >>=? [1]
+                    argrepWithValuesOpts "arr88" "-" "+" (ARGrepMatch "a" NE.:| []) defaultARGrepOpts
+                        { arGrepLimit = Just 2
+                        }
+                        >>=? ARIndexValuePairsResponse [(0, "alpha"), (1, "beta")]
+
+                    arinfo "arr88" >>@? \ARInfoResponse{..} -> do
+                        3 HUnit.@=? arInfoCount
+                        3 HUnit.@=? arInfoLength
+                        HUnit.assertBool "ARINFO should report a positive slice size" (arInfoSliceSize > 0)
+
+                    arseek "arr88" 5 >>=? True
+                    arinsert "arr88" ("delta" NE.:| ["epsilon"]) >>=? 6
+                    arnext "arr88" >>=? Just 7
+                    arlastitems "arr88" 2 >>=? [Just "delta", Just "epsilon"]
+                    arlastitemsOpts "arr88" 2 defaultARLastItemsOpts { arLastItemsReverse = True } >>=? [Just "epsilon", Just "delta"]
+                    arscanOpts "arr88" 0 10 defaultARScanOpts { arScanLimit = Just 3 } >>=? ARIndexValuePairsResponse [(0, "alpha"), (1, "beta"), (2, "gamma")]
+                    ardel "arr88" (1 NE.:| [5]) >>=? 2
+                    arcount "arr88" >>=? 3
+
+                    arset "nums88" 0 ("1" NE.:| ["2", "3"]) >>=? 3
+                    aropValue "nums88" 0 2 AROpSum >>=? Just "6"
+                    aropCount "nums88" 0 2 AROpUsed >>=? Just 3
+
+                    arring "ring88" 3 ("v0" NE.:| ["v1", "v2", "v3"]) >>=? 0
+                    arcount "ring88" >>=? 3
+                    arlastitems "ring88" 3 >>=? [Just "v1", Just "v2", Just "v3"]
+
 testVectorSet8 :: Test
 testVectorSet8 = testCase "vector sets" $ do
     let key = "word_embeddings"
