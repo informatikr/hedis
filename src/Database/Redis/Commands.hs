@@ -69,6 +69,9 @@ wait,
 -- ** Bloom Filters
 module BF,
 
+-- ** Cuckoo Filters
+module CF,
+
 -- ** Hashes
 hdel,
 HashFieldExpirationStatus(..),
@@ -666,6 +669,7 @@ import Data.ByteString (ByteString)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Database.Redis.ManualCommands.BF as BF
+import Database.Redis.ManualCommands.CF as CF
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core(sendRequest, RedisCtx)
