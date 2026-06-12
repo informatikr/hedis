@@ -3362,6 +3362,45 @@ defaultXEntryDeletionOpts = XEntryDeletionOpts
     { xEntryDeletionRefPolicy = XRefPolicyKeepRef
     }
 
+data XCfgSetOpts = XCfgSetOpts
+    { xCfgSetIdmpDuration :: Maybe Integer
+      -- ^ The duration in seconds that each idempotent ID is retained.
+    , xCfgSetIdmpMaxsize :: Maybe Integer
+      -- ^ The maximum number of idempotent IDs tracked per producer.
+    } deriving (Show, Eq)
+
+-- |Redis default 'XCfgSetOpts'. Equivalent to omitting all optional parameters.
+--
+-- At least one field must be set before calling 'xcfgset'.
+defaultXCfgSetOpts :: XCfgSetOpts
+defaultXCfgSetOpts = XCfgSetOpts
+    { xCfgSetIdmpDuration = Nothing
+    , xCfgSetIdmpMaxsize = Nothing
+    }
+
+data XNackMode
+    = XNackSilent
+    | XNackFail
+    | XNackFatal
+    deriving (Show, Eq)
+
+instance RedisArg XNackMode where
+    encode XNackSilent = "SILENT"
+    encode XNackFail = "FAIL"
+    encode XNackFatal = "FATAL"
+
+data XNackOpts = XNackOpts
+    { xNackRetryCount :: Maybe Integer
+    , xNackForce :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'XNackOpts'. Equivalent to omitting all optional parameters.
+defaultXNackOpts :: XNackOpts
+defaultXNackOpts = XNackOpts
+    { xNackRetryCount = Nothing
+    , xNackForce = False
+    }
+
 data XEntryDeletionResult
     = XEntryDeletionResultNotFound
     | XEntryDeletionResultDeleted
@@ -4137,6 +4176,79 @@ xdelexOpts stream messageIds opts =
         ++ xEntryDeletionOptsToArgs opts
         ++ xEntryIdsBlockArgs messageIds
 
+-- |Sets the IDMP configuration parameters for a stream (<https://redis.io/commands/xcfgset>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+xcfgset
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the stream key. The stream must already exist.
+    -> XCfgSetOpts
+    {- ^ Configuration parameters.
+
+       At least one of `xCfgSetIdmpDuration` or `xCfgSetIdmpMaxsize` must be specified.
+       Calling `XCFGSET` clears all existing producer IDMP maps for the stream.
+     -}
+    -> m (f Status)
+xcfgset key XCfgSetOpts{..} =
+    sendRequest $
+        ["XCFGSET", key]
+            ++ maybe [] (\duration -> ["IDMP-DURATION", encode duration]) xCfgSetIdmpDuration
+            ++ maybe [] (\maxsize -> ["IDMP-MAXSIZE", encode maxsize]) xCfgSetIdmpMaxsize
+
+-- |Sets IDMP metadata on an existing stream message (<https://redis.io/commands/xidmprecord>).
+--
+-- This is an internal command used during AOF loading.
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.2
+xidmprecord
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream key.
+    -> ByteString -- ^ Producer ID.
+    -> ByteString -- ^ Idempotency ID.
+    -> ByteString -- ^ Existing stream entry ID.
+    -> m (f Status)
+xidmprecord key producerId idempotencyId streamId =
+    sendRequest ["XIDMPRECORD", key, producerId, idempotencyId, streamId]
+
+-- |Releases claimed messages back to the group's PEL without acknowledging them (<https://redis.io/commands/xnack>).
+--
+-- $O(1)$ for each message ID processed.
+--
+-- Since Redis 8.8.0
+xnack
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream key.
+    -> ByteString -- ^ Consumer group name.
+    -> XNackMode -- ^ Release strategy.
+    -> NonEmpty ByteString -- ^ Stream entry IDs.
+    -> m (f Integer)
+xnack key groupName mode messageIds =
+    xnackOpts key groupName mode messageIds defaultXNackOpts
+
+-- |Releases claimed messages back to the group's PEL without acknowledging them (<https://redis.io/commands/xnack>).
+--
+-- $O(1)$ for each message ID processed.
+--
+-- Since Redis 8.8.0
+xnackOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Stream key.
+    -> ByteString -- ^ Consumer group name.
+    -> XNackMode -- ^ Release strategy.
+    -> NonEmpty ByteString -- ^ Stream entry IDs.
+    -> XNackOpts -- ^ Additional options.
+    -> m (f Integer)
+xnackOpts key groupName mode messageIds XNackOpts{..} =
+    sendRequest $
+        ["XNACK", key, groupName, encode mode]
+            ++ xEntryIdsBlockArgs messageIds
+            ++ maybe [] (\retryCount -> ["RETRYCOUNT", encode retryCount]) xNackRetryCount
+            ++ ["FORCE" | xNackForce]
+
 -- |Set the upper bound for number of messages in a stream. Since Redis 5.0.0
 xtrim
     :: (RedisCtx m f)
@@ -4851,7 +4963,772 @@ command = sendRequest ["COMMAND"]
 commandList
     :: (RedisCtx m f)
     => m (f [ByteString])
-commandList = sendRequest ["COMMAND", "LIST"]
+commandList = commandListOpts Nothing
+
+data CommandListFilter
+    = CommandListFilterByModule ByteString
+    | CommandListFilterByAclCat ByteString
+    | CommandListFilterByPattern ByteString
+    deriving (Show, Eq)
+
+-- |Returns a list of command names (<https://redis.io/commands/command-list>).
+--
+-- $O(N)$ where $N$ is the total number of Redis commands.
+--
+-- Since Redis 7.0.0
+commandListOpts
+    :: (RedisCtx m f)
+    => Maybe CommandListFilter
+    {- ^ Optional filtering mode.
+
+       `CommandListFilterByModule` keeps only commands that belong to the given module.
+       `CommandListFilterByAclCat` keeps only commands from the given ACL category.
+       `CommandListFilterByPattern` keeps only commands whose names match the specified glob-style pattern.
+     -}
+    -> m (f [ByteString])
+commandListOpts commandFilter =
+    sendRequest $ ["COMMAND", "LIST"] ++ filterArgs
+  where
+    filterArgs =
+        case commandFilter of
+            Nothing -> []
+            Just (CommandListFilterByModule moduleName) ->
+                ["FILTERBY", "MODULE", moduleName]
+            Just (CommandListFilterByAclCat category) ->
+                ["FILTERBY", "ACLCAT", category]
+            Just (CommandListFilterByPattern pattern_) ->
+                ["FILTERBY", "PATTERN", pattern_]
+
+data IncrexExpiration
+    = IncrexSeconds Integer
+    | IncrexMilliseconds Integer
+    | IncrexUnixSeconds Integer
+    | IncrexUnixMilliseconds Integer
+    | IncrexPersist
+    deriving (Show, Eq)
+
+data IncrexOpts a = IncrexOpts
+    { increxLowerBound :: Maybe a
+    , increxUpperBound :: Maybe a
+    , increxSaturate :: Bool
+    , increxExpiration :: Maybe IncrexExpiration
+    , increxExpirationIfNotExists :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'IncrexOpts'. Equivalent to omitting all optional parameters.
+defaultIncrexOpts :: IncrexOpts a
+defaultIncrexOpts = IncrexOpts
+    { increxLowerBound = Nothing
+    , increxUpperBound = Nothing
+    , increxSaturate = False
+    , increxExpiration = Nothing
+    , increxExpirationIfNotExists = False
+    }
+
+-- |Increments the numeric value of a key by one and optionally updates its expiration (<https://redis.io/commands/increx>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+increx
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key to increment.
+    -> m (f (Integer, Integer))
+increx key = increxOpts key defaultIncrexOpts
+
+-- |Increments the numeric value of a key by one and optionally updates its expiration (<https://redis.io/commands/increx>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+increxOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key to increment.
+    -> IncrexOpts Integer
+    {- ^ Bound and expiration options.
+
+       `LBOUND` and `UBOUND` constrain the result.
+       `SATURATE` clips out-of-bounds values instead of rejecting the increment.
+       `EX`/`PX`/`EXAT`/`PXAT`/`PERSIST` control the key expiration.
+       `ENX` only sets the expiration when the key currently has no TTL.
+     -}
+    -> m (f (Integer, Integer))
+increxOpts key opts =
+    sendRequest $ ["INCREX", key] ++ increxCommonArgs opts
+
+-- |Increments the integer value of a key by a specific amount and optionally updates its expiration (<https://redis.io/commands/increx>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+increxBy
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key to increment.
+    -> Integer -- ^ The integer increment to apply.
+    -> IncrexOpts Integer -- ^ Bound and expiration options.
+    -> m (f (Integer, Integer))
+increxBy key increment opts =
+    sendRequest $ ["INCREX", key, "BYINT", encode increment] ++ increxCommonArgs opts
+
+-- |Increments the floating-point value of a key by a specific amount and optionally updates its expiration (<https://redis.io/commands/increx>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+increxByFloat
+    :: (RedisCtx m f)
+    => ByteString -- ^ The name of the key to increment.
+    -> Double -- ^ The floating-point increment to apply.
+    -> IncrexOpts Double -- ^ Bound and expiration options.
+    -> m (f (Double, Double))
+increxByFloat key increment opts =
+    sendRequest $ ["INCREX", key, "BYFLOAT", encode increment] ++ increxCommonArgs opts
+
+increxCommonArgs :: RedisArg a => IncrexOpts a -> [ByteString]
+increxCommonArgs IncrexOpts{..} =
+    lowerBoundArg ++ upperBoundArg ++ saturateArg ++ expirationArg ++ enxArg
+  where
+    lowerBoundArg = maybe [] (\bound -> ["LBOUND", encode bound]) increxLowerBound
+    upperBoundArg = maybe [] (\bound -> ["UBOUND", encode bound]) increxUpperBound
+    saturateArg = ["SATURATE" | increxSaturate]
+    expirationArg =
+        case increxExpiration of
+            Nothing -> []
+            Just (IncrexSeconds seconds) -> ["EX", encode seconds]
+            Just (IncrexMilliseconds milliseconds) -> ["PX", encode milliseconds]
+            Just (IncrexUnixSeconds seconds) -> ["EXAT", encode seconds]
+            Just (IncrexUnixMilliseconds milliseconds) -> ["PXAT", encode milliseconds]
+            Just IncrexPersist -> ["PERSIST"]
+    enxArg = ["ENX" | increxExpirationIfNotExists]
+
+data ARGrepPredicate
+    = ARGrepExact ByteString
+    | ARGrepMatch ByteString
+    | ARGrepGlob ByteString
+    | ARGrepRegex ByteString
+    deriving (Show, Eq)
+
+data ARGrepCombine
+    = ARGrepAnd
+    | ARGrepOr
+    deriving (Show, Eq)
+
+data ARGrepOpts = ARGrepOpts
+    { arGrepCombine :: Maybe ARGrepCombine
+    , arGrepLimit :: Maybe Integer
+    , arGrepNoCase :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'ARGrepOpts'. Equivalent to omitting all optional parameters.
+defaultARGrepOpts :: ARGrepOpts
+defaultARGrepOpts = ARGrepOpts
+    { arGrepCombine = Nothing
+    , arGrepLimit = Nothing
+    , arGrepNoCase = False
+    }
+
+data ARLastItemsOpts = ARLastItemsOpts
+    { arLastItemsReverse :: Bool
+    } deriving (Show, Eq)
+
+-- |Redis default 'ARLastItemsOpts'. Equivalent to omitting all optional parameters.
+defaultARLastItemsOpts :: ARLastItemsOpts
+defaultARLastItemsOpts = ARLastItemsOpts
+    { arLastItemsReverse = False
+    }
+
+data ARScanOpts = ARScanOpts
+    { arScanLimit :: Maybe Integer
+    } deriving (Show, Eq)
+
+-- |Redis default 'ARScanOpts'. Equivalent to omitting all optional parameters.
+defaultARScanOpts :: ARScanOpts
+defaultARScanOpts = ARScanOpts
+    { arScanLimit = Nothing
+    }
+
+newtype ARIndexValuePairsResponse = ARIndexValuePairsResponse
+    { arIndexValuePairs :: [(Integer, ByteString)]
+    } deriving (Show, Eq)
+
+instance RedisResult ARIndexValuePairsResponse where
+    decode r@(MultiBulk (Just replies)) =
+        ARIndexValuePairsResponse <$> decodePairs replies
+      where
+        decodePairs [] = Right []
+        decodePairs (MultiBulk (Just [indexReply, valueReply]):rest) =
+            (:) <$> ((,) <$> decode indexReply <*> decode valueReply) <*> decodePairs rest
+        decodePairs (indexReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode indexReply <*> decode valueReply) <*> decodePairs rest
+        decodePairs _ = Left r
+    decode r = Left r
+
+data ARInfoResponse = ARInfoResponse
+    { arInfoCount :: Integer
+    , arInfoLength :: Integer
+    , arInfoNextInsertIndex :: Integer
+    , arInfoSlices :: Integer
+    , arInfoDirectorySize :: Integer
+    , arInfoSuperDirEntries :: Integer
+    , arInfoSliceSize :: Integer
+    , arInfoDenseSlices :: Maybe Integer
+    , arInfoSparseSlices :: Maybe Integer
+    , arInfoAvgDenseSize :: Maybe Double
+    , arInfoAvgDenseFill :: Maybe Double
+    , arInfoAvgSparseSize :: Maybe Double
+    } deriving (Show, Eq)
+
+instance RedisResult ARInfoResponse where
+    decode r@(MultiBulk (Just replies)) = do
+        pairs <- parsePairs replies
+        ARInfoResponse
+            <$> required "count" pairs
+            <*> required "len" pairs
+            <*> required "next-insert-index" pairs
+            <*> required "slices" pairs
+            <*> required "directory-size" pairs
+            <*> required "super-dir-entries" pairs
+            <*> required "slice-size" pairs
+            <*> pure (optional "dense-slices" pairs)
+            <*> pure (optional "sparse-slices" pairs)
+            <*> pure (optional "avg-dense-size" pairs)
+            <*> pure (optional "avg-dense-fill" pairs)
+            <*> pure (optional "avg-sparse-size" pairs)
+      where
+        parsePairs [] = Right []
+        parsePairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> pure valueReply) <*> parsePairs rest
+        parsePairs _ = Left r
+
+        required :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Either Reply a
+        required key pairs = maybe (Left r) decode (lookup key pairs)
+
+        optional :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Maybe a
+        optional key pairs = lookup key pairs >>= either (const Nothing) Just . decode
+    decode r = Left r
+
+data AROpValue
+    = AROpSum
+    | AROpMin
+    | AROpMax
+    deriving (Show, Eq)
+
+data AROpCount
+    = AROpAnd
+    | AROpOr
+    | AROpXor
+    | AROpMatch ByteString
+    | AROpUsed
+    deriving (Show, Eq)
+
+argrepPredicateArgs :: ARGrepPredicate -> [ByteString]
+argrepPredicateArgs predicate =
+    case predicate of
+        ARGrepExact value -> ["EXACT", value]
+        ARGrepMatch value -> ["MATCH", value]
+        ARGrepGlob pattern_ -> ["GLOB", pattern_]
+        ARGrepRegex pattern_ -> ["RE", pattern_]
+
+argrepOptsArgs :: ARGrepOpts -> [ByteString]
+argrepOptsArgs ARGrepOpts{..} =
+    combineArg ++ limitArg ++ nocaseArg
+  where
+    combineArg =
+        case arGrepCombine of
+            Nothing -> []
+            Just ARGrepAnd -> ["AND"]
+            Just ARGrepOr -> ["OR"]
+    limitArg = maybe [] (\limit -> ["LIMIT", encode limit]) arGrepLimit
+    nocaseArg = ["NOCASE" | arGrepNoCase]
+
+aropValueArg :: AROpValue -> ByteString
+aropValueArg operation =
+    case operation of
+        AROpSum -> "SUM"
+        AROpMin -> "MIN"
+        AROpMax -> "MAX"
+
+aropCountArgs :: AROpCount -> [ByteString]
+aropCountArgs operation =
+    case operation of
+        AROpAnd -> ["AND"]
+        AROpOr -> ["OR"]
+        AROpXor -> ["XOR"]
+        AROpMatch value -> ["MATCH", value]
+        AROpUsed -> ["USED"]
+
+-- |Returns the number of non-empty elements in an array (<https://redis.io/commands/arcount>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+arcount
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> m (f Integer)
+arcount key = sendRequest ["ARCOUNT", key]
+
+-- |Deletes elements at the specified indices in an array (<https://redis.io/commands/ardel>).
+--
+-- $O(N)$ where $N$ is the number of indices to delete.
+--
+-- Since Redis 8.8.0
+ardel
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> NonEmpty Integer -- ^ One or more zero-based indices to delete.
+    -> m (f Integer)
+ardel key indices =
+    sendRequest $ ["ARDEL", key] ++ map encode (NE.toList indices)
+
+-- |Gets values in a range of indices (<https://redis.io/commands/argetrange>).
+--
+-- $O(N)$ where $N$ is the range length.
+--
+-- Since Redis 8.8.0
+argetrange
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> Integer -- ^ End index, inclusive.
+    -> m (f [Maybe ByteString])
+argetrange key start end =
+    sendRequest ["ARGETRANGE", key, encode start, encode end]
+
+-- |Searches array elements in a range using textual predicates (<https://redis.io/commands/argrep>).
+--
+-- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+--
+-- Since Redis 8.8.0
+argrep
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> ByteString -- ^ Start index or `-` for the first array index.
+    -> ByteString -- ^ End index or `+` for the last array index.
+    -> NonEmpty ARGrepPredicate -- ^ One or more predicates to apply.
+    -> m (f [Integer])
+argrep key start end predicates =
+    argrepOpts key start end predicates defaultARGrepOpts
+
+-- |Searches array elements in a range using textual predicates (<https://redis.io/commands/argrep>).
+--
+-- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+--
+-- Since Redis 8.8.0
+argrepOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> ByteString -- ^ Start index or `-` for the first array index.
+    -> ByteString -- ^ End index or `+` for the last array index.
+    -> NonEmpty ARGrepPredicate -- ^ One or more predicates to apply.
+    -> ARGrepOpts -- ^ Additional predicate options.
+    -> m (f [Integer])
+argrepOpts key start end predicates opts =
+    sendRequest $
+        ["ARGREP", key, start, end]
+            ++ concatMap argrepPredicateArgs (NE.toList predicates)
+            ++ argrepOptsArgs opts
+
+-- |Searches array elements in a range and returns matching index-value pairs (<https://redis.io/commands/argrep>).
+--
+-- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+--
+-- Since Redis 8.8.0
+argrepWithValues
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> ByteString -- ^ Start index or `-` for the first array index.
+    -> ByteString -- ^ End index or `+` for the last array index.
+    -> NonEmpty ARGrepPredicate -- ^ One or more predicates to apply.
+    -> m (f ARIndexValuePairsResponse)
+argrepWithValues key start end predicates =
+    argrepWithValuesOpts key start end predicates defaultARGrepOpts
+
+-- |Searches array elements in a range and returns matching index-value pairs (<https://redis.io/commands/argrep>).
+--
+-- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+--
+-- Since Redis 8.8.0
+argrepWithValuesOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> ByteString -- ^ Start index or `-` for the first array index.
+    -> ByteString -- ^ End index or `+` for the last array index.
+    -> NonEmpty ARGrepPredicate -- ^ One or more predicates to apply.
+    -> ARGrepOpts -- ^ Additional predicate options.
+    -> m (f ARIndexValuePairsResponse)
+argrepWithValuesOpts key start end predicates opts =
+    sendRequest $
+        ["ARGREP", key, start, end]
+            ++ concatMap argrepPredicateArgs (NE.toList predicates)
+            ++ ["WITHVALUES"]
+            ++ argrepOptsArgs opts
+
+-- |Returns metadata about an array (<https://redis.io/commands/arinfo>).
+--
+-- $O(1)$, or $O(N)$ with `FULL` where $N$ is the number of slices.
+--
+-- Since Redis 8.8.0
+arinfo
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> m (f ARInfoResponse)
+arinfo key = sendRequest ["ARINFO", key]
+
+-- |Returns extended metadata about an array (<https://redis.io/commands/arinfo>).
+--
+-- $O(N)$ where $N$ is the number of slices.
+--
+-- Since Redis 8.8.0
+arinfoFull
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> m (f ARInfoResponse)
+arinfoFull key = sendRequest ["ARINFO", key, "FULL"]
+
+-- |Inserts one or more values at consecutive indices (<https://redis.io/commands/arinsert>).
+--
+-- $O(N)$ where $N$ is the number of values.
+--
+-- Since Redis 8.8.0
+arinsert
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> NonEmpty ByteString -- ^ Values to insert at the current insert cursor.
+    -> m (f Integer)
+arinsert key values =
+    sendRequest $ ["ARINSERT", key] ++ NE.toList values
+
+-- |Returns the most recently inserted elements (<https://redis.io/commands/arlastitems>).
+--
+-- $O(N)$ where $N$ is the count.
+--
+-- Since Redis 8.8.0
+arlastitems
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Maximum number of most recently inserted elements to return.
+    -> m (f [Maybe ByteString])
+arlastitems key count =
+    arlastitemsOpts key count defaultARLastItemsOpts
+
+-- |Returns the most recently inserted elements (<https://redis.io/commands/arlastitems>).
+--
+-- $O(N)$ where $N$ is the count.
+--
+-- Since Redis 8.8.0
+arlastitemsOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Maximum number of most recently inserted elements to return.
+    -> ARLastItemsOpts -- ^ Additional options.
+    -> m (f [Maybe ByteString])
+arlastitemsOpts key count ARLastItemsOpts{..} =
+    sendRequest $ ["ARLASTITEMS", key, encode count] ++ ["REV" | arLastItemsReverse]
+
+-- |Returns the length of an array (max index + 1) (<https://redis.io/commands/arlen>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+arlen
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> m (f Integer)
+arlen key = sendRequest ["ARLEN", key]
+
+-- |Gets values at multiple indices in an array (<https://redis.io/commands/armget>).
+--
+-- $O(N)$ where $N$ is the number of indices.
+--
+-- Since Redis 8.8.0
+armget
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> NonEmpty Integer -- ^ One or more zero-based indices.
+    -> m (f [Maybe ByteString])
+armget key indices =
+    sendRequest $ ["ARMGET", key] ++ map encode (NE.toList indices)
+
+-- |Returns the next index that `ARINSERT` would use (<https://redis.io/commands/arnext>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+arnext
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> m (f (Maybe Integer))
+arnext key = sendRequest ["ARNEXT", key]
+
+-- |Performs aggregate operations on array elements in a range and returns a string result (<https://redis.io/commands/arop>).
+--
+-- $O(P)$ where $P$ is the number of visited positions in touched slices.
+--
+-- Since Redis 8.8.0
+aropValue
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> Integer -- ^ End index.
+    -> AROpValue -- ^ Aggregate operation.
+    -> m (f (Maybe ByteString))
+aropValue key start end operation =
+    sendRequest ["AROP", key, encode start, encode end, aropValueArg operation]
+
+-- |Performs aggregate operations on array elements in a range and returns an integer result (<https://redis.io/commands/arop>).
+--
+-- $O(P)$ where $P$ is the number of visited positions in touched slices.
+--
+-- Since Redis 8.8.0
+aropCount
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> Integer -- ^ End index.
+    -> AROpCount -- ^ Aggregate operation.
+    -> m (f (Maybe Integer))
+aropCount key start end operation =
+    sendRequest $ ["AROP", key, encode start, encode end] ++ aropCountArgs operation
+
+-- |Inserts values into a ring buffer of specified size, wrapping and truncating as needed (<https://redis.io/commands/arring>).
+--
+-- $O(M)$ normally, or $O(N+M)$ on ring resize.
+--
+-- Since Redis 8.8.0
+arring
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Ring buffer size.
+    -> NonEmpty ByteString -- ^ Values to insert.
+    -> m (f Integer)
+arring key size values =
+    sendRequest $ ["ARRING", key, encode size] ++ NE.toList values
+
+-- |Iterates existing elements in a range, returning index-value pairs (<https://redis.io/commands/arscan>).
+--
+-- $O(P)$ where $P$ is the number of visited positions in touched slices.
+--
+-- Since Redis 8.8.0
+arscan
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> Integer -- ^ End index.
+    -> m (f ARIndexValuePairsResponse)
+arscan key start end =
+    arscanOpts key start end defaultARScanOpts
+
+-- |Iterates existing elements in a range, returning index-value pairs (<https://redis.io/commands/arscan>).
+--
+-- $O(P)$ where $P$ is the number of visited positions in touched slices.
+--
+-- Since Redis 8.8.0
+arscanOpts
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> Integer -- ^ End index.
+    -> ARScanOpts -- ^ Additional options.
+    -> m (f ARIndexValuePairsResponse)
+arscanOpts key start end ARScanOpts{..} =
+    sendRequest $
+        ["ARSCAN", key, encode start, encode end]
+            ++ maybe [] (\limit -> ["LIMIT", encode limit]) arScanLimit
+
+-- |Sets the `ARINSERT` / `ARRING` cursor to a specific index (<https://redis.io/commands/arseek>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.8.0
+arseek
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ The new insert cursor position.
+    -> m (f Bool)
+arseek key index = sendRequest ["ARSEEK", key, encode index]
+
+-- |Sets one or more contiguous values starting at an index in an array (<https://redis.io/commands/arset>).
+--
+-- $O(N)$ where $N$ is the number of values.
+--
+-- Since Redis 8.8.0
+arset
+    :: (RedisCtx m f)
+    => ByteString -- ^ Array key.
+    -> Integer -- ^ Start index.
+    -> NonEmpty ByteString -- ^ One or more values to store at consecutive indices.
+    -> m (f Integer)
+arset key index values =
+    sendRequest $ ["ARSET", key, encode index] ++ NE.toList values
+
+data HotkeysMetric
+    = HotkeysMetricCPU
+    | HotkeysMetricNET
+    deriving (Show, Eq)
+
+instance RedisArg HotkeysMetric where
+    encode HotkeysMetricCPU = "CPU"
+    encode HotkeysMetricNET = "NET"
+
+data HotkeysStartOpts = HotkeysStartOpts
+    { hotkeysStartTopKCount :: Maybe Integer
+      -- ^ The value of K for the top-K hotkeys tracking.
+    , hotkeysStartDurationSeconds :: Maybe Integer
+      -- ^ The number of seconds to keep tracking before it stops automatically.
+    , hotkeysStartSampleRatio :: Maybe Integer
+      -- ^ The probabilistic sampling ratio. Each key is sampled with probability @1/ratio@.
+    , hotkeysStartSlots :: Maybe (NonEmpty Integer)
+      -- ^ The hash slots to track in cluster mode.
+    } deriving (Show, Eq)
+
+-- |Redis default 'HotkeysStartOpts'. Equivalent to omitting all optional parameters.
+defaultHotkeysStartOpts :: HotkeysStartOpts
+defaultHotkeysStartOpts = HotkeysStartOpts
+    { hotkeysStartTopKCount = Nothing
+    , hotkeysStartDurationSeconds = Nothing
+    , hotkeysStartSampleRatio = Nothing
+    , hotkeysStartSlots = Nothing
+    }
+
+data HotkeysSlotRange = HotkeysSlotRange
+    { hotkeysSlotRangeStart :: Integer
+    , hotkeysSlotRangeEnd :: Integer
+    } deriving (Show, Eq)
+
+instance RedisResult HotkeysSlotRange where
+    decode (MultiBulk (Just [Integer slot])) =
+        Right HotkeysSlotRange
+            { hotkeysSlotRangeStart = slot
+            , hotkeysSlotRangeEnd = slot
+            }
+    decode (MultiBulk (Just [Integer start, Integer end])) =
+        Right HotkeysSlotRange
+            { hotkeysSlotRangeStart = start
+            , hotkeysSlotRangeEnd = end
+            }
+    decode r = Left r
+
+data HotkeysGetResponse = HotkeysGetResponse
+    { hotkeysGetTrackingActive :: Bool
+    , hotkeysGetSampleRatio :: Integer
+    , hotkeysGetSelectedSlots :: [HotkeysSlotRange]
+    , hotkeysGetAllCommandsAllSlotsUs :: Integer
+    , hotkeysGetNetBytesAllCommandsAllSlots :: Integer
+    , hotkeysGetCollectionStartTimeUnixMs :: Integer
+    , hotkeysGetCollectionDurationMs :: Integer
+    , hotkeysGetTotalCpuTimeUserMs :: Maybe Integer
+    , hotkeysGetTotalCpuTimeSysMs :: Maybe Integer
+    , hotkeysGetTotalNetBytes :: Maybe Integer
+    , hotkeysGetByCpuTimeUs :: Maybe [(ByteString, Integer)]
+    , hotkeysGetByNetBytes :: Maybe [(ByteString, Integer)]
+    , hotkeysGetSampledCommandsSelectedSlotsUs :: Maybe Integer
+    , hotkeysGetAllCommandsSelectedSlotsUs :: Maybe Integer
+    , hotkeysGetNetBytesSampledCommandsSelectedSlots :: Maybe Integer
+    , hotkeysGetNetBytesAllCommandsSelectedSlots :: Maybe Integer
+    } deriving (Show, Eq)
+
+instance RedisResult HotkeysGetResponse where
+    decode (MultiBulk (Just [payload])) = decode payload
+    decode r@(MultiBulk (Just replies)) = do
+        pairs <- parsePairs replies
+        hotkeysGetTrackingActive <- require "tracking-active" pairs
+        hotkeysGetSampleRatio <- require "sample-ratio" pairs
+        hotkeysGetSelectedSlots <- require "selected-slots" pairs
+        hotkeysGetAllCommandsAllSlotsUs <- require "all-commands-all-slots-us" pairs
+        hotkeysGetNetBytesAllCommandsAllSlots <- require "net-bytes-all-commands-all-slots" pairs
+        hotkeysGetCollectionStartTimeUnixMs <- require "collection-start-time-unix-ms" pairs
+        hotkeysGetCollectionDurationMs <- require "collection-duration-ms" pairs
+        let hotkeysGetTotalCpuTimeUserMs = optional "total-cpu-time-user-ms" pairs
+            hotkeysGetTotalCpuTimeSysMs = optional "total-cpu-time-sys-ms" pairs
+            hotkeysGetTotalNetBytes = optional "total-net-bytes" pairs
+            hotkeysGetByCpuTimeUs = optional "by-cpu-time-us" pairs
+            hotkeysGetByNetBytes = optional "by-net-bytes" pairs
+            hotkeysGetSampledCommandsSelectedSlotsUs = optional "sampled-commands-selected-slots-us" pairs
+            hotkeysGetAllCommandsSelectedSlotsUs = optional "all-commands-selected-slots-us" pairs
+            hotkeysGetNetBytesSampledCommandsSelectedSlots = optional "net-bytes-sampled-commands-selected-slots" pairs
+            hotkeysGetNetBytesAllCommandsSelectedSlots = optional "net-bytes-all-commands-selected-slots" pairs
+        pure HotkeysGetResponse{..}
+      where
+        parsePairs [] = Right []
+        parsePairs (keyReply:valueReply:rest) =
+            (:) <$> ((,) <$> decode keyReply <*> pure valueReply) <*> parsePairs rest
+        parsePairs _ = Left r
+
+        require :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Either Reply a
+        require key pairs =
+            maybe (Left r) decode (lookup key pairs)
+
+        optional :: RedisResult a => ByteString -> [(ByteString, Reply)] -> Maybe a
+        optional key pairs = lookup key pairs >>= either (const Nothing) Just . decode
+    decode r = Left r
+
+-- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStart
+    :: (RedisCtx m f)
+    => NonEmpty HotkeysMetric
+    {- ^ The metrics to track.
+
+       The command automatically derives the `METRICS count` argument from the number of provided metrics.
+       At least one metric must be specified.
+     -}
+    -> m (f Status)
+hotkeysStart metrics = hotkeysStartOpts metrics defaultHotkeysStartOpts
+
+-- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStartOpts
+    :: (RedisCtx m f)
+    => NonEmpty HotkeysMetric -- ^ The metrics to track.
+    -> HotkeysStartOpts -- ^ Additional tracking options.
+    -> m (f Status)
+hotkeysStartOpts metrics HotkeysStartOpts{..} =
+    sendRequest $
+        ["HOTKEYS", "START", "METRICS", encode (toInteger $ NE.length metrics)]
+            ++ map encode (NE.toList metrics)
+            ++ maybe [] (\count -> ["COUNT", encode count]) hotkeysStartTopKCount
+            ++ maybe [] (\duration -> ["DURATION", encode duration]) hotkeysStartDurationSeconds
+            ++ maybe [] (\ratio -> ["SAMPLE", encode ratio]) hotkeysStartSampleRatio
+            ++ maybe [] slotsArgs hotkeysStartSlots
+  where
+    slotsArgs slots = ["SLOTS", encode (toInteger $ NE.length slots)] ++ map encode (NE.toList slots)
+
+-- |Returns tracking results and metadata from the current or most recent hotkeys tracking session (<https://redis.io/commands/hotkeys-get>).
+--
+-- $O(K)$ where $K$ is the number of hotkeys returned.
+--
+-- Since Redis 8.6.0
+hotkeysGet
+    :: (RedisCtx m f)
+    => m (f HotkeysGetResponse)
+hotkeysGet = sendRequest ["HOTKEYS", "GET"]
+
+-- |Stops hotkeys tracking (<https://redis.io/commands/hotkeys-stop>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysStop
+    :: (RedisCtx m f)
+    => m (f Status)
+hotkeysStop = sendRequest ["HOTKEYS", "STOP"]
+
+-- |Release the resources used for hotkey tracking (<https://redis.io/commands/hotkeys-reset>).
+--
+-- $O(1)$
+--
+-- Since Redis 8.6.0
+hotkeysReset
+    :: (RedisCtx m f)
+    => m (f Status)
+hotkeysReset = sendRequest ["HOTKEYS", "RESET"]
 
 
 data ExpireOpts

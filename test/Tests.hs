@@ -14,6 +14,7 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Except
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as Char8
 import Data.Either (isRight)
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -72,6 +73,16 @@ a <|?> b = do
 
 assert :: Bool -> Redis ()
 assert = liftIO . HUnit.assert
+
+isUnknownCommandReply :: Reply -> Bool
+isUnknownCommandReply (Error message) = "unknown command" `BS.isInfixOf` message
+isUnknownCommandReply _ = False
+
+isHotkeysInactiveReply :: Reply -> Bool
+isHotkeysInactiveReply (Error message) =
+    "not currently active" `BS.isInfixOf` message || "tracking is not active" `BS.isInfixOf` message
+isHotkeysInactiveReply (Bulk Nothing) = True
+isHotkeysInactiveReply _ = False
 
 ------------------------------------------------------------------------------
 -- Miscellaneous
@@ -878,6 +889,11 @@ testCommandList7 :: Test
 testCommandList7 = testCase "command list" $ do
     commandList >>@? \commands ->
         HUnit.assertBool "COMMAND LIST should contain GET" ("get" `elem` commands)
+    commandListOpts (Just $ CommandListFilterByPattern "x*") >>@? \commands -> do
+        HUnit.assertBool "pattern-filtered command list should contain xadd" ("xadd" `elem` commands)
+        HUnit.assertBool "pattern-filtered command list should exclude get" ("get" `notElem` commands)
+    commandListOpts (Just $ CommandListFilterByAclCat "connection") >>@? \commands ->
+        HUnit.assertBool "ACLCAT-filtered command list should contain ping" ("ping" `elem` commands)
 
 ------------------------------------------------------------------------------
 -- Scripting
@@ -1379,6 +1395,138 @@ testVRange84 = testCase "vrange" $ do
     vrangeCount "word_embeddings" "-" "+" 10 >>=? ["Redis", "a7", "b1", "z9"]
     vrangeCount "word_embeddings" "(a7" "+" 10 >>=? ["b1", "z9"]
     vrangeCount "word_embeddings" "-" "+" (-1) >>=? ["Redis", "a7", "b1", "z9"]
+
+testRedis86Commands :: Test
+testRedis86Commands = testCase "redis 8.6 commands" $ do
+    xadd "idmp-stream" "*" [("field", "value")] >>@? const (pure ())
+
+    xcfgset "idmp-stream" defaultXCfgSetOpts { xCfgSetIdmpDuration = Just 300 } >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected XCFGSET reply: " ++ show reply
+        Right Ok -> do
+            xcfgset "idmp-stream" defaultXCfgSetOpts
+                { xCfgSetIdmpDuration = Just 600
+                , xCfgSetIdmpMaxsize = Just 500
+                }
+                >>=? Ok
+        Right status ->
+            liftIO $ HUnit.assertFailure $ "Unexpected XCFGSET status: " ++ show status
+
+    hotkeysStop >>= \case
+        Left reply | isUnknownCommandReply reply || isHotkeysInactiveReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS STOP reply: " ++ show reply
+        Right Ok -> pure ()
+        Right status -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS STOP status: " ++ show status
+
+    hotkeysReset >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS RESET reply: " ++ show reply
+        Right Ok -> do
+            hotkeysStartOpts
+                (HotkeysMetricCPU NE.:| [HotkeysMetricNET])
+                defaultHotkeysStartOpts { hotkeysStartTopKCount = Just 2 }
+                >>= \case
+                    Left reply | isUnknownCommandReply reply -> pure ()
+                    Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS START reply: " ++ show reply
+                    Right Ok -> do
+                        set "hotkey:001" "payload" >>=? Ok
+                        replicateM_ 25 $ do
+                            incr "hotkey:counter" >>@? const (pure ())
+                            get "hotkey:001" >>=? Just "payload"
+
+                        hotkeysGet >>@? \HotkeysGetResponse{..} -> do
+                            HUnit.assertBool "tracking should be active before HOTKEYS STOP" hotkeysGetTrackingActive
+                            HUnit.assertBool "sample ratio should be positive" (hotkeysGetSampleRatio >= 1)
+                            HUnit.assertBool "selected slots should not be empty" (not $ null hotkeysGetSelectedSlots)
+                            HUnit.assertBool "collection duration should be non-negative" (hotkeysGetCollectionDurationMs >= 0)
+                            HUnit.assertBool "expected CPU hotkeys to include generated keys" $
+                                maybe False (any (\(key, _) -> "hotkey:" `Char8.isPrefixOf` key)) hotkeysGetByCpuTimeUs
+                            HUnit.assertBool "expected NET hotkeys to include generated keys" $
+                                maybe False (any (\(key, _) -> "hotkey:" `Char8.isPrefixOf` key)) hotkeysGetByNetBytes
+
+                        hotkeysStop >>=? Ok
+                        hotkeysGet >>@? \HotkeysGetResponse{..} ->
+                            HUnit.assertBool "tracking should be stopped after HOTKEYS STOP" (not hotkeysGetTrackingActive)
+                        hotkeysReset >>=? Ok
+                    Right status ->
+                        liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS START status: " ++ show status
+        Right status ->
+            liftIO $ HUnit.assertFailure $ "Unexpected HOTKEYS RESET status: " ++ show status
+
+testRedis88Commands :: Test
+testRedis88Commands = testCase "redis 8.8 commands" $ do
+    increx "counter88" >>= \case
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected INCREX reply: " ++ show reply
+        Right (value, applied) -> do
+            liftIO $ (1, 1) HUnit.@=? (value, applied)
+            increxBy "counter88" 5 defaultIncrexOpts
+                { increxLowerBound = Just 0
+                , increxUpperBound = Just 10
+                , increxExpiration = Just (IncrexSeconds 60)
+                }
+                >>=? (6, 5)
+            ttl "counter88" >>@? \secondsLeft ->
+                HUnit.assertBool "INCREX EX should set a TTL" (secondsLeft >= 0 && secondsLeft <= 60)
+            increxByFloat "counter88:float" 0.5 defaultIncrexOpts
+                { increxLowerBound = Just 0.0
+                , increxUpperBound = Just 1.0
+                }
+                >>@? \(floatValue, floatApplied) ->
+                    HUnit.assertBool "INCREX BYFLOAT should increment the floating-point value" $
+                        abs (floatValue - 0.5) < 0.0001 && abs (floatApplied - 0.5) < 0.0001
+
+            streamId <- xadd "stream88" "*" [("field", "value")] >>= \case
+                Left reply -> liftIO (HUnit.assertFailure $ "Unexpected XADD reply: " ++ show reply) >> pure ""
+                Right sid -> pure sid
+            xidmprecord "stream88" "producer-1" "iid-1" streamId >>= \case
+                Left reply | isUnknownCommandReply reply -> pure ()
+                Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected XIDMPRECORD reply: " ++ show reply
+                Right Ok -> pure ()
+                Right status -> liftIO $ HUnit.assertFailure $ "Unexpected XIDMPRECORD status: " ++ show status
+
+            xadd "stream88-nack" "1-0" [("field", "value")] >>=? "1-0"
+            xgroupCreate "stream88-nack" "group88" "0" >>=? Ok
+            xreadGroup "group88" "consumer88" [("stream88-nack", ">")] >>@? const (pure ())
+            xnack "stream88-nack" "group88" XNackFail ("1-0" NE.:| []) >>=? 1
+
+            arset "arr88" 0 ("alpha" NE.:| ["beta", "gamma"]) >>= \case
+                Left reply | isUnknownCommandReply reply -> pure ()
+                Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected ARSET reply: " ++ show reply
+                Right createdSlots -> do
+                    liftIO $ 3 HUnit.@=? createdSlots
+                    arcount "arr88" >>=? 3
+                    arlen "arr88" >>=? 3
+                    armget "arr88" (0 NE.:| [2, 3]) >>=? [Just "alpha", Just "gamma", Nothing]
+                    argetrange "arr88" 0 3 >>=? [Just "alpha", Just "beta", Just "gamma", Nothing]
+
+                    argrep "arr88" "-" "+" (ARGrepExact "beta" NE.:| []) >>=? [1]
+                    argrepWithValuesOpts "arr88" "-" "+" (ARGrepMatch "a" NE.:| []) defaultARGrepOpts
+                        { arGrepLimit = Just 2
+                        }
+                        >>=? ARIndexValuePairsResponse [(0, "alpha"), (1, "beta")]
+
+                    arinfo "arr88" >>@? \ARInfoResponse{..} -> do
+                        3 HUnit.@=? arInfoCount
+                        3 HUnit.@=? arInfoLength
+                        HUnit.assertBool "ARINFO should report a positive slice size" (arInfoSliceSize > 0)
+
+                    arseek "arr88" 5 >>=? True
+                    arinsert "arr88" ("delta" NE.:| ["epsilon"]) >>=? 6
+                    arnext "arr88" >>=? Just 7
+                    arlastitems "arr88" 2 >>=? [Just "delta", Just "epsilon"]
+                    arlastitemsOpts "arr88" 2 defaultARLastItemsOpts { arLastItemsReverse = True } >>=? [Just "epsilon", Just "delta"]
+                    arscanOpts "arr88" 0 10 defaultARScanOpts { arScanLimit = Just 3 } >>=? ARIndexValuePairsResponse [(0, "alpha"), (1, "beta"), (2, "gamma")]
+                    ardel "arr88" (1 NE.:| [5]) >>=? 2
+                    arcount "arr88" >>=? 3
+
+                    arset "nums88" 0 ("1" NE.:| ["2", "3"]) >>=? 3
+                    aropValue "nums88" 0 2 AROpSum >>=? Just "6"
+                    aropCount "nums88" 0 2 AROpUsed >>=? Just 3
+
+                    arring "ring88" 3 ("v0" NE.:| ["v1", "v2", "v3"]) >>=? 0
+                    arcount "ring88" >>=? 3
+                    arlastitems "ring88" 3 >>=? [Just "v1", Just "v2", Just "v3"]
 
 testVectorSet8 :: Test
 testVectorSet8 = testCase "vector sets" $ do
