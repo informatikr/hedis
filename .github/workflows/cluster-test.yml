@@ -20,7 +20,7 @@ on:
       - master
 jobs:
   container-job:
-    name: Haskell-CI - Linux - GHC-9.12.4 — Redis 7
+    name: Haskell-CI - Linux - GHC-9.12.4 — Redis Cluster 7
     runs-on: ubuntu-24.04
     timeout-minutes:
       20

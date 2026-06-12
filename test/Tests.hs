@@ -652,6 +652,77 @@ testHyperLogLog = testCase "hyperloglog" $ do
   pfcount ["{same}hll2", "{same}hll3"] >>=? 6
 
 ------------------------------------------------------------------------------
+-- Bloom Filters
+--
+testBloomFilter :: Test
+testBloomFilter = testCase "bloom filter" $ do
+    liftIO $ putStrLn "Testing bloom filter with default parameters..."
+    bfadd "bf1" "observation1" >>=? True
+    liftIO $ putStrLn "Testing bloom filter info commands..."
+    bfinfoSize "bf1" >>=? [240]
+    liftIO $ putStrLn "Testing bloom filter info commands with error handling..."
+    Right [infoSize] <- bfinfoSize "bf1"
+    liftIO $ putStrLn $ "Bloom filter info: " ++ show infoSize
+    bfinfo "bf1" >>=? BFInfo
+        { bfInfoCapacity = 100
+        , bfInfoSize = infoSize
+        , bfInfoFilters = 1
+        , bfInfoItems = 1
+        , bfInfoExpansion = 2
+        }
+    bfinfoCapacity "bf1" >>=? [100]
+    bfinfoFilters "bf1" >>=? [1]
+    bfinfoItems "bf1" >>=? [1]
+    bfinfoExpansion "bf1" >>=? [Just 2]
+    bfcard "bf1" >>=? 1
+    bfcard "bf_new" >>=? 0
+
+
+    liftIO $ putStrLn "Testing bloom filter with custom parameters..."
+
+    bfreserve "bf" 0.01 1000 >>=? Ok
+    bfadd "bf" "item1" >>=? True
+    bfexists "bf" "item1" >>=? True
+    bfexists "bf" "item2" >>=? False
+
+    liftIO $ putStrLn "Testing bloom filter multi-item commands..."
+
+    bfmadd "bfm" ("item1" NE.:| ["item2", "item2"]) >>=? [True, True, False]
+    bfmexists "bfm" ("item1" NE.:| ["item2", "item3"]) >>=? [True, True, False]
+
+    liftIO $ putStrLn "Testing bloom filter insert commands with custom parameters..."
+
+    bfinsert "bfi" ("item1" NE.:| ["item2"]) >>=? [True, True]
+    bfinsertOpts "bf_insert" ("item1" NE.:| ["item2"]) defaultBFInsertOpts
+        { bfInsertCapacity = Just 1000
+        , bfInsertError = Just 0.01
+        , bfInsertExpansion = Just 3
+        , bfInsertNonScaling = True
+        } >>=? [True, True]
+
+
+    bfinfoCapacity "bf_insert" >>=? [1000]
+    bfinfoExpansion "bf_insert" >>=? [Nothing]
+
+    bfinsertOpts "bf_insert1" ("item1" NE.:| ["item2"]) defaultBFInsertOpts
+        { bfInsertCapacity = Just 1000
+        , bfInsertError = Just 0.01
+        , bfInsertExpansion = Just 4
+        , bfInsertNonScaling = False
+        } >>=? [True, True]
+    bfinfoExpansion "bf_insert1" >>=? [Just 4]
+
+
+    bfreserveOpts "bf_exp" 0.01 1000 defaultBFReserveOpts
+        { bfReserveExpansion = Just 2
+        } >>=? Ok
+    bfinfoExpansion "bf_exp" >>=? [Just 2]
+
+
+    bfreserve "bfdump" 0.1 10 >>=? Ok
+    bfadd "bfdump" "item1" >>=? True
+
+------------------------------------------------------------------------------
 -- Pub/Sub
 --
 testPubSub :: Test

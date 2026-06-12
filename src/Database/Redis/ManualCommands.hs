@@ -2427,7 +2427,7 @@ clientSetinfo
   :: (RedisCtx m f)
   => ClientSetInfoOpts
   -> m (f Status)
-clientSetinfo info_ = sendRequest $ "CLIENT SETINFO": clientSetInfoArg
+clientSetinfo info_ = sendRequest $ "CLIENT": "SETINFO": clientSetInfoArg
   where
     clientSetInfoArg = case info_ of
       ClientSetInfoLibName s -> ["LIB-NAME", encode s]

@@ -85,6 +85,7 @@ library
                   , Database.Redis.Core.Internal
                   , Database.Redis.Hooks
                   , Database.Redis.ManualCommands
+                  , Database.Redis.ManualCommands.BF
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
                   , Database.Redis.PubSub
