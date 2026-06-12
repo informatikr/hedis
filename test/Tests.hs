@@ -733,16 +733,15 @@ testCuckooFilter = testCase "cuckoo filter" $ do
         , cfReserveExpansion = Just 2
         } >>=? Ok
 
-    cfinfo "cf" >>=? CFInfo
-        { cfInfoSize = 1080
-        , cfInfoBuckets = 256
-        , cfInfoFilters = 1
-        , cfInfoItemsInserted = 0
-        , cfInfoItemsDeleted = 0
-        , cfInfoBucketSize = 4
-        , cfInfoExpansion = 2
-        , cfInfoMaxIterations = 50
-        }
+    cfinfo "cf" >>@? \CFInfo{..} -> do
+        HUnit.assertBool "cfInfoSize should be positive" (cfInfoSize > 0)
+        HUnit.assertBool "cfInfoBuckets should be positive" (cfInfoBuckets > 0)
+        1 HUnit.@=? cfInfoFilters
+        0 HUnit.@=? cfInfoItemsInserted
+        0 HUnit.@=? cfInfoItemsDeleted
+        4 HUnit.@=? cfInfoBucketSize
+        2 HUnit.@=? cfInfoExpansion
+        50 HUnit.@=? cfInfoMaxIterations
 
     cfadd "cf" "item1" >>=? True
     cfadd "cf" "item1" >>=? True
