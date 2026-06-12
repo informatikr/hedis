@@ -723,6 +723,43 @@ testBloomFilter = testCase "bloom filter" $ do
     bfadd "bfdump" "item1" >>=? True
 
 ------------------------------------------------------------------------------
+-- Cuckoo Filters
+--
+testCuckooFilter :: Test
+testCuckooFilter = testCase "cuckoo filter" $ do
+    cfreserveOpts "cf" 1000 defaultCFReserveOpts
+        { cfReserveBucketSize = Just 4
+        , cfReserveMaxIterations = Just 50
+        , cfReserveExpansion = Just 2
+        } >>=? Ok
+
+    cfinfo "cf" >>=? CFInfo
+        { cfInfoSize = 1080
+        , cfInfoBuckets = 256
+        , cfInfoFilters = 1
+        , cfInfoItemsInserted = 0
+        , cfInfoItemsDeleted = 0
+        , cfInfoBucketSize = 4
+        , cfInfoExpansion = 2
+        , cfInfoMaxIterations = 50
+        }
+
+    cfadd "cf" "item1" >>=? True
+    cfadd "cf" "item1" >>=? True
+    cfcount "cf" "item1" >>=? 2
+    cfexists "cf" "item1" >>=? True
+    cfaddnx "cf" "item1" >>=? False
+    cfcount "cf" "item1" >>=? 2
+
+    cfinsert "cf" ("item2" NE.:| ["item3"]) >>=? [CFInsertAdded, CFInsertAdded]
+    cfinsertnx "cf" ("item1" NE.:| ["item4"]) >>=? [CFInsertAlreadyExists, CFInsertAdded]
+    cfmexists "cf" ("item1" NE.:| ["item2", "item3", "item4", "missing"]) >>=? [True, True, True, True, False]
+
+    cfdel "cf" "item2" >>=? True
+    cfcount "cf" "item2" >>=? 0
+    cfdel "cf" "item2" >>=? False
+
+------------------------------------------------------------------------------
 -- Pub/Sub
 --
 testPubSub :: Test
