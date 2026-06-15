@@ -88,7 +88,11 @@ library
                   , Database.Redis.ManualCommands.BF
                   , Database.Redis.ManualCommands.CF
                   , Database.Redis.ManualCommands.Cms
+<<<<<<< HEAD
                   , Database.Redis.ManualCommands.JSON
+=======
+                  , Database.Redis.ManualCommands.FT
+>>>>>>> 6f19caf (Add redis FT commands)
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
                   , Database.Redis.PubSub
