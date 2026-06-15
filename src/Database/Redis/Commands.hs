@@ -75,6 +75,8 @@ module CF,
 -- ** Count-Min Sketches
 module Cms,
 
+-- ** Redis Indexes
+module FT,
 
 -- ** JSON
 module JSON,
@@ -678,6 +680,7 @@ import qualified Data.List.NonEmpty as NE
 import Database.Redis.ManualCommands.BF as BF
 import Database.Redis.ManualCommands.CF as CF
 import Database.Redis.ManualCommands.Cms as Cms
+import Database.Redis.ManualCommands.FT as FT
 import Database.Redis.ManualCommands.JSON as JSON
 import Database.Redis.ManualCommands
 import Database.Redis.Types
