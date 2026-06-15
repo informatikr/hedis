@@ -87,6 +87,7 @@ library
                   , Database.Redis.ManualCommands
                   , Database.Redis.ManualCommands.BF
                   , Database.Redis.ManualCommands.CF
+                  , Database.Redis.ManualCommands.Cms
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
                   , Database.Redis.PubSub
