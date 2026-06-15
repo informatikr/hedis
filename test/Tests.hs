@@ -722,6 +722,205 @@ testBloomFilter = testCase "bloom filter" $ do
     bfreserve "bfdump" 0.1 10 >>=? Ok
     bfadd "bfdump" "item1" >>=? True
 
+-- Count-Min Sketches
+--
+testCountMinSketch :: Test
+testCountMinSketch = testCase "count-min sketch" $ do
+    cmsinitbydim "cms1" 20 5 >>=? Ok
+    cmsinfo "cms1" >>=? CMSInfo
+        { cmsInfoWidth = 20
+        , cmsInfoDepth = 5
+        , cmsInfoCount = 0
+        }
+
+    cmsincrby "cms1" (("foo", 2) NE.:| [("bar", 3), ("foo", 4)]) >>=? [2, 3, 6]
+    cmsquery "cms1" ("foo" NE.:| ["bar", "baz"]) >>=? [6, 3, 0]
+    cmsinfo "cms1" >>=? CMSInfo
+        { cmsInfoWidth = 20
+        , cmsInfoDepth = 5
+        , cmsInfoCount = 9
+        }
+
+    cmsinitbyprob "cms2" 0.001 0.99 >>=? Ok
+    cmsquery "cms2" ("foo" NE.:| ["bar"]) >>=? [0, 0]
+    cmsincrby "cms2" (("foo", 7) NE.:| [("bar", 1)]) >>=? [7, 1]
+    cmsinfo "cms2" >>@? \CMSInfo{..} -> do
+        HUnit.assertBool "cms2 width should be positive" (cmsInfoWidth > 0)
+        HUnit.assertBool "cms2 depth should be positive" (cmsInfoDepth > 0)
+        8 HUnit.@=? cmsInfoCount
+
+    cmsinitbydim "cms3" 20 5 >>=? Ok
+    cmsincrby "cms3" (("foo", 7) NE.:| [("bar", 1)]) >>=? [7, 1]
+
+    cmsinitbydim "cms_merged" 20 5 >>=? Ok
+    cmsmerge "cms_merged" ("cms1" NE.:| ["cms3"]) >>=? Ok
+    cmsquery "cms_merged" ("foo" NE.:| ["bar", "baz"]) >>=? [13, 4, 0]
+
+    cmsinitbydim "cms_weighted" 20 5 >>=? Ok
+    cmsmergeWeighted "cms_weighted" (("cms1", 1) NE.:| [("cms3", 2)]) >>=? Ok
+    cmsquery "cms_weighted" ("foo" NE.:| ["bar", "baz"]) >>=? [20, 5, 0]
+
+-- RedisJSON
+--
+testJSON :: Test
+testJSON = testCase "json" $ do
+    jsonSet "json:doc" "$"
+        "{\"name\":\"base\",\"numbers\":[1,2],\"enabled\":true,\"nested\":{\"inner\":5},\"remove\":\"gone\"}" >>=? Just Ok
+
+    jsonGet "json:doc" >>@? \actual ->
+        case actual of
+            Just payload -> HUnit.assertBool "JSON.GET should return the object" ("\"name\":\"base\"" `BS.isInfixOf` payload)
+            Nothing -> HUnit.assertFailure "JSON.GET returned Nothing"
+
+    jsonGetOpts "json:doc" defaultJSONGetOpts
+        { jsonGetIndent = Just "  "
+        , jsonGetNewline = Just "\n"
+        , jsonGetSpace = Just " "
+        , jsonGetPaths = ["$"]
+        } >>@? \actual ->
+            case actual of
+                Just payload -> HUnit.assertBool "JSON.GET opts should format output" ("\n" `BS.isInfixOf` payload)
+                Nothing -> HUnit.assertFailure "JSON.GET opts returned Nothing"
+
+    jsonSetOpts "json:nx" "$" "{\"value\":1}" defaultJSONSetOpts
+        { jsonSetCondition = Just JSONSetIfNotExists
+        } >>=? Just Ok
+    jsonSetOpts "json:nx" "$" "{\"value\":2}" defaultJSONSetOpts
+        { jsonSetCondition = Just JSONSetIfNotExists
+        } >>=? Nothing
+    jsonSetOpts "json:nx" "$" "{\"value\":3}" defaultJSONSetOpts
+        { jsonSetCondition = Just JSONSetIfExists
+        } >>=? Just Ok
+
+    jsonMset
+        ( ("json:m1", "$", "{\"name\":\"one\"}") NE.:|
+          [ ("json:m2", "$", "{\"name\":\"two\"}")
+          ]
+        ) >>=? Ok
+    jsonMget ("json:m1" NE.:| ["json:m2"]) "$" >>@? \results ->
+        HUnit.assertBool "JSON.MGET should return both values" (length results == 2 && all isJust results)
+
+    jsonArrappend "json:doc" "$.numbers" ("3" NE.:| ["4"]) >>@? \reply ->
+        HUnit.assertEqual "JSON.ARRAPPEND result" [4] (replyIntegers reply)
+    jsonArrlenAt "json:doc" "$.numbers" >>@? \reply ->
+        HUnit.assertEqual "JSON.ARRLEN result" [4] (replyIntegers reply)
+    jsonArrindexOpts "json:doc" "$.numbers" "2" (JSONArrIndexFromTo 0 3) >>@? \reply ->
+        HUnit.assertEqual "JSON.ARRINDEX result" [1] (replyIntegers reply)
+    jsonArrinsert "json:doc" "$.numbers" 1 ("9" NE.:| []) >>@? \reply ->
+        HUnit.assertEqual "JSON.ARRINSERT result" [5] (replyIntegers reply)
+    jsonArrpopAtIndex "json:doc" "$.numbers" 1 >>@? \reply ->
+        HUnit.assertBool "JSON.ARRPOP should return popped value" (replyContains "9" reply)
+    jsonArrtrim "json:doc" "$.numbers" 1 2 >>@? \reply ->
+        HUnit.assertEqual "JSON.ARRTRIM result" [2] (replyIntegers reply)
+
+    jsonNumincrby "json:doc" "$.nested.inner" 5 >>@? \reply ->
+        HUnit.assertBool "JSON.NUMINCRBY should update value" (replyContains "10" reply)
+    jsonNummultby "json:doc" "$.nested.inner" 2 >>@? \reply ->
+        HUnit.assertBool "JSON.NUMMULTBY should update value" (replyContains "20" reply)
+    jsonClearAt "json:doc" "$.nested.inner" >>=? 1
+    jsonGetOpts "json:doc" defaultJSONGetOpts { jsonGetPaths = ["$.nested.inner"] } >>@? \actual ->
+        case actual of
+            Just payload -> HUnit.assertBool "JSON.CLEAR should zero numeric value" ("0" `BS.isInfixOf` payload)
+            Nothing -> HUnit.assertFailure "JSON.GET nested inner returned Nothing"
+
+    jsonStrappendAt "json:doc" "$.name" "\"!\"" >>@? \reply ->
+        HUnit.assertEqual "JSON.STRAPPEND result" [5] (replyIntegers reply)
+    jsonToggle "json:doc" "$.enabled" >>@? \reply ->
+        HUnit.assertEqual "JSON.TOGGLE result" [False] (replyBools reply)
+
+    jsonObjkeysAt "json:doc" "$" >>@? \reply ->
+        HUnit.assertBool "JSON.OBJKEYS should include name" (replyContains "name" reply)
+    jsonObjlenAt "json:doc" "$" >>@? \reply ->
+        HUnit.assertEqual "JSON.OBJLEN result" [5] (replyIntegers reply)
+    jsonTypeAt "json:doc" "$.numbers" >>@? \reply ->
+        HUnit.assertBool "JSON.TYPE should report array" (replyContains "array" reply)
+    jsonRespAt "json:doc" "$.name" >>@? \reply ->
+        HUnit.assertBool "JSON.RESP should return payload" (replyHasPayload reply)
+    jsonDebugMemoryAt "json:doc" "$.numbers" >>@? \reply ->
+        HUnit.assertBool "JSON.DEBUG MEMORY should return payload" (replyHasPayload reply)
+
+    jsonMerge "json:doc" "$" "{\"merged\":true,\"name\":\"base!\"}" >>=? Ok
+    jsonGet "json:doc" >>@? \actual ->
+        case actual of
+            Just payload -> do
+                HUnit.assertBool "JSON.MERGE should add merged field" ("\"merged\":true" `BS.isInfixOf` payload)
+                HUnit.assertBool "JSON.MERGE should update name" ("\"name\":\"base!\"" `BS.isInfixOf` payload)
+            Nothing -> HUnit.assertFailure "JSON.GET after merge returned Nothing"
+
+    jsonDelAt "json:doc" "$.remove" >>=? 1
+    jsonForgetAt "json:doc" "$.merged" >>=? 1
+    jsonGet "json:doc" >>@? \actual ->
+        case actual of
+            Just payload -> do
+                HUnit.assertBool "JSON.DEL should remove field" (not ("\"remove\"" `BS.isInfixOf` payload))
+                HUnit.assertBool "JSON.FORGET should remove field" (not ("\"merged\"" `BS.isInfixOf` payload))
+            Nothing -> HUnit.assertFailure "JSON.GET after delete/forget returned Nothing"
+
+    jsonSet "json:rootArray" "$" "[1,2,3]" >>=? Just Ok
+    jsonArrlen "json:rootArray" >>@? \reply ->
+        HUnit.assertBool "JSON.ARRLEN root should return payload" (replyHasPayload reply)
+    jsonArrpop "json:rootArray" >>@? \reply ->
+        HUnit.assertBool "JSON.ARRPOP root should return payload" (replyContains "3" reply)
+
+    jsonSet "json:rootString" "$" "\"abc\"" >>=? Just Ok
+    jsonStrappend "json:rootString" "\"d\"" >>@? \reply ->
+        HUnit.assertBool "JSON.STRAPPEND root should return payload" (replyHasPayload reply)
+
+    jsonSet "json:clearRoot" "$" "{\"a\":1}" >>=? Just Ok
+    jsonClear "json:clearRoot" >>=? 1
+
+    jsonSet "json:deleteRoot" "$" "{\"a\":1}" >>=? Just Ok
+    jsonForget "json:deleteRoot" >>=? 1
+
+    jsonSet "json:typeRoot" "$" "{\"a\":1}" >>=? Just Ok
+    jsonType "json:typeRoot" >>@? \reply ->
+        HUnit.assertBool "JSON.TYPE root should return payload" (replyHasPayload reply)
+    jsonObjkeys "json:typeRoot" >>@? \reply ->
+        HUnit.assertBool "JSON.OBJKEYS root should return payload" (replyContains "a" reply)
+    jsonObjlen "json:typeRoot" >>@? \reply ->
+        HUnit.assertBool "JSON.OBJLEN root should return payload" (replyHasPayload reply)
+    jsonResp "json:typeRoot" >>@? \reply ->
+        HUnit.assertBool "JSON.RESP root should return payload" (replyHasPayload reply)
+    jsonDebugMemory "json:typeRoot" >>@? \reply ->
+        HUnit.assertBool "JSON.DEBUG MEMORY root should return payload" (replyHasPayload reply)
+    jsonDel "json:typeRoot" >>=? 1
+  where
+    isJust (Just _) = True
+    isJust Nothing = False
+
+    replyContains needle = \case
+        SingleLine value -> needle `BS.isInfixOf` value
+        Error value -> needle `BS.isInfixOf` value
+        Integer value -> needle `BS.isInfixOf` Char8.pack (show value)
+        Bulk (Just value) -> needle `BS.isInfixOf` value
+        Bulk Nothing -> False
+        MultiBulk (Just replies) -> any (replyContains needle) replies
+        MultiBulk Nothing -> False
+
+    replyHasPayload = \case
+        Bulk (Just value) -> not (BS.null value)
+        MultiBulk (Just replies) -> not (null replies)
+        Integer _ -> True
+        SingleLine value -> not (BS.null value)
+        Error _ -> False
+        Bulk Nothing -> False
+        MultiBulk Nothing -> False
+
+    replyIntegers = \case
+        Integer value -> [value]
+        MultiBulk (Just replies) -> [value | reply <- replies, Right value <- [decode reply :: Either Reply Integer]]
+        reply -> case decode reply :: Either Reply Integer of
+            Right value -> [value]
+            Left _ -> []
+
+    replyBools = \case
+        Integer 1 -> [True]
+        Integer 0 -> [False]
+        MultiBulk (Just replies) -> [value | reply <- replies, Right value <- [decode reply :: Either Reply Bool]]
+        reply -> case decode reply :: Either Reply Bool of
+            Right value -> [value]
+            Left _ -> []
+
 ------------------------------------------------------------------------------
 -- Cuckoo Filters
 --

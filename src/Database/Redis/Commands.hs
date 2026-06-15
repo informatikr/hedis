@@ -75,6 +75,10 @@ module CF,
 -- ** Count-Min Sketches
 module Cms,
 
+
+-- ** JSON
+module JSON,
+
 -- ** Hashes
 hdel,
 HashFieldExpirationStatus(..),
@@ -674,6 +678,7 @@ import qualified Data.List.NonEmpty as NE
 import Database.Redis.ManualCommands.BF as BF
 import Database.Redis.ManualCommands.CF as CF
 import Database.Redis.ManualCommands.Cms as Cms
+import Database.Redis.ManualCommands.JSON as JSON
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core(sendRequest, RedisCtx)

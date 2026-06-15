@@ -38,7 +38,7 @@ instance RedisResult CMSInfo where
 data CMSMergeOpts
     = CMSMergeUnweighted (NonEmpty ByteString)
       -- ^ Merge the given source sketches using the default weight of @1@.
-    | CMSMergeWeighted (NonEmpty (ByteString, Double))
+    | CMSMergeWeighted (NonEmpty (ByteString, Integer))
       -- ^ Merge the given source sketches using an explicit weight for each source.
     deriving (Show, Eq)
 
@@ -143,7 +143,7 @@ cmsmergeOpts destination opts =
 cmsmergeWeighted
     :: (RedisCtx m f)
     => ByteString -- ^ Destination sketch key.
-    -> NonEmpty (ByteString, Double) -- ^ Source sketch keys paired with weights.
+    -> NonEmpty (ByteString, Integer) -- ^ Source sketch keys paired with weights.
     -> m (f Status)
 cmsmergeWeighted destination weightedSourceKeys =
     cmsmergeOpts destination (CMSMergeWeighted weightedSourceKeys)
