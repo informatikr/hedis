@@ -794,6 +794,73 @@ testTopk = testCase "topk" $ do
         HUnit.assertBool "TOPK.LIST WITHCOUNT should include foo" ("foo" `elem` itemKeys)
         HUnit.assertBool "TOPK.LIST WITHCOUNT counts should be positive" (all ((> 0) . snd) itemsWithCount)
 
+-- T-Digest
+--
+testTdigest :: Test
+testTdigest = testCase "tdigest" $ do
+    tdigestCreate "td1" >>=? Ok
+    tdigestAdd "td1" (1 NE.:| [2, 3, 4, 5]) >>=? Ok
+
+    tdigestMin "td1" >>=? 1
+    tdigestMax "td1" >>=? 5
+    tdigestByrank "td1" (0 NE.:| [2, 4]) >>=? [1, 3, 5]
+    tdigestByrevrank "td1" (0 NE.:| [2, 4]) >>=? [5, 3, 1]
+    tdigestQuantile "td1" (0.0 NE.:| [0.5, 1.0]) >>@? \values ->
+        case values of
+            [q0, q50, q100] -> do
+                HUnit.assertEqual "TDIGEST.QUANTILE 0" 1 q0
+                HUnit.assertBool "TDIGEST.QUANTILE 0.5 should be within range" (q50 >= 2 && q50 <= 4)
+                HUnit.assertEqual "TDIGEST.QUANTILE 1" 5 q100
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.QUANTILE response: " ++ show values
+
+    tdigestCdf "td1" (1 NE.:| [3, 5]) >>@? \values ->
+        case values of
+            [cdf1, cdf3, cdf5] -> do
+                HUnit.assertBool "TDIGEST.CDF should be monotonic" (cdf1 <= cdf3 && cdf3 <= cdf5)
+                HUnit.assertBool "TDIGEST.CDF last value should be close to 1" (cdf5 >= 0.8)
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.CDF response: " ++ show values
+
+    tdigestRank "td1" (1 NE.:| [3, 5]) >>@? \values ->
+        case values of
+            [r1, r3, r5] -> HUnit.assertBool "TDIGEST.RANK should be monotonic" (r1 <= r3 && r3 <= r5)
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.RANK response: " ++ show values
+
+    tdigestRevrank "td1" (1 NE.:| [3, 5]) >>@? \values ->
+        case values of
+            [r1, r3, r5] -> HUnit.assertBool "TDIGEST.REVRANK should be monotonic descending" (r1 >= r3 && r3 >= r5)
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.REVRANK response: " ++ show values
+
+    tdigestTrimmedMean "td1" 0.2 0.8 >>@? \value ->
+        HUnit.assertBool "TDIGEST.TRIMMED_MEAN should be within observed range" (value >= 1 && value <= 5)
+
+    tdigestInfo "td1" >>@? \TDigestInfo{..} -> do
+        HUnit.assertBool "TDIGEST.INFO compression should be positive" (tdigestInfoCompression > 0)
+        HUnit.assertBool "TDIGEST.INFO observations should reflect inserts" (tdigestInfoObservations >= 5)
+        HUnit.assertBool "TDIGEST.INFO memory usage should be positive" (tdigestInfoMemoryUsage > 0)
+
+    tdigestCreateOpts "td2" defaultTDigestCreateOpts
+        { tdigestCreateCompression = Just 200
+        } >>=? Ok
+    tdigestAdd "td2" (10 NE.:| [20, 30]) >>=? Ok
+
+    tdigestMerge "td_merged" ("td1" NE.:| ["td2"]) >>@? \status ->
+        HUnit.assertEqual "TDIGEST.MERGE status" Ok status
+    tdigestInfo "td_merged" >>@? \digestInfo ->
+        HUnit.assertBool "TDIGEST.MERGE should populate destination" (tdigestInfoObservations digestInfo >= 8)
+
+    tdigestCreate "td_override" >>=? Ok
+    tdigestMergeOpts "td_override" ("td1" NE.:| ["td2"]) defaultTDigestMergeOpts
+        { tdigestMergeCompression = Just 150
+        , tdigestMergeOverride = True
+        } >>=? Ok
+    tdigestInfo "td_override" >>@? \digestInfo -> do
+        150 HUnit.@=? tdigestInfoCompression digestInfo
+        HUnit.assertBool "TDIGEST.MERGE override should populate destination" (tdigestInfoObservations digestInfo >= 8)
+
+    tdigestReset "td1" >>=? Ok
+    tdigestInfo "td1" >>@? \digestInfo ->
+        HUnit.assertEqual "TDIGEST.RESET observations" 0 (tdigestInfoObservations digestInfo)
+
 -- RedisJSON
 --
 testJSON :: Test
