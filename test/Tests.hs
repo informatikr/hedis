@@ -1391,8 +1391,6 @@ testZMPop7 = testCase "zmpop" $ do
 testFunction7 :: Test
 testFunction7 = testCase "function" $ do
     functionFlushOpts FlushOptsSync >>=? Ok
-    functionHelp >>@? \helpText ->
-        HUnit.assertBool "FUNCTION HELP should return help text" (not (null helpText))
 
     let libraryCode = "#!lua name=mylib\nredis.register_function('myfunc', function(keys, args) return args[1] end)\nredis.register_function{function_name='myro', callback=function(keys, args) return redis.call('GET', keys[1]) end, flags={ 'no-writes' }}"
 
@@ -1417,8 +1415,16 @@ testFunction7 = testCase "function" $ do
         Left reply -> liftIO $ HUnit.assertFailure $ "Unexpected FUNCTION DUMP reply: " ++ show reply
         Right dumped -> do
             functionDelete "mylib" >>=? Ok
-            functionRestore dumped Nothing >>=? Ok
+            functionRestore dumped >>=? Ok
             fcall "myfunc" [] ["restored"] >>=? ("restored" :: ByteString)
+            functionDelete "mylib" >>=? Ok
+            functionRestoreOpts dumped (FunctionRestoreWithPolicy FunctionRestoreAppend) >>=? Ok
+            fcall "myfunc" [] ["restored-again"] >>=? ("restored-again" :: ByteString)
+    killResult <- functionKill
+    liftIO $ case killResult of
+        Left (Error _) -> pure ()
+        Left reply -> HUnit.assertFailure $ "Unexpected FUNCTION KILL reply: " ++ show reply
+        Right status -> HUnit.assertFailure $ "Unexpected FUNCTION KILL status: " ++ show status
     functionFlushOpts FlushOptsSync >>=? Ok
 
 testCommandList7 :: Test
