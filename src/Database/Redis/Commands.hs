@@ -78,6 +78,9 @@ module Cms,
 -- ** Top-K
 module Topk,
 
+-- ** T-Digest
+module Tdigest,
+
 -- ** Redis Indexes
 module FT,
 
@@ -685,6 +688,7 @@ import Database.Redis.ManualCommands.CF as CF
 import Database.Redis.ManualCommands.Cms as Cms
 import Database.Redis.ManualCommands.FT as FT
 import Database.Redis.ManualCommands.JSON as JSON
+import Database.Redis.ManualCommands.Tdigest as Tdigest
 import Database.Redis.ManualCommands.Topk as Topk
 import Database.Redis.ManualCommands
 import Database.Redis.Types
