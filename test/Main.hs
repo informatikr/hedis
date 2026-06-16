@@ -29,7 +29,7 @@ tests host port conn = map ($ conn) $ concat
     , testsClient, testsServer
     , [testScans, testSScan, testHScan, testZScan], [testZrangelex]
     , [testXAddRead, testXReadGroup, testXRange, testXpending, testXClaim, testXInfo, testXDel, testXTrim]
-    , [testBloomFilter, testCountMinSketch, testTopk, testTdigest, testCuckooFilter, testJSON]
+    , [testBloomFilter, testCountMinSketch, testTopk, testTdigest, testCuckooFilter, testJSON, testTs]
     , testPubSubThreaded
       -- should always be run last as connection gets closed after it
     , [testQuit]

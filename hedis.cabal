@@ -91,6 +91,7 @@ library
                   , Database.Redis.ManualCommands.FT
                   , Database.Redis.ManualCommands.JSON
                   , Database.Redis.ManualCommands.Tdigest
+                  , Database.Redis.ManualCommands.Ts
                   , Database.Redis.ManualCommands.Topk
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
