@@ -873,6 +873,112 @@ testTdigest = testCase "tdigest" $ do
     tdigestInfo "td1" >>@? \digestInfo ->
         HUnit.assertEqual "TDIGEST.RESET observations" 0 (tdigestInfoObservations digestInfo)
 
+-- TimeSeries
+--
+testTs :: Test
+testTs = testCase "timeseries" $ do
+    tsCreateOpts "ts:series" defaultTsCreateOpts
+        { tsCreateRetention = Just 100000
+        , tsCreateEncoding = Just TsCompressed
+        , tsCreateChunkSize = Just 128
+        , tsCreateDuplicatePolicy = Just TsDuplicateLast
+        , tsCreateLabels = [("metric", "temperature"), ("sensor", "alpha")]
+        } >>=? Ok
+
+    tsAdd "ts:series" "1000" 1.5 >>=? 1000
+    tsAddOpts "ts:series" "2000" 2.5 defaultTsAddOpts
+        { tsAddOnDuplicate = Just TsDuplicateLast
+        } >>=? 2000
+    tsGet "ts:series" >>=? Just (TsSample 2000 2.5)
+    tsGetOpts "ts:series" defaultTsGetOpts
+        { tsGetLatest = True
+        } >>=? Just (TsSample 2000 2.5)
+
+    tsRange "ts:series" "-" "+" >>=? [TsSample 1000 1.5, TsSample 2000 2.5]
+    tsRangeOpts "ts:series" "-" "+" defaultTsRangeOpts
+        { tsRangeCount = Just 1
+        } >>=? [TsSample 1000 1.5]
+    tsRevrange "ts:series" "-" "+" >>=? [TsSample 2000 2.5, TsSample 1000 1.5]
+
+    tsAlter "ts:series" defaultTsAlterOpts
+        { tsAlterRetention = Just 200000
+        , tsAlterChunkSize = Just 256
+        , tsAlterDuplicatePolicy = Just TsDuplicateMax
+        , tsAlterLabels = [("metric", "temperature"), ("sensor", "beta")]
+        } >>=? Ok
+
+    tsIncrbyOpts "ts:counter" 5 defaultTsIncrByOpts
+        { tsIncrByTimestamp = Just "1000"
+        , tsIncrByLabels = [("metric", "counter"), ("sensor", "alpha")]
+        } >>=? 1000
+    tsDecrbyOpts "ts:counter" 2 defaultTsIncrByOpts
+        { tsIncrByTimestamp = Just "2000"
+        } >>=? 2000
+    tsGet "ts:counter" >>=? Just (TsSample 2000 3.0)
+
+    tsMadd
+        ( ("ts:series", "3000", 3.5) NE.:|
+          [ ("ts:counter", "3000", 4.0)
+          ]
+        ) >>=? [3000, 3000]
+
+    tsQueryindex ("metric=temperature" NE.:| []) >>@? \seriesKeys ->
+        HUnit.assertBool "TS.QUERYINDEX should return the labeled series" ("ts:series" `elem` seriesKeys)
+
+    tsMget ("sensor=alpha" NE.:| []) >>@? \reply ->
+        HUnit.assertBool "TS.MGET should return payload" (replyHasPayload reply)
+    tsMgetOpts ("sensor=alpha" NE.:| []) defaultTsMGetOpts
+        { tsMGetLatest = True
+        , tsMGetLabels = Just TsWithLabels
+        } >>@? \reply ->
+            HUnit.assertBool "TS.MGET WITHLABELS should return payload" (replyHasPayload reply)
+
+    tsMrange "-" "+" ("sensor=alpha" NE.:| []) >>@? \reply ->
+        HUnit.assertBool "TS.MRANGE should return payload" (replyHasPayload reply)
+    tsMrangeOpts "-" "+" ("sensor=alpha" NE.:| []) defaultTsMRangeOpts
+        { tsMRangeLabels = Just (TsSelectedLabels ("metric" NE.:| ["sensor"]))
+        , tsMRangeAggregation = Just TsAggregationOpts
+            { tsAggregationAlign = Nothing
+            , tsAggregationType = TsAggregators (TsAggAvg NE.:| [])
+            , tsAggregationBucketDuration = 1000
+            , tsAggregationBucketTimestamp = Just TsBucketStart
+            , tsAggregationEmpty = False
+            }
+        } >>@? \reply ->
+            HUnit.assertBool "TS.MRANGE aggregation should return payload" (replyHasPayload reply)
+    tsMrevrange "-" "+" ("sensor=alpha" NE.:| []) >>@? \reply ->
+        HUnit.assertBool "TS.MREVRANGE should return payload" (replyHasPayload reply)
+
+    tsCreate "ts:source" >>=? Ok
+    tsCreate "ts:dest" >>=? Ok
+    tsCreaterule "ts:source" "ts:dest" TsAggAvg 1000 >>=? Ok
+    tsAdd "ts:source" "1000" 1 >>=? 1000
+    tsAdd "ts:source" "2000" 3 >>=? 2000
+    tsAdd "ts:source" "3000" 5 >>=? 3000
+    delRuleResult <- tsDelrule "ts:source" "ts:dest"
+    liftIO $ case delRuleResult of
+        Right Ok -> pure ()
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> HUnit.assertFailure $ "Unexpected TS.DELRULE reply: " ++ show reply
+        Right status -> HUnit.assertFailure $ "Unexpected TS.DELRULE status: " ++ show status
+
+    tsInfo "ts:series" >>@? \reply ->
+        HUnit.assertBool "TS.INFO should return payload" (replyHasPayload reply)
+    tsInfoOpts "ts:series" TsInfoDebug >>@? \reply ->
+        HUnit.assertBool "TS.INFO DEBUG should return payload" (replyHasPayload reply)
+
+    tsDel "ts:series" 3000 3000 >>=? 1
+    tsRange "ts:series" "-" "+" >>=? [TsSample 1000 1.5, TsSample 2000 2.5]
+  where
+    replyHasPayload = \case
+        Bulk (Just value) -> not (BS.null value)
+        MultiBulk (Just replies) -> not (null replies)
+        Integer _ -> True
+        SingleLine value -> not (BS.null value)
+        Error _ -> False
+        Bulk Nothing -> False
+        MultiBulk Nothing -> False
+
 -- RedisJSON
 --
 testJSON :: Test
