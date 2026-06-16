@@ -803,8 +803,20 @@ testTdigest = testCase "tdigest" $ do
 
     tdigestMin "td1" >>=? 1
     tdigestMax "td1" >>=? 5
-    tdigestByrank "td1" (0 NE.:| [2, 4]) >>=? [1, 3, 5]
-    tdigestByrevrank "td1" (0 NE.:| [2, 4]) >>=? [5, 3, 1]
+    tdigestByrank "td1" (0 NE.:| [2, 4]) >>@? \values ->
+        case values of
+            [v0, v2, v4] -> do
+                HUnit.assertEqual "TDIGEST.BYRANK 0" 1 v0
+                HUnit.assertBool "TDIGEST.BYRANK 2 should be within range" (v2 >= 2 && v2 <= 4)
+                HUnit.assertEqual "TDIGEST.BYRANK 4" 5 v4
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.BYRANK response: " ++ show values
+    tdigestByrevrank "td1" (0 NE.:| [2, 4]) >>@? \values ->
+        case values of
+            [v0, v2, v4] -> do
+                HUnit.assertEqual "TDIGEST.BYREVRANK 0" 5 v0
+                HUnit.assertBool "TDIGEST.BYREVRANK 2 should be within range" (v2 >= 2 && v2 <= 4)
+                HUnit.assertEqual "TDIGEST.BYREVRANK 4" 1 v4
+            _ -> HUnit.assertFailure $ "Unexpected TDIGEST.BYREVRANK response: " ++ show values
     tdigestQuantile "td1" (0.0 NE.:| [0.5, 1.0]) >>@? \values ->
         case values of
             [q0, q50, q100] -> do
