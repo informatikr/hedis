@@ -90,6 +90,7 @@ library
                   , Database.Redis.ManualCommands.Cms
                   , Database.Redis.ManualCommands.FT
                   , Database.Redis.ManualCommands.JSON
+                  , Database.Redis.ManualCommands.Topk
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
                   , Database.Redis.PubSub

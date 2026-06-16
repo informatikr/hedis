@@ -9,6 +9,7 @@
 - Add support for additional Redis 6.2, 7.0, 8.0 commands (COPY, GETDEL/GETEX, HRANDFIELD, LMPOP/ZMPOP, SINTERCARD, FUNCTIONS, COMMAND LIST, etc.)
 - Add support for Redis vector set commands
 - Add support for RedisJSON commands including `jsonArrappend`, `jsonArrindex`, `jsonArrindexOpts`, `jsonArrlen`, `jsonArrlenAt`, `jsonArrinsert`, `jsonArrpop`, `jsonArrpopAt`, `jsonArrpopAtIndex`, `jsonArrtrim`, `jsonClear`, `jsonClearAt`, `jsonDebug`, `jsonDebugMemory`, `jsonDebugMemoryAt`, `jsonDel`, `jsonDelAt`, `jsonForget`, `jsonForgetAt`, `jsonGet`, `jsonGetOpts`, `jsonMerge`, `jsonMget`, `jsonMset`, `jsonNumincrby`, `jsonNummultby`, `jsonObjkeys`, `jsonObjkeysAt`, `jsonObjlen`, `jsonObjlenAt`, `jsonResp`, `jsonRespAt`, `jsonSet`, `jsonSetOpts`, `jsonStrappend`, `jsonStrappendAt`, `jsonToggle`, `jsonType`, and `jsonTypeAt`.
+- Add support for Top-K sketch commands: `topkAdd`, `topkCount`, `topkIncrby`, `topkInfo`, `topkList`, `topkListWithCount`, `topkReserve`, and `topkQuery`.
 
 ## 0.16.1
 
