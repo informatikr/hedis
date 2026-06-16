@@ -90,7 +90,7 @@ isHotkeysInactiveReply _ = False
 testsMisc :: [Test]
 testsMisc =
     [ testConstantSpacePipelining, testForceErrorReply, testPipelining
-    , testEvalReplies, testGeo
+    , testEvalReplies, testGeo, testWaitCommands
     ]
 
 testConstantSpacePipelining :: Test
@@ -195,6 +195,17 @@ testGeo = testCase "geo" $ do
   where
     assertApprox label expected actual =
         HUnit.assertBool label (abs (expected - actual) < 0.0001)
+
+testWaitCommands :: Test
+testWaitCommands = testCase "wait commands" $ do
+    set "wait:key" "value" >>=? Ok
+    wait 0 0 >>=? 0
+
+    waitaofResult <- waitaof 0 0 0
+    liftIO $ case waitaofResult of
+        Right result -> WaitAofResult 0 0 HUnit.@=? result
+        Left reply | isUnknownCommandReply reply -> pure ()
+        Left reply -> HUnit.assertFailure $ "Unexpected WAITAOF reply: " ++ show reply
 
 ------------------------------------------------------------------------------
 -- Keys

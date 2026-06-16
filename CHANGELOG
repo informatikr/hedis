@@ -12,6 +12,7 @@
 - Add support for Top-K sketch commands: `topkAdd`, `topkCount`, `topkIncrby`, `topkInfo`, `topkList`, `topkListWithCount`, `topkReserve`, and `topkQuery`.
 - Add support for t-digest sketch commands: `tdigestAdd`, `tdigestByrank`, `tdigestByrevrank`, `tdigestCdf`, `tdigestCreate`, `tdigestCreateOpts`, `tdigestInfo`, `tdigestMax`, `tdigestMerge`, `tdigestMergeOpts`, `tdigestMin`, `tdigestQuantile`, `tdigestRank`, `tdigestReset`, `tdigestRevrank`, and `tdigestTrimmedMean`.
 - Add support for RedisTimeSeries commands: `tsAdd`, `tsAddOpts`, `tsAlter`, `tsCreate`, `tsCreateOpts`, `tsCreaterule`, `tsCreateruleAlign`, `tsDecrby`, `tsDecrbyOpts`, `tsDel`, `tsDelrule`, `tsGet`, `tsGetOpts`, `tsIncrby`, `tsIncrbyOpts`, `tsInfo`, `tsInfoOpts`, `tsMadd`, `tsMget`, `tsMgetOpts`, `tsMrange`, `tsMrangeOpts`, `tsMrevrange`, `tsMrevrangeOpts`, `tsQueryindex`, `tsRange`, `tsRangeOpts`, `tsRevrange`, and `tsRevrangeOpts`.
+- Add support for wait commands: `wait` and `waitaof`.
 
 ## 0.16.1
 
