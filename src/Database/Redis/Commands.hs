@@ -185,21 +185,12 @@ evalsha,
 fcall,
 fcallReadonly,
 DebugMode,
-functionDelete,
-functionDump,
-functionFlush,
-functionFlushOpts,
 functionHelp,
-functionKill,
 functionList,
 FunctionListOpts(..),
 defaultFunctionListOpts,
 functionListOpts,
-functionLoad,
-functionLoadReplace,
-FunctionRestorePolicy(..),
-functionRestore,
-functionStats,
+module Function,
 scriptDebug,
 scriptExists,
 scriptFlush,
@@ -692,6 +683,7 @@ import Database.Redis.ManualCommands.BF as BF
 import Database.Redis.ManualCommands.CF as CF
 import Database.Redis.ManualCommands.Cms as Cms
 import Database.Redis.ManualCommands.FT as FT
+import Database.Redis.ManualCommands.Function as Function
 import Database.Redis.ManualCommands.JSON as JSON
 import Database.Redis.ManualCommands.Tdigest as Tdigest
 import Database.Redis.ManualCommands.Ts as Ts

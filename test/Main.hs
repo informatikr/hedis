@@ -24,7 +24,7 @@ main = do
 tests :: String -> PortNumber -> Connection -> [Test.Test]
 tests host port conn = map ($ conn) $ concat
     [ testsMisc, testsKeys, testsStrings, [testHashes], testsLists, testsSets, [testHyperLogLog]
-    , testsZSets, [testPubSub], [testTransaction], [testScripting]
+    , testsZSets, [testPubSub], [testTransaction], [testScripting, testFunction7]
     , testsConnection host port
     , testsClient, testsServer
     , [testScans, testSScan, testHScan, testZScan], [testZrangelex]
