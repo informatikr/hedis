@@ -760,6 +760,40 @@ testCountMinSketch = testCase "count-min sketch" $ do
     cmsmergeWeighted "cms_weighted" (("cms1", 1) NE.:| [("cms3", 2)]) >>=? Ok
     cmsquery "cms_weighted" ("foo" NE.:| ["bar", "baz"]) >>=? [20, 5, 0]
 
+-- Top-K
+--
+testTopk :: Test
+testTopk = testCase "topk" $ do
+    topkReserve "topk1" 3 50 5 0.9 >>=? Ok
+    topkInfo "topk1" >>=? TopkInfo
+        { topkInfoK = 3
+        , topkInfoWidth = 50
+        , topkInfoDepth = 5
+        , topkInfoDecay = 0.9
+        }
+
+    topkAdd "topk1" ("foo" NE.:| ["bar", "baz"]) >>=? [Nothing, Nothing, Nothing]
+    topkQuery "topk1" ("foo" NE.:| ["bar", "missing"]) >>=? [True, True, False]
+    topkCount "topk1" ("foo" NE.:| ["bar", "missing"]) >>@? \counts ->
+        case counts of
+            [fooCount, barCount, 0] -> do
+                HUnit.assertBool "TOPK.COUNT foo should be positive" (fooCount > 0)
+                HUnit.assertBool "TOPK.COUNT bar should be positive" (barCount > 0)
+            _ -> HUnit.assertFailure $ "Unexpected TOPK.COUNT response: " ++ show counts
+
+    topkIncrby "topk1" (("foo", 10) NE.:| [("baz", 3), ("qux", 1)]) >>@? \results ->
+        HUnit.assertEqual "TOPK.INCRBY result length" 3 (length results)
+
+    topkList "topk1" >>@? \items -> do
+        HUnit.assertEqual "TOPK.LIST length" 3 (length items)
+        HUnit.assertBool "TOPK.LIST should include foo" ("foo" `elem` items)
+
+    topkListWithCount "topk1" >>@? \itemsWithCount -> do
+        HUnit.assertEqual "TOPK.LIST WITHCOUNT length" 3 (length itemsWithCount)
+        let itemKeys = map fst itemsWithCount
+        HUnit.assertBool "TOPK.LIST WITHCOUNT should include foo" ("foo" `elem` itemKeys)
+        HUnit.assertBool "TOPK.LIST WITHCOUNT counts should be positive" (all ((> 0) . snd) itemsWithCount)
+
 -- RedisJSON
 --
 testJSON :: Test
