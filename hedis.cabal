@@ -93,6 +93,7 @@ library
                   , Database.Redis.ManualCommands.Tdigest
                   , Database.Redis.ManualCommands.Ts
                   , Database.Redis.ManualCommands.Topk
+                  , Database.Redis.ManualCommands.Wait
                   , Database.Redis.Protocol
                   , Database.Redis.ProtocolPipelining
                   , Database.Redis.PubSub

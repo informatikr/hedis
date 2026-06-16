@@ -64,7 +64,9 @@ sortStore,
 ttl,
 RedisType(..),
 getType,
-wait,
+
+-- ** Wait
+module Wait,
 
 -- ** Bloom Filters
 module BF,
@@ -694,6 +696,7 @@ import Database.Redis.ManualCommands.JSON as JSON
 import Database.Redis.ManualCommands.Tdigest as Tdigest
 import Database.Redis.ManualCommands.Ts as Ts
 import Database.Redis.ManualCommands.Topk as Topk
+import Database.Redis.ManualCommands.Wait as Wait
 import Database.Redis.ManualCommands
 import Database.Redis.Types
 import Database.Redis.Core(sendRequest, RedisCtx)
@@ -1199,15 +1202,6 @@ dbsize
     :: (RedisCtx m f)
     => m (f Integer)
 dbsize  = sendRequest ["DBSIZE"]
-
--- |Wait for the synchronous replication of all the write commands sent in the context of the current connection (<http://redis.io/commands/wait>).
--- Since Redis 3.0.0
-wait
-    :: (RedisCtx m f)
-    => Integer -- ^ numslaves
-    -> Integer -- ^ timeout
-    -> m (f Integer)
-wait numslaves timeout = sendRequest ["WAIT", encode numslaves, encode timeout]
 
 -- |Remove and get the first element in a list (<http://redis.io/commands/lpop>). Since Redis 1.0.0
 lpop
