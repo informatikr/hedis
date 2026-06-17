@@ -92,7 +92,7 @@ bfInsertOptsToArgs BFInsertOpts{..} =
 --
 -- A filter is created automatically if the key does not exist.
 --
--- $O(k)$, where $k$ is the number of hash functions used by the last sub-filter.
+-- /O(k)/, where /k/ is the number of hash functions used by the last sub-filter.
 --
 -- Since RedisBloom 1.0.0
 bfadd
@@ -106,7 +106,7 @@ bfadd key item = sendRequest ["BF.ADD", key, item]
 --
 -- Returns @0@ when the key does not exist.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.4
 bfcard
@@ -119,7 +119,7 @@ bfcard key = sendRequest ["BF.CARD", key]
 --
 -- Returns 'False' when the key does not exist or the item was definitely not added.
 --
--- $O(k)$, where $k$ is the number of hash functions used by the last sub-filter.
+-- /O(k)/, where $k$ is the number of hash functions used by the last sub-filter.
 --
 -- Since RedisBloom 1.0.0
 bfexists
@@ -131,7 +131,7 @@ bfexists key item = sendRequest ["BF.EXISTS", key, item]
 
 -- |Returns information about a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfinfo
@@ -142,7 +142,7 @@ bfinfo key = sendRequest ["BF.INFO", key]
 
 -- |Returns the configured capacity of a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfinfoCapacity
@@ -153,7 +153,7 @@ bfinfoCapacity key = sendRequest ["BF.INFO", key, "CAPACITY"]
 
 -- |Returns the size in bytes of a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfinfoSize
@@ -164,7 +164,7 @@ bfinfoSize key = sendRequest ["BF.INFO", key, "SIZE"]
 
 -- |Returns the number of sub-filters in a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfinfoFilters
@@ -175,7 +175,7 @@ bfinfoFilters key = sendRequest ["BF.INFO", key, "FILTERS"]
 
 -- |Returns the number of unique inserted items detected by a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfinfoItems
@@ -186,7 +186,7 @@ bfinfoItems key = sendRequest ["BF.INFO", key, "ITEMS"]
 
 -- |Returns the expansion rate of a Bloom filter (<https://redis.io/commands/bf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Returns Nothing for the non scaling filters.
 --
@@ -201,7 +201,7 @@ bfinfoExpansion key = sendRequest ["BF.INFO", key, "EXPANSION"]
 --
 -- This is equivalent to inserting with default options and automatic creation enabled.
 --
--- $O(k \cdot n)$, where $k$ is the number of hash functions and $n$ is the number of items.
+-- /O(kn)/, where /k/ is the number of hash functions and /n/ is the number of items.
 --
 -- Since RedisBloom 1.0.0
 bfinsert
@@ -213,7 +213,7 @@ bfinsert key items = bfinsertOpts key items defaultBFInsertOpts
 
 -- |Adds one or more items to a Bloom filter, creating it when needed (<https://redis.io/commands/bf.insert>).
 --
--- $O(k \cdot n)$, where $k$ is the number of hash functions and $n$ is the number of items.
+-- /O(kn)/, where /k/ is the number of hash functions and /n/ is the number of items.
 --
 -- Since RedisBloom 1.0.0
 bfinsertOpts
@@ -229,7 +229,7 @@ bfinsertOpts key items opts =
 --
 -- A filter is created automatically if the key does not exist.
 --
--- $O(k \cdot n)$, where $k$ is the number of hash functions and $n$ is the number of items.
+-- /O(kn)/, where /k/ is the number of hash functions and /n/ is the number of items.
 --
 -- Since RedisBloom 1.0.0
 bfmadd
@@ -243,7 +243,7 @@ bfmadd key items = sendRequest $ ["BF.MADD", key] ++ NE.toList items
 --
 -- A 'False' result means the item is definitely absent, or the key does not exist.
 --
--- $O(k \cdot n)$, where $k$ is the number of hash functions and $n$ is the number of items.
+-- /O(kn)/, where /k/ is the number of hash functions and /n/ is the number of items.
 --
 -- Since RedisBloom 1.0.0
 bfmexists
@@ -257,7 +257,7 @@ bfmexists key items = sendRequest $ ["BF.MEXISTS", key] ++ NE.toList items
 --
 -- The filter will fail if the key already exists.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfreserve
@@ -270,7 +270,7 @@ bfreserve key errorRate capacity = bfreserveOpts key errorRate capacity defaultB
 
 -- |Creates an empty Bloom filter (<https://redis.io/commands/bf.reserve>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 bfreserveOpts

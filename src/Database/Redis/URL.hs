@@ -28,10 +28,10 @@ import Text.Read (readMaybe)
 
 -- | Parse a @'ConnectInfo'@ from a URL according to the Rules in Redis client
 --
--- Standalone Redis:
+-- __Standalone Redis__:
 --
 -- @
--- redis :// [[username :] password@] host [:port][/database]
+-- redis :\/\/ [[username :] password@] host [:port][/database]
 -- @
 --
 -- >>> parseConnectInfo "redis://username:password@host:42/2"
@@ -40,13 +40,13 @@ import Text.Read (readMaybe)
 -- >>> parseConnectInfo "redis://password@host:42/2"
 -- Right (ConnInfo {connectAddr = ConnectAddrHostPort "host" 42, connectAuth = Just "password", connectUsername = Nothing, connectDatabase = 2, connectMaxConnections = 50, connectNumStripes = Just 1, connectMaxIdleTime = 30s, connectTimeout = Nothing, connectTLSParams = Nothing, connectHooks = Hooks {...}, connectPoolLabel = ""})
 --
--- TLS-enabled Redis:
+-- __TLS-enabled Redis__:
 --
 -- @
--- rediss :// [[username :] password@] host [: port][/database]
+-- rediss :\/\/ [[username :] password@] host [: port][/database]
 -- @
 --
--- Unix socket Redis:
+-- __Unix socket Redis__:
 --
 -- @
 -- redis-socket :// [[username :] password@]path [? [&database=database]

@@ -36,7 +36,7 @@ defaultFunctionRestoreOpts = FunctionRestoreDefault
 --
 -- Deletes the library named by the argument together with all functions it contains.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionDelete
@@ -49,7 +49,7 @@ functionDelete = Manual.functionDelete
 --
 -- Serializes all loaded libraries into a binary payload that can later be used with 'functionRestore'.
 --
--- $O(N)$ where $N$ is the number of functions.
+-- /O(N)/ where /N/ is the number of functions.
 --
 -- Since Redis 7.0.0
 functionDump
@@ -61,7 +61,7 @@ functionDump = Manual.functionDump
 --
 -- Removes every library currently loaded into Redis.
 --
--- $O(N)$ where $N$ is the number of functions deleted.
+-- /O(N)/ where /N/ is the number of functions deleted.
 --
 -- Since Redis 7.0.0
 functionFlush
@@ -73,7 +73,7 @@ functionFlush = Manual.functionFlush
 --
 -- Removes every library currently loaded into Redis using the requested flushing mode.
 --
--- $O(N)$ where $N$ is the number of functions deleted.
+-- /O(N)/ where /N/ is the number of functions deleted.
 --
 -- Since Redis 7.0.0
 functionFlushOpts
@@ -86,7 +86,7 @@ functionFlushOpts = Manual.functionFlushOpts
 --
 -- Terminates the currently running function, if it is marked as killable by Redis.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionKill
@@ -98,7 +98,7 @@ functionKill = Manual.functionKill
 --
 -- Loads a new function library and returns its library name.
 --
--- $O(N)$ where $N$ is the number of bytes in the function's source code.
+-- /O(N)/ where /N/ is the number of bytes in the function's source code.
 --
 -- Since Redis 7.0.0
 functionLoad
@@ -111,7 +111,7 @@ functionLoad = Manual.functionLoad
 --
 -- Loads a function library and replaces an existing library with the same name.
 --
--- $O(N)$ where $N$ is the number of bytes in the function's source code.
+-- /O(N)/ where /N/ is the number of bytes in the function's source code.
 --
 -- Since Redis 7.0.0
 functionLoadReplace
@@ -124,7 +124,7 @@ functionLoadReplace = Manual.functionLoadReplace
 --
 -- Restores all libraries from a payload previously returned by 'functionDump'.
 --
--- $O(N)$ where $N$ is the number of functions restored.
+-- /O(N)/ where /N/ is the number of functions restored.
 --
 -- Since Redis 7.0.0
 functionRestore
@@ -137,7 +137,7 @@ functionRestore payload = functionRestoreOpts payload defaultFunctionRestoreOpts
 --
 -- Restores all libraries from a payload previously returned by 'functionDump', optionally selecting the restore policy.
 --
--- $O(N)$ where $N$ is the number of functions restored.
+-- /O(N)/ where /N/ is the number of functions restored.
 --
 -- Since Redis 7.0.0
 functionRestoreOpts
@@ -156,7 +156,7 @@ functionRestoreOpts payload opts =
 --
 -- Returns execution statistics and runtime information for the function engine.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionStats

@@ -37,7 +37,7 @@ instance RedisResult TopkInfo where
 --
 -- Returns the items dropped from the sketch after each insertion, or 'Nothing' when no item was expelled.
 --
--- $O(n \cdot d)$, where $n$ is the number of items and $d$ is the depth of the sketch.
+-- /O(n \cdot d)/, where /n/ is the number of items and /d/ is the depth of the sketch.
 --
 -- Since RedisBloom 2.0.0
 topkAdd
@@ -51,7 +51,7 @@ topkAdd key items = sendRequest $ ["TOPK.ADD", key] ++ NE.toList items
 --
 -- Returns @0@ for items that are not tracked by the sketch.
 --
--- $O(n \cdot d)$, where $n$ is the number of items and $d$ is the depth of the sketch.
+-- /O(n \cdot d)/, where /n/ is the number of items and /d/ is the depth of the sketch.
 --
 -- Since RedisBloom 2.0.0
 topkCount
@@ -65,7 +65,7 @@ topkCount key items = sendRequest $ ["TOPK.COUNT", key] ++ NE.toList items
 --
 -- Returns the items dropped from the sketch after each increment, or 'Nothing' when no item was expelled.
 --
--- $O(n \cdot d)$, where $n$ is the number of item-increment pairs and $d$ is the depth of the sketch.
+-- /O(n \cdot d)/, where /n/ is the number of item-increment pairs and /d/ is the depth of the sketch.
 --
 -- Since RedisBloom 2.0.0
 topkIncrby
@@ -91,7 +91,7 @@ topkInfo key = sendRequest ["TOPK.INFO", key]
 
 -- |Returns the items in a Top-K sketch (<https://redis.io/commands/topk.list>).
 --
--- $O(k)$, where $k$ is the configured top-k size.
+-- /O(k)/, where /k/ is the configured top-k size.
 --
 -- Since RedisBloom 2.0.0
 topkList
@@ -102,7 +102,7 @@ topkList key = sendRequest ["TOPK.LIST", key]
 
 -- |Returns the items in a Top-K sketch along with their approximated counts (<https://redis.io/commands/topk.list>).
 --
--- $O(k)$, where $k$ is the configured top-k size.
+-- /O(k)/, where /k/ is the configured top-k size.
 --
 -- Since RedisBloom 2.0.0
 topkListWithCount
@@ -115,7 +115,7 @@ topkListWithCount key = sendRequest ["TOPK.LIST", key, "WITHCOUNT"]
 --
 -- The sketch will fail to be created if the key already exists.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.0.0
 topkReserve
@@ -133,7 +133,7 @@ topkReserve key topk width depth decay =
 --
 -- A 'False' value means the item is not currently one of the tracked heavy hitters.
 --
--- $O(n \cdot d)$, where $n$ is the number of items and $d$ is the depth of the sketch.
+-- /O(n \cdot d)/, where /n/ is the number of items and /d/ is the depth of the sketch.
 --
 -- Since RedisBloom 2.0.0
 topkQuery

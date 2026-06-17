@@ -355,7 +355,7 @@ tsMRangeOptsToArgs TsMRangeOpts{..} =
 
 -- |Appends a sample to a time series (<https://redis.io/commands/ts.add>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsAdd
@@ -368,7 +368,7 @@ tsAdd key timestamp value = tsAddOpts key timestamp value defaultTsAddOpts
 
 -- |Appends a sample to a time series (<https://redis.io/commands/ts.add>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsAddOpts
@@ -383,7 +383,7 @@ tsAddOpts key timestamp value opts =
 
 -- |Update the retention, chunk size, duplicate policy, and labels of an existing time series (<https://redis.io/commands/ts.alter>).
 --
--- $O(N)$ where $N$ is the number of labels requested to update
+-- /O(N)/ where /N/ is the number of labels requested to update
 --
 -- Since RedisTimeSeries 1.0.0
 tsAlter
@@ -395,7 +395,7 @@ tsAlter key opts = sendRequest $ ["TS.ALTER", key] ++ tsAlterOptsToArgs opts
 
 -- |Create a new time series (<https://redis.io/commands/ts.create>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsCreate
@@ -406,7 +406,7 @@ tsCreate key = tsCreateOpts key defaultTsCreateOpts
 
 -- |Create a new time series (<https://redis.io/commands/ts.create>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsCreateOpts
@@ -418,7 +418,7 @@ tsCreateOpts key opts = sendRequest $ ["TS.CREATE", key] ++ tsCreateOptsToArgs o
 
 -- |Create a compaction rule (<https://redis.io/commands/ts.createrule>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsCreaterule
@@ -433,7 +433,7 @@ tsCreaterule source destination aggregator bucketDuration =
 
 -- |Create a compaction rule with an aligned bucket timestamp (<https://redis.io/commands/ts.createrule>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.8.0
 tsCreateruleAlign
@@ -449,7 +449,7 @@ tsCreateruleAlign source destination aggregator bucketDuration alignTimestamp =
 
 -- |Decrease the value of the sample with the maximum timestamp, or create a new sample with a decremented value (<https://redis.io/commands/ts.decrby>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsDecrby
@@ -461,7 +461,7 @@ tsDecrby key value = tsDecrbyOpts key value defaultTsIncrByOpts
 
 -- |Decrease the value of the sample with the maximum timestamp, or create a new sample with a decremented value (<https://redis.io/commands/ts.decrby>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsDecrbyOpts
@@ -475,7 +475,7 @@ tsDecrbyOpts key value opts =
 
 -- |Delete all samples between two timestamps for a given time series (<https://redis.io/commands/ts.del>).
 --
--- $O(N)$ where $N$ is the number of data points that will be removed
+-- /O(N)/ where /N/ is the number of data points that will be removed
 --
 -- Since RedisTimeSeries 1.6.0
 tsDel
@@ -489,7 +489,7 @@ tsDel key fromTimestamp toTimestamp =
 
 -- |Delete a compaction rule (<https://redis.io/commands/ts.delrule>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsDelrule
@@ -501,7 +501,7 @@ tsDelrule source destination = sendRequest ["TS.DELRULE", source, destination]
 
 -- |Get the sample with the highest timestamp from a given time series (<https://redis.io/commands/ts.get>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsGet
@@ -512,7 +512,7 @@ tsGet key = tsGetOpts key defaultTsGetOpts
 
 -- |Get the sample with the highest timestamp from a given time series (<https://redis.io/commands/ts.get>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsGetOpts
@@ -525,7 +525,7 @@ tsGetOpts key TsGetOpts{..} =
 
 -- |Increase the value of the sample with the maximum timestamp, or create a new sample with an incremented value (<https://redis.io/commands/ts.incrby>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsIncrby
@@ -537,7 +537,7 @@ tsIncrby key value = tsIncrbyOpts key value defaultTsIncrByOpts
 
 -- |Increase the value of the sample with the maximum timestamp, or create a new sample with an incremented value (<https://redis.io/commands/ts.incrby>).
 --
--- $O(M)$ when $M$ is the number of compaction rules, or $O(1)$ with no compaction
+-- /O(M)/ when /M/ is the number of compaction rules, or /O(1)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsIncrbyOpts
@@ -553,7 +553,7 @@ tsIncrbyOpts key value opts =
 --
 -- The reply is a heterogeneous attribute map, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsInfo
@@ -566,7 +566,7 @@ tsInfo key = tsInfoOpts key TsInfoDefault
 --
 -- The reply is a heterogeneous attribute map, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisTimeSeries 1.0.0
 tsInfoOpts
@@ -581,7 +581,7 @@ tsInfoOpts key infoOpts =
 
 -- |Append new samples to one or more time series (<https://redis.io/commands/ts.madd>).
 --
--- $O(N \cdot M)$ when $N$ is the number of series updated and $M$ is the number of compaction rules, or $O(N)$ with no compaction
+-- /O(N \cdot M)/ when /N/ is the number of series updated and /M/ is the number of compaction rules, or /O(N)/ with no compaction
 --
 -- Since RedisTimeSeries 1.0.0
 tsMadd
@@ -596,7 +596,7 @@ tsMadd triples = sendRequest $ "TS.MADD" : concatMap encodeTriple (NE.toList tri
 --
 -- The reply is heterogeneous and depends on label options, so this wrapper returns the raw 'Reply'.
 --
--- $O(n)$ where $n$ is the number of time-series that match the filters
+-- /O(n)/ where /n/ is the number of time-series that match the filters
 --
 -- Since RedisTimeSeries 1.0.0
 tsMget
@@ -609,7 +609,7 @@ tsMget filters = tsMgetOpts filters defaultTsMGetOpts
 --
 -- The reply is heterogeneous and depends on label options, so this wrapper returns the raw 'Reply'.
 --
--- $O(n)$ where $n$ is the number of time-series that match the filters
+-- /O(n)/ where /n/ is the number of time-series that match the filters
 --
 -- Since RedisTimeSeries 1.0.0
 tsMgetOpts
@@ -624,7 +624,7 @@ tsMgetOpts filters opts =
 --
 -- The reply is heterogeneous and may include labels or grouped output, so this wrapper returns the raw 'Reply'.
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.0.0
 tsMrange
@@ -640,7 +640,7 @@ tsMrange fromTimestamp toTimestamp filters =
 --
 -- The reply is heterogeneous and may include labels or grouped output, so this wrapper returns the raw 'Reply'.
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.0.0
 tsMrangeOpts
@@ -657,7 +657,7 @@ tsMrangeOpts fromTimestamp toTimestamp filters opts =
 --
 -- The reply is heterogeneous and may include labels or grouped output, so this wrapper returns the raw 'Reply'.
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.4.0
 tsMrevrange
@@ -673,7 +673,7 @@ tsMrevrange fromTimestamp toTimestamp filters =
 --
 -- The reply is heterogeneous and may include labels or grouped output, so this wrapper returns the raw 'Reply'.
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.4.0
 tsMrevrangeOpts
@@ -688,7 +688,7 @@ tsMrevrangeOpts fromTimestamp toTimestamp filters opts =
 
 -- |Get all time series keys matching a filter list (<https://redis.io/commands/ts.queryindex>).
 --
--- $O(n)$ where $n$ is the number of time-series that match the filters
+-- /O(n)/ where /n/ is the number of time-series that match the filters
 --
 -- Since RedisTimeSeries 1.0.0
 tsQueryindex
@@ -699,7 +699,7 @@ tsQueryindex filters = sendRequest $ "TS.QUERYINDEX" : NE.toList filters
 
 -- |Query a range in forward direction (<https://redis.io/commands/ts.range>).
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.0.0
 tsRange
@@ -713,7 +713,7 @@ tsRange key fromTimestamp toTimestamp =
 
 -- |Query a range in forward direction (<https://redis.io/commands/ts.range>).
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.0.0
 tsRangeOpts
@@ -728,7 +728,7 @@ tsRangeOpts key fromTimestamp toTimestamp opts =
 
 -- |Query a range in reverse direction (<https://redis.io/commands/ts.revrange>).
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.4.0
 tsRevrange
@@ -742,7 +742,7 @@ tsRevrange key fromTimestamp toTimestamp =
 
 -- |Query a range in reverse direction (<https://redis.io/commands/ts.revrange>).
 --
--- $O(n/m+k)$ where $n$ is the number of data points, $m$ is the chunk size, and $k$ is the number of returned samples
+-- /O(n\/m+k)/ where /n/ is the number of data points, /m/ is the chunk size, and /k/ is the number of returned samples
 --
 -- Since RedisTimeSeries 1.4.0
 tsRevrangeOpts

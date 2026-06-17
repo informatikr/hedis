@@ -1,7 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Database.Redis.ManualCommands.Wait where
+module Database.Redis.ManualCommands.Wait
+  ( WaitAofResult(..)
+  , wait
+  , waitaof
+  ) where
 
 import Database.Redis.Core
 import Database.Redis.Types
@@ -18,11 +22,10 @@ instance RedisResult WaitAofResult where
         (waitAofLocal, waitAofReplicas) <- decode response
         pure WaitAofResult{..}
 
--- |Wait for preceding writes to be acknowledged by a given number of replicas (<https://redis.io/commands/wait>).
+-- |
+-- /O(1)/ Wait for preceding writes to be acknowledged by a given number of replicas (<https://redis.io/commands/wait>).
 --
 -- Blocks until the asynchronous replication of all preceding write commands sent by the connection is completed.
---
--- $O(1)$
 --
 -- Since Redis 3.0.0
 wait
@@ -33,11 +36,10 @@ wait
 wait numReplicas timeout =
     sendRequest ["WAIT", encode numReplicas, encode timeout]
 
--- |Wait for preceding writes to be fsynced to the append-only file locally and/or on replicas (<https://redis.io/commands/waitaof>).
+-- |
+-- /O(1)/ Wait for preceding writes to be fsynced to the append-only file locally and\/or on replicas (<https://redis.io/commands/waitaof>).
 --
--- Blocks until all of the preceding write commands sent by the connection are written to the append-only file of the master and/or replicas.
---
--- $O(1)$
+-- Blocks until all of the preceding write commands sent by the connection are written to the append-only file of the master and\/or replicas.
 --
 -- Since Redis 7.2.0
 waitaof

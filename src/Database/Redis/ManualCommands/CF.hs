@@ -108,7 +108,7 @@ cfInsertOptsToArgs CFInsertOpts{..} =
 --
 -- A filter is created automatically if the key does not exist.
 --
--- $O(k + i)$, where $k$ is the number of sub-filters and $i$ is maxIterations.
+-- /O(k + i)/, where /k/ is the number of sub-filters and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfadd
@@ -122,7 +122,7 @@ cfadd key item = sendRequest ["CF.ADD", key, item]
 --
 -- A filter is created automatically if the key does not exist.
 --
--- $O(k + i)$, where $k$ is the number of sub-filters and $i$ is maxIterations.
+-- /O(k + i)/, where /k/ is the number of sub-filters and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfaddnx
@@ -136,7 +136,7 @@ cfaddnx key item = sendRequest ["CF.ADDNX", key, item]
 --
 -- Returns @0@ when the key does not exist or the item was not found.
 --
--- $O(k)$, where $k$ is the number of sub-filters.
+-- /O(k)/, where /k/ is the number of sub-filters.
 --
 -- Since RedisBloom 1.0.0
 cfcount
@@ -150,7 +150,7 @@ cfcount key item = sendRequest ["CF.COUNT", key, item]
 --
 -- Returns 'False' when the key does not exist or the item was not found.
 --
--- $O(k)$, where $k$ is the number of sub-filters.
+-- /O(k)/, where /k/ is the number of sub-filters.
 --
 -- Since RedisBloom 1.0.0
 cfdel
@@ -164,7 +164,7 @@ cfdel key item = sendRequest ["CF.DEL", key, item]
 --
 -- Returns 'False' when the key does not exist or the item is definitely absent.
 --
--- $O(k)$, where $k$ is the number of sub-filters.
+-- /O(k)/, where /k/ is the number of sub-filters.
 --
 -- Since RedisBloom 1.0.0
 cfexists
@@ -176,7 +176,7 @@ cfexists key item = sendRequest ["CF.EXISTS", key, item]
 
 -- |Returns information about a Cuckoo filter (<https://redis.io/commands/cf.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 cfinfo
@@ -189,7 +189,7 @@ cfinfo key = sendRequest ["CF.INFO", key]
 --
 -- This is equivalent to inserting with default options and automatic creation enabled.
 --
--- $O(n * (k + i))$, where $n$ is the number of items, $k$ is the number of sub-filters, and $i$ is maxIterations.
+-- /O(n * (k + i))/, where /n/ is the number of items, /k/ is the number of sub-filters, and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfinsert
@@ -201,7 +201,7 @@ cfinsert key items = cfinsertOpts key items defaultCFInsertOpts
 
 -- |Adds one or more items to a Cuckoo filter, creating it when needed (<https://redis.io/commands/cf.insert>).
 --
--- $O(n * (k + i))$, where $n$ is the number of items, $k$ is the number of sub-filters, and $i$ is maxIterations.
+-- /O(n * (k + i))/, where /n/ is the number of items, /k/ is the number of sub-filters, and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfinsertOpts
@@ -217,7 +217,7 @@ cfinsertOpts key items opts =
 --
 -- This is equivalent to inserting with default options and automatic creation enabled.
 --
--- $O(n * (k + i))$, where $n$ is the number of items, $k$ is the number of sub-filters, and $i$ is maxIterations.
+-- /O(n * (k + i))/, where /n/ is the number of items, /k/ is the number of sub-filters, and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfinsertnx
@@ -229,7 +229,7 @@ cfinsertnx key items = cfinsertnxOpts key items defaultCFInsertOpts
 
 -- |Adds one or more items to a Cuckoo filter only if they did not already exist (<https://redis.io/commands/cf.insertnx>).
 --
--- $O(n * (k + i))$, where $n$ is the number of items, $k$ is the number of sub-filters, and $i$ is maxIterations.
+-- /O(n * (k + i))/, where /n/ is the number of items, /k/ is the number of sub-filters, and /i/ is maxIterations.
 --
 -- Since RedisBloom 1.0.0
 cfinsertnxOpts
@@ -245,7 +245,7 @@ cfinsertnxOpts key items opts =
 --
 -- A 'False' result means the item is definitely absent, or the key does not exist.
 --
--- $O(k * n)$, where $k$ is the number of sub-filters and $n$ is the number of items.
+-- /O(k * n)/, where /k/ is the number of sub-filters and /n/ is the number of items.
 --
 -- Since RedisBloom 1.0.0
 cfmexists
@@ -259,7 +259,7 @@ cfmexists key items = sendRequest $ ["CF.MEXISTS", key] ++ NE.toList items
 --
 -- The filter will fail if the key already exists.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 cfreserve
@@ -271,7 +271,7 @@ cfreserve key capacity = cfreserveOpts key capacity defaultCFReserveOpts
 
 -- |Creates an empty Cuckoo filter (<https://redis.io/commands/cf.reserve>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 1.0.0
 cfreserveOpts

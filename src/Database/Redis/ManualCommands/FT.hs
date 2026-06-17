@@ -917,7 +917,7 @@ ftCursorReadOptsToArgs FTCursorReadOpts{..} =
 
 -- |Returns a list of all existing indexes (<https://redis.io/commands/ft._list>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 2.0.0
 ftList
@@ -929,7 +929,7 @@ ftList = sendRequest ["FT._LIST"]
 --
 -- The reply shape varies with options such as @WITHCURSOR@, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.1.0
 ftAggregate
@@ -943,7 +943,7 @@ ftAggregate index query = ftAggregateOpts index query defaultFTAggregateOpts
 --
 -- The reply shape varies with options such as @WITHCURSOR@, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.1.0
 ftAggregateOpts
@@ -957,7 +957,7 @@ ftAggregateOpts index query opts =
 
 -- |Adds an alias to the index (<https://redis.io/commands/ft.aliasadd>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftAliasAdd
@@ -969,7 +969,7 @@ ftAliasAdd alias index = sendRequest ["FT.ALIASADD", alias, index]
 
 -- |Deletes an alias from the index (<https://redis.io/commands/ft.aliasdel>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftAliasDel
@@ -980,7 +980,7 @@ ftAliasDel alias = sendRequest ["FT.ALIASDEL", alias]
 
 -- |Adds or updates an alias to the index (<https://redis.io/commands/ft.aliasupdate>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftAliasUpdate
@@ -992,7 +992,7 @@ ftAliasUpdate alias index = sendRequest ["FT.ALIASUPDATE", alias, index]
 
 -- |Adds a new field to the index (<https://redis.io/commands/ft.alter>).
 --
--- $O(N)$ where $N$ is the number of keys in the keyspace
+-- /O(N)/ where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 1.0.0
 ftAlter
@@ -1004,7 +1004,7 @@ ftAlter index field = ftAlterOpts index field defaultFTAlterOpts
 
 -- |Adds a new field to the index (<https://redis.io/commands/ft.alter>).
 --
--- $O(N)$ where $N$ is the number of keys in the keyspace
+-- /O(N)/ where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 1.0.0
 ftAlterOpts
@@ -1018,7 +1018,7 @@ ftAlterOpts index field opts =
 
 -- |Sets runtime configuration options (<https://redis.io/commands/ft.config-set>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftConfigSet
@@ -1032,7 +1032,7 @@ ftConfigSet option value = sendRequest ["FT.CONFIG", "SET", option, value]
 --
 -- The server returns an option-dependent reply payload, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftConfigGet
@@ -1043,7 +1043,7 @@ ftConfigGet option = sendRequest ["FT.CONFIG", "GET", option]
 
 -- |Creates an index with the given spec (<https://redis.io/commands/ft.create>).
 --
--- $O(K)$ at creation where $K$ is the number of fields, $O(N)$ if scanning the keyspace is triggered, where $N$ is the number of keys in the keyspace
+-- /O(K)/ at creation where /K/ is the number of fields, /O(N)/ if scanning the keyspace is triggered, where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 1.0.0
 ftCreate
@@ -1055,7 +1055,7 @@ ftCreate index fields = ftCreateOpts index fields defaultFTCreateOpts
 
 -- |Creates an index with the given spec (<https://redis.io/commands/ft.create>).
 --
--- $O(K)$ at creation where $K$ is the number of fields, $O(N)$ if scanning the keyspace is triggered, where $N$ is the number of keys in the keyspace
+-- /O(K)/ at creation where /K/ is the number of fields, /O(N)/ if scanning the keyspace is triggered, where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 1.0.0
 ftCreateOpts
@@ -1073,7 +1073,7 @@ ftCreateOpts index fields opts =
 
 -- |Deletes a cursor (<https://redis.io/commands/ft.cursor-del>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.1.0
 ftCursorDel
@@ -1087,7 +1087,7 @@ ftCursorDel index cursorId = sendRequest ["FT.CURSOR", "DEL", index, encode curs
 --
 -- The cursor batch payload is command-dependent, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.1.0
 ftCursorRead
@@ -1101,7 +1101,7 @@ ftCursorRead index cursorId = ftCursorReadOpts index cursorId defaultFTCursorRea
 --
 -- The cursor batch payload is command-dependent, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.1.0
 ftCursorReadOpts
@@ -1115,7 +1115,7 @@ ftCursorReadOpts index cursorId opts =
 
 -- |Adds terms to a dictionary (<https://redis.io/commands/ft.dictadd>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.4.0
 ftDictAdd
@@ -1127,7 +1127,7 @@ ftDictAdd dict terms = sendRequest $ ["FT.DICTADD", dict] ++ NE.toList terms
 
 -- |Deletes terms from a dictionary (<https://redis.io/commands/ft.dictdel>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.4.0
 ftDictDel
@@ -1139,7 +1139,7 @@ ftDictDel dict terms = sendRequest $ ["FT.DICTDEL", dict] ++ NE.toList terms
 
 -- |Deletes the index (<https://redis.io/commands/ft.dropindex>).
 --
--- $O(1)$ or $O(N)$ if documents are deleted, where $N$ is the number of keys in the keyspace
+-- /O(1)/ or /O(N)/ if documents are deleted, where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 2.0.0
 ftDropIndex
@@ -1152,7 +1152,7 @@ ftDropIndex index = sendRequest ["FT.DROPINDEX", index]
 --
 -- This variant also deletes indexed documents.
 --
--- $O(1)$ or $O(N)$ if documents are deleted, where $N$ is the number of keys in the keyspace
+-- /O(1)/ or /O(N)/ if documents are deleted, where /N/ is the number of keys in the keyspace
 --
 -- Since RediSearch 2.0.0
 ftDropIndexDeleteDocs
@@ -1163,7 +1163,7 @@ ftDropIndexDeleteDocs index = sendRequest ["FT.DROPINDEX", index, "DD"]
 
 -- |Returns the execution plan for a complex query (<https://redis.io/commands/ft.explain>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftExplain
@@ -1175,7 +1175,7 @@ ftExplain index query = ftExplainOpts index query defaultFTExplainOpts
 
 -- |Returns the execution plan for a complex query (<https://redis.io/commands/ft.explain>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftExplainOpts
@@ -1191,7 +1191,7 @@ ftExplainOpts index query opts =
 --
 -- The reply shape depends on requested projections and scoring options, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since Redis Open Source 8.4.0
 ftHybrid
@@ -1207,7 +1207,7 @@ ftHybrid index searchClause vsimClause =
 --
 -- The reply shape depends on requested projections and scoring options, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since Redis Open Source 8.4.0
 ftHybridOpts
@@ -1228,7 +1228,7 @@ ftHybridOpts index searchClause vsimClause opts =
 --
 -- The response is a heterogeneous attribute map, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftInfo
@@ -1241,7 +1241,7 @@ ftInfo index = sendRequest ["FT.INFO", index]
 --
 -- The profiled reply depends on the wrapped query type, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since RediSearch 2.2.0
 ftProfile
@@ -1257,7 +1257,7 @@ ftProfile index queryType query =
 --
 -- The profiled reply depends on the wrapped query type, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since RediSearch 2.2.0
 ftProfileOpts
@@ -1277,7 +1277,7 @@ ftProfileOpts index queryType query opts =
 --
 -- The reply shape depends on output flags such as @NOCONTENT@ and @WITHSCORES@, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since RediSearch 1.0.0
 ftSearch
@@ -1291,7 +1291,7 @@ ftSearch index query = ftSearchOpts index query defaultFTSearchOpts
 --
 -- The reply shape depends on output flags such as @NOCONTENT@ and @WITHSCORES@, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$
+-- /O(N)/
 --
 -- Since RediSearch 1.0.0
 ftSearchOpts
@@ -1307,7 +1307,7 @@ ftSearchOpts index query opts =
 --
 -- The response contains nested suggestions, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.4.0
 ftSpellcheck
@@ -1321,7 +1321,7 @@ ftSpellcheck index query = ftSpellcheckOpts index query defaultFTSpellcheckOpts
 --
 -- The response contains nested suggestions, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.4.0
 ftSpellcheckOpts
@@ -1335,7 +1335,7 @@ ftSpellcheckOpts index query opts =
 
 -- |Adds a suggestion string to an auto-complete suggestion dictionary (<https://redis.io/commands/ft.sugadd>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftSugAdd
@@ -1348,7 +1348,7 @@ ftSugAdd key string score = ftSugAddOpts key string score FTSugAddDefault
 
 -- |Adds a suggestion string to an auto-complete suggestion dictionary (<https://redis.io/commands/ft.sugadd>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftSugAddOpts
@@ -1363,7 +1363,7 @@ ftSugAddOpts key string score opts =
 
 -- |Deletes a string from a suggestion index (<https://redis.io/commands/ft.sugdel>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftSugDel
@@ -1375,7 +1375,7 @@ ftSugDel key string = sendRequest ["FT.SUGDEL", key, string]
 
 -- |Gets the size of an auto-complete suggestion dictionary (<https://redis.io/commands/ft.suglen>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RediSearch 1.0.0
 ftSugLen
@@ -1386,7 +1386,7 @@ ftSugLen key = sendRequest ["FT.SUGLEN", key]
 
 -- |Returns the distinct tags indexed in a Tag field (<https://redis.io/commands/ft.tagvals>).
 --
--- $O(n)$ where $n$ is the number of distinct tags in the field
+-- /O(n)/ where /n/ is the number of distinct tags in the field
 --
 -- Since RediSearch 1.0.0
 ftTagVals

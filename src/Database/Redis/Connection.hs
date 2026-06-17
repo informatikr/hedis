@@ -61,35 +61,37 @@ data Connection
 -- myConnectInfo = defaultConnectInfo {connectAuth = Just \"secret\"}
 -- @
 --
+-- Or better yet, use 'parseConnectInfo' to parse a URL.
+--
 data ConnectInfo = ConnInfo
-    { connectAddr           :: CC.ConnectAddr
-    , connectAuth           :: Maybe B.ByteString
+    { connectAddr           :: !CC.ConnectAddr
+    , connectAuth           :: !(Maybe B.ByteString)
     -- ^ When the server is protected by a password, set 'connectAuth' to 'Just'
     --   the password. Each connection will then authenticate by the 'auth'
     --   command.
-    , connectUsername       :: Maybe B.ByteString
+    , connectUsername       :: !(Maybe B.ByteString)
     -- ^ When ACL is used set 'connectUsername' as the user.
-    , connectDatabase       :: Integer
+    , connectDatabase       :: !Integer
     -- ^ Each connection will 'select' the database with the given index.
-    , connectMaxConnections :: Int
+    , connectMaxConnections :: !Int
     -- ^ Maximum number of connections to keep open. The smallest acceptable
     --   value is 1.
-    , connectNumStripes     :: Maybe Int
+    , connectNumStripes     :: !(Maybe Int)
     -- ^ Number of stripes in the connection pool.
-    , connectMaxIdleTime    :: Time.NominalDiffTime
+    , connectMaxIdleTime    :: !Time.NominalDiffTime
     -- ^ Amount of time for which an unused connection is kept open. The
     --   smallest acceptable value is 0.5 seconds. If the @timeout@ value in
     --   your redis.conf file is non-zero, it should be larger than
     --   'connectMaxIdleTime'.
-    , connectTimeout        :: Maybe Time.NominalDiffTime
+    , connectTimeout        :: !(Maybe Time.NominalDiffTime)
     -- ^ Optional timeout until connection to Redis gets
     --   established. 'ConnectTimeoutException' gets thrown if no socket
     --   get connected in this interval of time.
-    , connectTLSParams      :: Maybe ClientParams
+    , connectTLSParams      :: !(Maybe ClientParams)
     -- ^ Optional TLS parameters. TLS will be enabled if this is provided.
-    , connectHooks          :: Hooks
-    -- ^ Connection hooks.
-    , connectPoolLabel      :: T.Text
+    , connectHooks          :: !Hooks
+    -- ^ Connection hooks. See "Database.Redis.Hooks" for usage and examples.
+    , connectPoolLabel      :: !T.Text
     -- ^ Label of the connection pool for instrumentation.
     } deriving Show
 
@@ -152,16 +154,19 @@ createConnection ConnInfo{..} = do
               _      -> return ()
     return conn'
 
--- |Constructs a 'Connection' pool to a Redis server designated by the
---  given 'ConnectInfo'. The first connection is not actually established
---  until the first call to the server.
+-- | Constructs a 'Connection' pool to a Redis server designated by the
+--  given 'ConnectInfo'.
+--
+-- The function always succeeds, because the first connection is not actually established
+-- until the first call to the server.
 connect :: ConnectInfo -> IO Connection
 connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
     newPool (setPoolLabel connectPoolLabel . setNumStripes connectNumStripes $ defaultPoolConfig (createConnection cInfo) PP.disconnect (realToFrac connectMaxIdleTime) connectMaxConnections)
 
 -- |Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
---  Throws an exception if the connection to the Redis server can't be
+--
+--  Throws an 'ConnectError' exception if the connection to the Redis server can't be
 --  established.
 checkedConnect :: ConnectInfo -> IO Connection
 checkedConnect connInfo = do
@@ -171,7 +176,8 @@ checkedConnect connInfo = do
 
 -- |Constructs a 'Connection' pool to a Redis cluster designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
---  Throws an exception if the connection to the Redis server can't be
+--
+--  Throws an 'ClusterConnectError' exception if the connection to the Redis server can't be
 --  established.
 checkedConnectCluster :: ConnectInfo -> IO Connection
 checkedConnectCluster connInfo = do
@@ -188,7 +194,7 @@ newtype ClusterDownError = ClusterDownError ClusterInfoResponse
 
 instance Exception ClusterDownError
 
--- |Destroy all idle resources in the pool.
+-- |Destroy all idle resources in the pool, works for all types of the connection.
 disconnect :: Connection -> IO ()
 disconnect (NonClusteredConnection pool) = destroyAllResources pool
 disconnect (ClusteredConnection _ pool) = destroyAllResources pool
@@ -235,7 +241,7 @@ instance Exception ClusterConnectError
 -- - CONFIG, AUTH
 -- - SCAN
 -- - MOVE, SELECT
--- - PUBLISH, SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE, PUNSUBSCRIBE, RESET
+-- - RESET
 connectCluster :: ConnectInfo -> IO Connection
 connectCluster bootstrapConnInfo = do
     bracket (createConnection bootstrapConnInfo) PP.disconnect $ \conn -> do

@@ -2,31 +2,31 @@
 
 module Database.Redis.Commands (
 
--- ** Connection
+-- * Connection
 
--- *** auth
+-- ** Auth
 -- $auth
 auth,
 authOpts,
 AuthOpts(..),
 defaultAuthOpts,
--- *** Other commands
+-- ** Other commands
 echo,
 ping,
 quit,
 select,
 
--- ** Keys
+-- * Generic keys
+copy,
+copyOpts,
+CopyOpts(..),
+defaultCopyOpts,
 del,
 dump,
 exists,
-copy,
-CopyOpts(..),
-defaultCopyOpts,
-copyOpts,
 expire,
-ExpireOpts(..),
 expireOpts,
+ExpireOpts(..),
 expireat,
 expireatOpts,
 keys,
@@ -65,34 +65,8 @@ ttl,
 RedisType(..),
 getType,
 
--- ** Wait
-module Wait,
 
--- ** Bloom Filters
-module BF,
-
--- ** Cuckoo Filters
-module CF,
-
--- ** Count-Min Sketches
-module Cms,
-
--- ** Top-K
-module Topk,
-
--- ** T-Digest
-module Tdigest,
-
--- ** Time Series
-module Ts,
-
--- ** Redis Indexes
-module FT,
-
--- ** JSON
-module JSON,
-
--- ** Hashes
+-- * Hashes
 hdel,
 HashFieldExpirationStatus(..),
 HashFieldExpirationInfo(..),
@@ -137,12 +111,12 @@ hstrlen,
 httl,
 hvals,
 
--- ** HyperLogLogs
+-- * HyperLogLogs
 pfadd,
 pfcount,
 pfmerge,
 
--- ** Lists
+-- * Lists
 blpop,
 blpopFloat,
 blmpop,
@@ -179,7 +153,7 @@ rpoplpush,
 rpush,
 rpushx,
 
--- ** Scripting
+-- * Scripting
 eval,
 evalsha,
 fcall,
@@ -197,7 +171,7 @@ scriptFlush,
 scriptKill,
 scriptLoad,
 
--- ** Server
+-- * Server
 bgrewriteaof,
 bgsave,
 bgsaveSchedule,
@@ -249,7 +223,7 @@ slowlogLen, -- |Manages the Redis slow queries log (<http://redis.io/commands/sl
 slowlogReset, -- |Manages the Redis slow queries log (<http://redis.io/commands/slowlog>). The Redis command @SLOWLOG@ is split up into 'slowlogGet', 'slowlogLen', 'slowlogReset'. Since Redis 2.2.12
 time,
 
--- ** Sets
+-- * Sets
 sadd,
 scard,
 sdiff,
@@ -274,7 +248,7 @@ sscanOpts,
 sunion,
 sunionstore,
 
--- ** Sorted Sets
+-- * Sorted Sets
 bzpopmax,
 bzpopmin,
 ZaddOpts(..),
@@ -348,7 +322,7 @@ zunionWithscoresOpts,
 zunionstore, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 zunionstoreWeights, -- |Add multiple sorted sets and store the resulting sorted set in a new key (<http://redis.io/commands/zunionstore>). The Redis command @ZUNIONSTORE@ is split up into 'zunionstore', 'zunionstoreWeights'. Since Redis 2.0.0
 
--- ** Vector Sets
+-- * Vector Sets
 VAddQuantization(..),
 VAddOpts(..),
 defaultVAddOpts,
@@ -386,7 +360,7 @@ vsimWithScoresOpts,
 vsimWithScoresWithAttribs,
 vsimWithScoresWithAttribsOpts,
 
--- ** Arrays
+-- * Arrays
 ARGrepPredicate(..),
 ARGrepCombine(..),
 ARGrepOpts(..),
@@ -422,7 +396,7 @@ arscanOpts,
 arseek,
 arset,
 
--- ** Strings
+-- * Strings
 append,
 bitcount, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
 bitcountRange, -- |Count set bits in a string (<http://redis.io/commands/bitcount>). The Redis command @BITCOUNT@ is split up into 'bitcount', 'bitcountRange'. Since Redis 2.6.0
@@ -480,7 +454,7 @@ strlen,
 substr,
 
 
--- ** Streams
+-- * Streams
 XReadOpts(..),
 defaultXreadOpts,
 XReadResponse(..),
@@ -492,8 +466,8 @@ defaultXAddOpts,
 TrimStrategy(..),
 TrimType(..),
 trimOpts,
-xread, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
-xreadOpts, -- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
+xread,
+xreadOpts,
 xreadGroup, -- |Read values from a stream as part of a consumer group (https://redis.io/commands/xreadgroup). The redis command @XREADGROUP@ is split up into 'xreadGroup' and 'xreadGroupOpts'. Since Redis 5.0.0
 XReadGroupOpts(..),
 defaultXReadGroupOpts,
@@ -515,34 +489,28 @@ xidmprecord,
 xnack,
 xnackOpts,
 
--- *** XGROUP CREATE
 -- $xgroupCreate
 xgroupCreate,
 xgroupCreateOpts,
 XGroupCreateOpts(..),
 defaultXGroupCreateOpts,
 
--- *** XGROUP CREATECONSUMER
 xgroupCreateConsumer,
 
--- *** XGROUP SETID
 -- $xgroupSetId
 xgroupSetId,
 xgroupSetIdOpts,
 XGroupSetIdOpts(..),
 defaultXGroupSetIdOpts,
 
--- *** XGROUP DESTROY
 xgroupDestroy,
 
--- *** XGROUP DELCONSUMER
 xgroupDelConsumer,
 
 xrange, -- |Read values from a stream within a range (https://redis.io/commands/xrange). Since Redis 5.0.0
 xrevRange, -- |Read values from a stream within a range in reverse order (https://redis.io/commands/xrevrange). Since Redis 5.0.0
 xlen, -- |Get the number of entries in a stream (https://redis.io/commands/xlen). Since Redis 5.0.0
 
--- *** XPENDING
 -- $xpending
 xpendingSummary,
 XPendingSummaryResponse(..),
@@ -555,28 +523,6 @@ XClaimOpts(..),
 defaultXClaimOpts,
 xclaim, -- |Change ownership of some messages to the given consumer, returning the updated messages. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
 xclaimJustIds, -- |Change ownership of some messages to the given consumer, returning only the changed message IDs. The Redis @XCLAIM@ command is split into 'xclaim' and 'xclaimJustIds'. Since Redis 5.0.0
-
--- ** Geo commands
-GeoUnit(..),
-GeoOrder(..),
-GeoCoordinates(..),
-GeoLocation(..),
-GeoSearchFrom(..),
-GeoSearchBy(..),
-GeoSearchOpts(..),
-defaultGeoSearchOpts,
-GeoSearchStoreOpts(..),
-defaultGeoSearchStoreOpts,
-GeoAddOpts(..),
-defaultGeoAddOpts,
-geoadd,
-geoaddOpts,
-geodist,
-geopos,
-geoSearch,
-geoSearchStore,
-
--- *** Autoclaim
 -- $autoclaim
 xautoclaim,
 xautoclaimOpts,
@@ -596,6 +542,56 @@ xdel,
 xdelex,
 xdelexOpts,
 xtrim,
+
+-- * Geo commands
+GeoUnit(..),
+GeoOrder(..),
+GeoCoordinates(..),
+GeoLocation(..),
+GeoSearchFrom(..),
+GeoSearchBy(..),
+GeoSearchOpts(..),
+defaultGeoSearchOpts,
+GeoSearchStoreOpts(..),
+defaultGeoSearchStoreOpts,
+GeoAddOpts(..),
+defaultGeoAddOpts,
+geoadd,
+geoaddOpts,
+geodist,
+geopos,
+geoSearch,
+geoSearchStore,
+
+-- * Redis stack
+-- ** Wait
+module Wait,
+
+-- ** Bloom Filters
+module BF,
+
+-- ** Cuckoo Filters
+module CF,
+
+-- ** Count-Min Sketches
+module Cms,
+
+-- ** Top-K
+module Topk,
+
+-- ** T-Digest
+module Tdigest,
+
+-- ** Time Series
+module Ts,
+
+-- ** Redis Indexes
+module FT,
+
+-- ** JSON
+module JSON,
+
+-- * Cluster commands
 inf,
 ClusterInfoResponse (..),
 ClusterInfoResponseState (..),

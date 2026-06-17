@@ -12,37 +12,32 @@ See repository milestones for more information.
 
 ## Redis API Completeness
 
-The idea of Hedis is to support all Redis commands by having one typesafe
-function per command.
+The idea is to make Hedis fully compatible with the best of the class
+libraries for the other languages. It means that we want features like (in random order):
 
-* Full features support of the Redis cluster.
-  At this point there are only few leftover issues for redis cluster support.
+* Full ACL support.
+* Multiplexing (optional)
+* Detect broken sockets and reconnect predictably (including cluster environment)
+* Exponential backoff with jitter to avoid connection storms
+* Error classification
+* Retry policy
+* Observability
+* Good examples
+* Full Redis Cluster support
+* Hash tags / same-slot validation
+* Cluster pipelining
+* Cluster scan
+* Full sentinel support
+* Read from replica (cluster and sentinel)
+* Failover behavior
+* RESP3 support
+* Client-side caching
+* Pub/Sub state restoration
+* Sharded Pub/Sub
+* Latency-based replica reads
+* AZ-aware replica reads
+* CLIENT CAPA redirect (Valkey)
+* OpenTelemetry integration
+* Async / streaming ergonomics (?)
 
-* Support of the PubSub protocol.
-
-* Support of Redis 5, 6, 7 features.
-
-* Mapping of Haskell types to Redis types: simplicity and convenience vs.
-  correctness (Some issues and pull requests on this topic).
-  1. All containers are Haskell lists (current approach):
-    - nice list syntax.
-    - easy conversion to all collection types.
-    - No real loss of safety for return types
-    - can fail for arguments (list vs. non-empty)
-  2. "correct" container types for each Redis type:
-    - Non-empty lists (unconvenient syntax?)
-    - Sets
-      - Which set type, Set vs HashSet vs ..
-      - Redis already returns "sets" in the sense that each element exists only
-        once in the returned list.
-    - Maps
-    - etc.
-
-## Command Return Types
-
-Currently every command returns the result wrapped in `Maybe Reply`. This is
-"what Redis returns" but it's unconvenient to use.
-
-* Return the results "unwrapped" and throw an exception when the reply is an
-  error or can not be decoded to the desired return type.
-* Does this work with the `Queued` return type in Mult/Exec?
+Some of the features may be partially implemented and some could be dropped.

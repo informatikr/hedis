@@ -89,7 +89,7 @@ tdigestMergeOptsToArgs TDigestMergeOpts{..} =
 
 -- |Adds one or more observations to a t-digest sketch (<https://redis.io/commands/tdigest.add>).
 --
--- $O(n \log k)$, where $n$ is the number of observations and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of observations and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestAdd
@@ -101,7 +101,7 @@ tdigestAdd key values = sendRequest $ ["TDIGEST.ADD", key] ++ map encode (NE.toL
 
 -- |Returns observations by their ascending ranks from a t-digest sketch (<https://redis.io/commands/tdigest.byrank>).
 --
--- $O(n \log k)$, where $n$ is the number of requested ranks and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of requested ranks and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestByrank
@@ -113,7 +113,7 @@ tdigestByrank key ranks = sendRequest $ ["TDIGEST.BYRANK", key] ++ map encode (N
 
 -- |Returns observations by their descending ranks from a t-digest sketch (<https://redis.io/commands/tdigest.byrevrank>).
 --
--- $O(n \log k)$, where $n$ is the number of requested reverse ranks and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of requested reverse ranks and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestByrevrank
@@ -125,7 +125,7 @@ tdigestByrevrank key ranks = sendRequest $ ["TDIGEST.BYREVRANK", key] ++ map enc
 
 -- |Returns cumulative distribution estimates for one or more observations (<https://redis.io/commands/tdigest.cdf>).
 --
--- $O(n \log k)$, where $n$ is the number of queried values and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of queried values and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestCdf
@@ -137,7 +137,7 @@ tdigestCdf key values = sendRequest $ ["TDIGEST.CDF", key] ++ map encode (NE.toL
 
 -- |Creates an empty t-digest sketch (<https://redis.io/commands/tdigest.create>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestCreate
@@ -148,7 +148,7 @@ tdigestCreate key = tdigestCreateOpts key defaultTDigestCreateOpts
 
 -- |Creates an empty t-digest sketch (<https://redis.io/commands/tdigest.create>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestCreateOpts
@@ -161,7 +161,7 @@ tdigestCreateOpts key opts =
 
 -- |Returns information about a t-digest sketch (<https://redis.io/commands/tdigest.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestInfo
@@ -172,7 +172,7 @@ tdigestInfo key = sendRequest ["TDIGEST.INFO", key]
 
 -- |Returns the maximum observation in a t-digest sketch (<https://redis.io/commands/tdigest.max>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestMax
@@ -183,7 +183,7 @@ tdigestMax key = sendRequest ["TDIGEST.MAX", key]
 
 -- |Merges multiple t-digest sketches into a destination sketch (<https://redis.io/commands/tdigest.merge>).
 --
--- $O(n \cdot k)$, where $n$ is the number of source sketches and $k$ is the compression parameter.
+-- /O(n \cdot k)/, where /n/ is the number of source sketches and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestMerge
@@ -196,7 +196,7 @@ tdigestMerge destination sources =
 
 -- |Merges multiple t-digest sketches into a destination sketch (<https://redis.io/commands/tdigest.merge>).
 --
--- $O(n \cdot k)$, where $n$ is the number of source sketches and $k$ is the compression parameter.
+-- /O(n \cdot k)/, where /n/ is the number of source sketches and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestMergeOpts
@@ -213,7 +213,7 @@ tdigestMergeOpts destination sources opts =
 
 -- |Returns the minimum observation in a t-digest sketch (<https://redis.io/commands/tdigest.min>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestMin
@@ -224,7 +224,7 @@ tdigestMin key = sendRequest ["TDIGEST.MIN", key]
 
 -- |Returns quantile estimates for one or more quantiles (<https://redis.io/commands/tdigest.quantile>).
 --
--- $O(n \log k)$, where $n$ is the number of quantiles and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of quantiles and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestQuantile
@@ -237,7 +237,7 @@ tdigestQuantile key quantiles =
 
 -- |Returns ascending rank estimates for one or more observations (<https://redis.io/commands/tdigest.rank>).
 --
--- $O(n \log k)$, where $n$ is the number of observations and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of observations and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestRank
@@ -249,7 +249,7 @@ tdigestRank key values = sendRequest $ ["TDIGEST.RANK", key] ++ map encode (NE.t
 
 -- |Resets a t-digest sketch to its empty state (<https://redis.io/commands/tdigest.reset>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.4.0
 tdigestReset
@@ -260,7 +260,7 @@ tdigestReset key = sendRequest ["TDIGEST.RESET", key]
 
 -- |Returns descending rank estimates for one or more observations (<https://redis.io/commands/tdigest.revrank>).
 --
--- $O(n \log k)$, where $n$ is the number of observations and $k$ is the compression parameter.
+-- /O(n \log k)/, where /n/ is the number of observations and /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestRevrank
@@ -272,7 +272,7 @@ tdigestRevrank key values = sendRequest $ ["TDIGEST.REVRANK", key] ++ map encode
 
 -- |Returns the trimmed mean for observations within the provided quantile range (<https://redis.io/commands/tdigest.trimmed_mean>).
 --
--- $O(\log k)$, where $k$ is the compression parameter.
+-- /O(\log k)/, where /k/ is the compression parameter.
 --
 -- Since RedisBloom 2.4.0
 tdigestTrimmedMean

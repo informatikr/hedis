@@ -92,7 +92,7 @@ jsonArrIndexOptsToArgs (JSONArrIndexFromTo start stop) = [encode start, encode s
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrappend
@@ -108,7 +108,7 @@ jsonArrappend key path values =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the array, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the array, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrindex
@@ -123,7 +123,7 @@ jsonArrindex key path value = jsonArrindexOpts key path value defaultJSONArrInde
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the array, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the array, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrindexOpts
@@ -138,7 +138,7 @@ jsonArrindexOpts key path value opts =
 
 -- |Returns the length of the array at the root path (<https://redis.io/commands/json.arrlen>).
 --
--- $O(1)$ where path is evaluated to a single value, $O(N)$ where path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ where path is evaluated to a single value, /O(N)/ where path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrlen
@@ -151,7 +151,7 @@ jsonArrlen key = sendRequest ["JSON.ARRLEN", key]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ where path is evaluated to a single value, $O(N)$ where path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ where path is evaluated to a single value, /O(N)/ where path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrlenAt
@@ -165,7 +165,7 @@ jsonArrlenAt key path = sendRequest ["JSON.ARRLEN", key, path]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the array, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the array, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrinsert
@@ -180,7 +180,7 @@ jsonArrinsert key path index values =
 
 -- |Removes and returns the element at the end of the array at the root path (<https://redis.io/commands/json.arrpop>).
 --
--- $O(1)$ when the popped item is the last element, otherwise $O(N)$ where $N$ is the size of the array
+-- /O(1)/ when the popped item is the last element, otherwise /O(N)/ where /N/ is the size of the array
 --
 -- Since RedisJSON 1.0.0
 jsonArrpop
@@ -193,7 +193,7 @@ jsonArrpop key = sendRequest ["JSON.ARRPOP", key]
 --
 -- The reply shape depends on the path syntax and popped value type, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when the popped item is the last element, otherwise $O(N)$ where $N$ is the size of the array
+-- /O(1)/ when the popped item is the last element, otherwise /O(N)/ where /N/ is the size of the array
 --
 -- Since RedisJSON 1.0.0
 jsonArrpopAt
@@ -207,7 +207,7 @@ jsonArrpopAt key path = sendRequest ["JSON.ARRPOP", key, path]
 --
 -- The reply shape depends on the path syntax and popped value type, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when the specified index is not the last element, otherwise $O(1)$
+-- /O(N)/ when the specified index is not the last element, otherwise /O(1)/
 --
 -- Since RedisJSON 1.0.0
 jsonArrpopAtIndex
@@ -223,7 +223,7 @@ jsonArrpopAtIndex key path index =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the array, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the array, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonArrtrim
@@ -238,7 +238,7 @@ jsonArrtrim key path start stop =
 
 -- |Clears all values from an array or an object and sets numeric values at the root path to @0@ (<https://redis.io/commands/json.clear>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the values, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the values, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 2.0.0
 jsonClear
@@ -249,7 +249,7 @@ jsonClear key = sendRequest ["JSON.CLEAR", key]
 
 -- |Clears all values from an array or an object and sets numeric values at path to @0@ (<https://redis.io/commands/json.clear>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the values, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the values, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 2.0.0
 jsonClearAt
@@ -263,7 +263,7 @@ jsonClearAt key path = sendRequest ["JSON.CLEAR", key, path]
 --
 -- This is a container command for debugging related tasks.
 --
--- N/A
+-- N\/A
 --
 -- Since RedisJSON 1.0.0
 jsonDebug
@@ -275,7 +275,7 @@ jsonDebug = sendRequest ["JSON.DEBUG"]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonDebugMemory
@@ -288,7 +288,7 @@ jsonDebugMemory key = sendRequest ["JSON.DEBUG", "MEMORY", key]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonDebugMemoryAt
@@ -300,7 +300,7 @@ jsonDebugMemoryAt key path = sendRequest ["JSON.DEBUG", "MEMORY", key, path]
 
 -- |Deletes a value at the root path (<https://redis.io/commands/json.del>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the deleted value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the deleted value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonDel
@@ -311,7 +311,7 @@ jsonDel key = sendRequest ["JSON.DEL", key]
 
 -- |Deletes a value at path (<https://redis.io/commands/json.del>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the deleted value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the deleted value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonDelAt
@@ -323,7 +323,7 @@ jsonDelAt key path = sendRequest ["JSON.DEL", key, path]
 
 -- |Deletes a value at the root path (<https://redis.io/commands/json.forget>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the deleted value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the deleted value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonForget
@@ -334,7 +334,7 @@ jsonForget key = sendRequest ["JSON.FORGET", key]
 
 -- |Deletes a value at path (<https://redis.io/commands/json.forget>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the deleted value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the deleted value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonForgetAt
@@ -346,7 +346,7 @@ jsonForgetAt key path = sendRequest ["JSON.FORGET", key, path]
 
 -- |Gets the value at the root path in JSON serialized form (<https://redis.io/commands/json.get>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonGet
@@ -357,7 +357,7 @@ jsonGet key = jsonGetOpts key defaultJSONGetOpts
 
 -- |Gets the value at one or more paths in JSON serialized form (<https://redis.io/commands/json.get>).
 --
--- $O(N)$ when path is evaluated to a single value where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonGetOpts
@@ -372,7 +372,7 @@ jsonGetOpts key opts =
 --
 -- Consequently, JSON values at matching paths are updated, deleted, or expanded with new children.
 --
--- $O(M+N)$ when path is evaluated to a single value where $M$ is the size of the original value and $N$ is the size of the new value, $O(M+N)$ when path is evaluated to multiple values where $M$ is the size of the key and $N$ is the size of the new value times the number of matches
+-- /O(M+N)/ when path is evaluated to a single value where /M/ is the size of the original value and /N/ is the size of the new value, /O(M+N)/ when path is evaluated to multiple values where /M/ is the size of the key and /N/ is the size of the new value times the number of matches
 --
 -- Since RedisJSON 2.6.0
 jsonMerge
@@ -385,7 +385,7 @@ jsonMerge key path value = sendRequest ["JSON.MERGE", key, path, value]
 
 -- |Returns the values at a path from one or more keys (<https://redis.io/commands/json.mget>).
 --
--- $O(M*N)$ when path is evaluated to a single value where $M$ is the number of keys and $N$ is the size of the value, $O(N1+N2+\dots+Nm)$ when path is evaluated to multiple values
+-- /O(M*N)/ when path is evaluated to a single value where /M/ is the number of keys and /N/ is the size of the value, /O(N1+N2+\dots+Nm)/ when path is evaluated to multiple values
 --
 -- Since RedisJSON 1.0.0
 jsonMget
@@ -397,7 +397,7 @@ jsonMget keys path = sendRequest $ "JSON.MGET" : NE.toList keys ++ [path]
 
 -- |Sets or updates the JSON value of one or more keys (<https://redis.io/commands/json.mset>).
 --
--- $O(K*(M+N))$ where $K$ is the number of keys in the command
+-- /O(K*(M+N))/ where /K/ is the number of keys in the command
 --
 -- Since RedisJSON 2.6.0
 jsonMset
@@ -413,7 +413,7 @@ jsonMset triplets =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonNumincrby
@@ -429,7 +429,7 @@ jsonNumincrby key path value =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonNummultby
@@ -445,7 +445,7 @@ jsonNummultby key path value =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the number of keys in the object, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the number of keys in the object, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonObjkeys
@@ -458,7 +458,7 @@ jsonObjkeys key = sendRequest ["JSON.OBJKEYS", key]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the number of keys in the object, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the number of keys in the object, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonObjkeysAt
@@ -472,7 +472,7 @@ jsonObjkeysAt key path = sendRequest ["JSON.OBJKEYS", key, path]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonObjlen
@@ -485,7 +485,7 @@ jsonObjlen key = sendRequest ["JSON.OBJLEN", key]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonObjlenAt
@@ -499,7 +499,7 @@ jsonObjlenAt key path = sendRequest ["JSON.OBJLEN", key, path]
 --
 -- The reply may be any RESP shape depending on the JSON value, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonResp
@@ -512,7 +512,7 @@ jsonResp key = sendRequest ["JSON.RESP", key]
 --
 -- The reply may be any RESP shape depending on the JSON value, so this wrapper returns the raw 'Reply'.
 --
--- $O(N)$ when path is evaluated to a single value, where $N$ is the size of the value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(N)/ when path is evaluated to a single value, where /N/ is the size of the value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonRespAt
@@ -537,7 +537,7 @@ jsonSet key path value = jsonSetOpts key path value defaultJSONSetOpts
 
 -- |Sets or updates the JSON value at a path (<https://redis.io/commands/json.set>).
 --
--- $O(M+N)$ when path is evaluated to a single value where $M$ is the size of the original value and $N$ is the size of the new value, $O(M+N)$ when path is evaluated to multiple values where $M$ is the size of the key and $N$ is the size of the new value times the number of matches
+-- /O(M+N)/ when path is evaluated to a single value where /M/ is the size of the original value and /N/ is the size of the new value, /O(M+N)/ when path is evaluated to multiple values where /M/ is the size of the key and /N/ is the size of the new value times the number of matches
 --
 -- Since RedisJSON 1.0.0
 jsonSetOpts
@@ -554,7 +554,7 @@ jsonSetOpts key path value opts =
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonStrappend
@@ -568,7 +568,7 @@ jsonStrappend key value = sendRequest ["JSON.STRAPPEND", key, value]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonStrappendAt
@@ -583,7 +583,7 @@ jsonStrappendAt key path value = sendRequest ["JSON.STRAPPEND", key, path, value
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 2.0.0
 jsonToggle
@@ -597,7 +597,7 @@ jsonToggle key path = sendRequest ["JSON.TOGGLE", key, path]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonType
@@ -610,7 +610,7 @@ jsonType key = sendRequest ["JSON.TYPE", key]
 --
 -- The reply shape depends on the path syntax, so this wrapper returns the raw 'Reply'.
 --
--- $O(1)$ when path is evaluated to a single value, $O(N)$ when path is evaluated to multiple values, where $N$ is the size of the key
+-- /O(1)/ when path is evaluated to a single value, /O(N)/ when path is evaluated to multiple values, where /N/ is the size of the key
 --
 -- Since RedisJSON 1.0.0
 jsonTypeAt

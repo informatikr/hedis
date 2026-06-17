@@ -9,44 +9,47 @@ Description:
     Redis is an open source, advanced key-value store. It is often referred to
     as a data structure server since keys can contain strings, hashes, lists,
     sets and sorted sets. This library is a Haskell client for the Redis
-    datastore. Compared to other Haskell client libraries it has some
+    datastore.
+
+    Compared to other Haskell client libraries it has some
     advantages:
-    .
-    [Compatibility with Latest Stable Redis:] Hedis is intended
-        to be used with the latest stable version of Redis (currently 5.0).
-    Most redis commands (<http://redis.io/commands>) are available as
-    haskell functions, although MONITOR and SYNC are intentionally
-    omitted. Additionally, a low-level API is
-        exposed that  makes it easy for the library user to implement further
-        commands, such as new commands from an experimental Redis version.
-    .
-    [Automatic Optimal Pipelining:] Commands are pipelined
-        (<http://redis.io/topics/pipelining>) as much as possible without any
-        work by the user. See
-        <http://informatikr.com/2012/redis-pipelining.html> for a
-        technical explanation of automatic optimal pipelining.
-    .
-    [Enforced Pub\/Sub semantics:] When subscribed to the Redis Pub\/Sub server
-        (<http://redis.io/topics/pubsub>), clients are not allowed to issue
-        commands other than subscribing to or unsubscribing from channels. This
-        library uses the type system to enforce the correct behavior.
-    .
-    [Connect via TCP or Unix Domain Socket:] TCP sockets are the default way to
-        connect to a Redis server. For connections to a server on the same
-        machine, Unix domain sockets offer higher performance than the standard
-        TCP connection.
-    .
+
+    * __Compatibility with Latest Stable Redis:__ Hedis is intended to be used with any
+      version of Redis starting with 5.0 to 8.8. But pay attention to the Since annotation
+      that tells when the command was introduced in Redis. The library does not provide
+      static checks and unsupported commands will result in a runtime error.
+      Most Redis commands (<http://redis.io/commands>) are available as
+      Haskell functions, although @MONITOR@ and @SYNC@ are intentionally
+      omitted. Additionally, a low-level API is exposed that makes it easy for the
+      library user to implement further commands, such as new commands from an
+      experimental Redis version.
+    * __Automatic Optimal Pipelining:__ Commands are pipelined
+      (<http://redis.io/topics/pipelining>) as much as possible without any
+      work by the user. See
+      <http://informatikr.com/2012/redis-pipelining.html> for a
+      technical explanation of automatic optimal pipelining.
+    * __Enforced Pub\/Sub semantics:__ When subscribed to the Redis Pub\/Sub server
+      (<http://redis.io/topics/pubsub>), clients are not allowed to issue
+      commands other than subscribing to or unsubscribing from channels. This
+      library uses the type system to enforce the correct behavior.
+    * __Connect via TCP or Unix Domain Socket:__ TCP sockets are the default way to
+      connect to a Redis server. For connections to a server on the same
+      machine, Unix domain sockets offer higher performance than the standard
+      TCP connection.
+    * __Cluster and multi-instance support:__ Hedis supports Redis Cluster and Redis Sentinel.
+
     For detailed documentation, see the "Database.Redis" module.
-    .
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Falko Peters <falko.peters@gmail.com>
-maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>, Alexander Vershilov <alexander.vershilov@gmail.com>
+maintainer:         Kostiantyn Rybnikov <k-bx@k-bx.com>, Alexander Vershilov <alexander.vershilov@tweag.io>
 copyright:          Copyright (c) 2011 Falko Peters
 category:           Database
 homepage:           https://github.com/informatikr/hedis
 bug-reports:        https://github.com/informatikr/hedis/issues
-extra-source-files: CHANGELOG
+extra-source-files:
+  CHANGELOG,
+  README.md
 
 tested-with: GHC == { 9.6.7, 9.8.4, 9.10.3, 9.12.4, 9.14.1 }
 
@@ -140,7 +143,7 @@ benchmark hedis-benchmark
         mtl >= 2.0,
         hedis,
         time >= 1.2
-    ghc-options: -O2 -Wall -rtsopts
+    ghc-options: -Wall -rtsopts
     if flag(dev)
       ghc-options: -Werror
     if flag(dev)
@@ -167,8 +170,7 @@ test-suite hedis-test
         test-framework-hunit,
         transformers,
         time
-    -- We use -O0 here, since GHC takes *very* long to compile so many constants
-    ghc-options: -O0 -Wall -rtsopts -fno-warn-unused-do-bind
+    ghc-options: -Wall -rtsopts -fno-warn-unused-do-bind
     if flag(dev)
       ghc-options: -Werror
     if flag(dev)

@@ -56,7 +56,7 @@ data Status = Ok | Pong | Status ByteString
 
 instance NFData Status
 
-data RedisType = None | String | Hash | List | Set | ZSet
+data RedisType = None | String | Hash | List | Set | ZSet | Stream | VectorSet
     deriving (Show, Eq)
 
 instance RedisResult Reply where
@@ -95,6 +95,8 @@ instance RedisResult RedisType where
         "list"   -> List
         "set"    -> Set
         "zset"   -> ZSet
+        "stream" -> Stream
+        "vector" -> VectorSet
         _        -> error $ "Hedis: unhandled redis type: " ++ show s
     decode r = Left r
 
@@ -116,7 +118,7 @@ instance
     (RedisResult a) => RedisResult [a] where
     decode (MultiBulk (Just rs)) = mapM decode rs
     decode r                     = Left r
- 
+
 instance (RedisResult a, RedisResult b) => RedisResult (a,b) where
     decode (MultiBulk (Just [x, y])) = (,) <$> decode x <*> decode y
     decode r                         = Left r

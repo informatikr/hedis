@@ -27,6 +27,7 @@ objectRefcount
     -> m (f Integer)
 objectRefcount key = sendRequest ["OBJECT", "refcount", key]
 
+-- |Inspect the internals of Redis objects (<http://redis.io/commands/object>). The Redis command @OBJECT@ is split up into 'objectRefcount', 'objectEncoding', 'objectIdletime'. Since Redis 2.2.3
 objectIdletime
     :: (RedisCtx m f)
     => ByteString -- ^ key
@@ -79,7 +80,7 @@ defaultLPosOpts = LPosOpts
 
 -- |Returns the index of the first matching element in a list (<https://redis.io/commands/lpos>).
 --
--- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+-- /O(N)/ where /N/ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
 --
 -- Since Redis 6.0.6
 lpos
@@ -91,7 +92,7 @@ lpos key element = lposOpts key element defaultLPosOpts
 
 -- |Returns the index of the first matching element in a list (<https://redis.io/commands/lpos>).
 --
--- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+-- /O(N)/ where /N/ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
 --
 -- Since Redis 6.0.6
 lposOpts
@@ -105,7 +106,7 @@ lposOpts key element opts =
 
 -- |Returns the indexes of matching elements in a list (<https://redis.io/commands/lpos>).
 --
--- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+-- /O(N)/ where /N/ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
 --
 -- Since Redis 6.0.6
 lposCount
@@ -118,7 +119,7 @@ lposCount key element count = lposCountOpts key element count defaultLPosOpts
 
 -- |Returns the indexes of matching elements in a list (<https://redis.io/commands/lpos>).
 --
--- $O(N)$ where $N$ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
+-- /O(N)/ where /N/ is the number of elements in the list, for the average case. When searching for elements near the head or the tail of the list, or when the MAXLEN option is provided, the command may run in constant time.
 --
 -- Since Redis 6.0.6
 lposCountOpts
@@ -151,7 +152,7 @@ lposOptsParts LPosOpts{..} =
 -- |Move an element after taking it from one list and pushing it to another (<https://redis.io/commands/lmove>).
 --
 -- In clustered environments source and destination keys must be in the same hash slot, which can be ensured by using hash tags (e.g. @{tag}source@ and @{tag}destination@).
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 lmove
@@ -168,7 +169,7 @@ lmove source destination from to =
 --
 -- In clustered environments source and destination keys must be in the same hash slot, which can be ensured by using hash tags (e.g. @{tag}source@ and @{tag}destination@).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 blmove
@@ -184,7 +185,7 @@ blmove source destination from to timeout =
 
 -- |Pops one or more elements from the first non-empty list from a list of keys (<https://redis.io/commands/lmpop>).
 --
--- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+-- /O(N+M)/ where /N/ is the number of provided keys and /M/ is the number of elements returned.
 --
 -- Since Redis 7.0.0
 lmpop
@@ -196,7 +197,7 @@ lmpop keys direction = lmpopCount keys direction 1
 
 -- |Pops one or more elements from the first non-empty list from a list of keys (<https://redis.io/commands/lmpop>).
 --
--- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+-- /O(N+M)/ where /N/ is the number of provided keys and /M/ is the number of elements returned.
 --
 -- Since Redis 7.0.0
 lmpopCount
@@ -210,7 +211,7 @@ lmpopCount keys direction count =
 
 -- |Pops one or more elements from the first non-empty list from a list of keys, or blocks until one is available (<https://redis.io/commands/blmpop>).
 --
--- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+-- /O(N+M)/ where /N/ is the number of provided keys and /M/ is the number of elements returned.
 --
 -- Since Redis 7.0.0
 blmpop
@@ -223,7 +224,7 @@ blmpop timeout keys direction = blmpopCount timeout keys direction 1
 
 -- |Pops one or more elements from the first non-empty list from a list of keys, or blocks until one is available (<https://redis.io/commands/blmpop>).
 --
--- $O(N+M)$ where $N$ is the number of provided keys and $M$ is the number of elements returned.
+-- /O(N+M)/ where /N/ is the number of provided keys and /M/ is the number of elements returned.
 --
 -- Since Redis 7.0.0
 blmpopCount
@@ -542,7 +543,7 @@ zstoreInternal cmd dest keys weights aggregate = sendRequest $
 
 -- |Returns the difference between multiple sorted sets (<https://redis.io/commands/zdiff>).
 --
--- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+-- /O(L + (N - K)\log(N))/ worst case where $L$ is the total number of elements in all the sorted sets, /N/ is the size of the first sorted set, and /K/ is the size of the result set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -555,7 +556,7 @@ zdiff keys = sendRequest $ zAggregateKeysArgs "ZDIFF" keys
 
 -- |Returns the difference between multiple sorted sets with scores (<https://redis.io/commands/zdiff>).
 --
--- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+-- /O(L + (N - K)\log(N))/ worst case where $L$ is the total number of elements in all the sorted sets, /N/ is the size of the first sorted set, and /K/ is the size of the result set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -568,7 +569,7 @@ zdiffWithscores keys = sendRequest $ zAggregateKeysArgs "ZDIFF" keys ++ ["WITHSC
 
 -- |Stores the difference of multiple sorted sets in a key (<https://redis.io/commands/zdiffstore>).
 --
--- $O(L + (N - K)\log(N))$ worst case where $L$ is the total number of elements in all the sorted sets, $N$ is the size of the first sorted set, and $K$ is the size of the result set.
+-- /O(L + (N - K)\log(N))/ worst case where $L$ is the total number of elements in all the sorted sets, /N/ is the size of the first sorted set, and /K/ is the size of the result set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -587,7 +588,7 @@ zdiffstore destination keys =
 
 -- |Returns the intersection of multiple sorted sets (<https://redis.io/commands/zinter>).
 --
--- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+-- /O(NK) + O(M\log(M))/ worst case with /N/ being the smallest input sorted set, /K/ being the number of input sorted sets and /M/ being the number of elements in the resulting sorted set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -612,7 +613,7 @@ defaultZAggregateOpts = ZAggregateOpts
 
 -- |Returns the intersection of multiple sorted sets with scores (<https://redis.io/commands/zinter>).
 --
--- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+-- /O(NK) + O(M\log(M))/ worst case with /N/ being the smallest input sorted set, /K/ being the number of input sorted sets and /M/ being the number of elements in the resulting sorted set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -625,7 +626,7 @@ zinterWithscores keys = zinterWithscoresOpts keys defaultZAggregateOpts
 
 -- |Returns the intersection of multiple sorted sets (<https://redis.io/commands/zinter>).
 --
--- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+-- /O(NK) + O(M\log(M))/ worst case with /N/ being the smallest input sorted set, /K/ being the number of input sorted sets and /M/ being the number of elements in the resulting sorted set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -639,7 +640,7 @@ zinterOpts keys opts = sendRequest $ zAggregateInternalArgs "ZINTER" keys opts F
 
 -- |Returns the intersection of multiple sorted sets with scores (<https://redis.io/commands/zinter>).
 --
--- $O(NK) + O(M\log(M))$ worst case with $N$ being the smallest input sorted set, $K$ being the number of input sorted sets and $M$ being the number of elements in the resulting sorted set.
+-- /O(NK) + O(M\log(M))/ worst case with /N/ being the smallest input sorted set, /K/ being the number of input sorted sets and /M/ being the number of elements in the resulting sorted set.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -653,7 +654,7 @@ zinterWithscoresOpts keys opts = sendRequest $ zAggregateInternalArgs "ZINTER" k
 
 -- |Returns the union of multiple sorted sets (<https://redis.io/commands/zunion>).
 --
--- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+-- /O(N) + O(M\log(M))/ with /N/ being the sum of the sizes of the input sorted sets, and /M/ being the number of elements in the resulting sorted set.
 --
 -- Since Redis 6.2.0
 zunion
@@ -664,7 +665,7 @@ zunion keys = zunionOpts keys defaultZAggregateOpts
 
 -- |Returns the union of multiple sorted sets with scores (<https://redis.io/commands/zunion>).
 --
--- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+-- /O(N) + O(M\log(M))/ with /N/ being the sum of the sizes of the input sorted sets, and /M/ being the number of elements in the resulting sorted set.
 --
 -- Since Redis 6.2.0
 zunionWithscores
@@ -675,7 +676,7 @@ zunionWithscores keys = zunionWithscoresOpts keys defaultZAggregateOpts
 
 -- |Returns the union of multiple sorted sets (<https://redis.io/commands/zunion>).
 --
--- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+-- /O(N) + O(M\log(M))/ with /N/ being the sum of the sizes of the input sorted sets, and /M/ being the number of elements in the resulting sorted set.
 --
 -- Since Redis 6.2.0
 zunionOpts
@@ -687,7 +688,7 @@ zunionOpts keys opts = sendRequest $ zAggregateInternalArgs "ZUNION" keys opts F
 
 -- |Returns the union of multiple sorted sets with scores (<https://redis.io/commands/zunion>).
 --
--- $O(N) + O(M\log(M))$ with $N$ being the sum of the sizes of the input sorted sets, and $M$ being the number of elements in the resulting sorted set.
+-- /O(N) + O(M\log(M))/ with /N/ being the sum of the sizes of the input sorted sets, and /M/ being the number of elements in the resulting sorted set.
 --
 -- Since Redis 6.2.0
 zunionWithscoresOpts
@@ -793,7 +794,7 @@ instance RedisArg FunctionRestorePolicy where
 
 -- |Deletes a library and its functions (<https://redis.io/commands/function-delete>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionDelete
@@ -804,7 +805,7 @@ functionDelete libraryName = sendRequest ["FUNCTION", "DELETE", libraryName]
 
 -- |Dumps all libraries into a serialized binary payload (<https://redis.io/commands/function-dump>).
 --
--- $O(N)$ where $N$ is the number of functions.
+-- /O(N)/ where /N/ is the number of functions.
 --
 -- Since Redis 7.0.0
 functionDump
@@ -814,7 +815,7 @@ functionDump = sendRequest ["FUNCTION", "DUMP"]
 
 -- |Deletes all libraries and functions (<https://redis.io/commands/function-flush>).
 --
--- $O(N)$ where $N$ is the number of functions deleted.
+-- /O(N)/ where /N/ is the number of functions deleted.
 --
 -- Since Redis 7.0.0
 functionFlush
@@ -824,7 +825,7 @@ functionFlush = sendRequest ["FUNCTION", "FLUSH"]
 
 -- |Deletes all libraries and functions (<https://redis.io/commands/function-flush>).
 --
--- $O(N)$ where $N$ is the number of functions deleted.
+-- /O(N)/ where /N/ is the number of functions deleted.
 --
 -- Since Redis 7.0.0
 functionFlushOpts
@@ -835,7 +836,7 @@ functionFlushOpts opts = sendRequest ["FUNCTION", "FLUSH", encode opts]
 
 -- |Returns helpful text about FUNCTION subcommands (<https://redis.io/commands/function-help>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionHelp
@@ -845,7 +846,7 @@ functionHelp = sendRequest ["FUNCTION", "HELP"]
 
 -- |Terminates a function during execution (<https://redis.io/commands/function-kill>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionKill
@@ -855,7 +856,7 @@ functionKill = sendRequest ["FUNCTION", "KILL"]
 
 -- |Returns information about all libraries (<https://redis.io/commands/function-list>).
 --
--- $O(N)$ where $N$ is the number of functions.
+-- /O(N)/ where /N/ is the number of functions.
 --
 -- Since Redis 7.0.0
 functionList
@@ -865,7 +866,7 @@ functionList = functionListOpts defaultFunctionListOpts
 
 -- |Returns information about all libraries (<https://redis.io/commands/function-list>).
 --
--- $O(N)$ where $N$ is the number of functions.
+-- /O(N)/ where /N/ is the number of functions.
 --
 -- Since Redis 7.0.0
 functionListOpts
@@ -880,7 +881,7 @@ functionListOpts FunctionListOpts{..} =
 
 -- |Creates a library (<https://redis.io/commands/function-load>).
 --
--- $O(N)$ where $N$ is the number of bytes in the function's source code.
+-- /O(N)/ where /N/ is the number of bytes in the function's source code.
 --
 -- Since Redis 7.0.0
 functionLoad
@@ -891,7 +892,7 @@ functionLoad libraryCode = sendRequest ["FUNCTION", "LOAD", libraryCode]
 
 -- |Creates a library, replacing an existing one with the same name (<https://redis.io/commands/function-load>).
 --
--- $O(N)$ where $N$ is the number of bytes in the function's source code.
+-- /O(N)/ where /N/ is the number of bytes in the function's source code.
 --
 -- Since Redis 7.0.0
 functionLoadReplace
@@ -902,7 +903,7 @@ functionLoadReplace libraryCode = sendRequest ["FUNCTION", "LOAD", "REPLACE", li
 
 -- |Restores all libraries from a payload (<https://redis.io/commands/function-restore>).
 --
--- $O(N)$ where $N$ is the number of functions restored.
+-- /O(N)/ where /N/ is the number of functions restored.
 --
 -- Since Redis 7.0.0
 functionRestore
@@ -915,7 +916,7 @@ functionRestore payload restorePolicy =
 
 -- |Returns information about a function during execution (<https://redis.io/commands/function-stats>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.0.0
 functionStats
@@ -1178,7 +1179,7 @@ defaultVAddOpts = VAddOpts
 
 -- |Adds a new element to a vector set, or updates its vector if it already exists (<https://redis.io/commands/vadd>).
 --
--- $O(log(N))$ for each element added, where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ for each element added, where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vadd
@@ -1195,7 +1196,7 @@ vadd key vector element = vaddOpts key vector element defaultVAddOpts
 
 -- |Adds a new element to a vector set, or updates its vector if it already exists (<https://redis.io/commands/vadd>).
 --
--- $O(log(N))$ for each element added, where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ for each element added, where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vaddOpts
@@ -1236,7 +1237,7 @@ vaddOpts key vector element VAddOpts{..} =
 
 -- |Return the number of elements in the specified vector set (<https://redis.io/commands/vcard>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vcard
@@ -1247,7 +1248,7 @@ vcard key = sendRequest ["VCARD", key]
 
 -- |Return the number of dimensions of the vectors in the specified vector set (<https://redis.io/commands/vdim>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vdim
@@ -1258,7 +1259,7 @@ vdim key = sendRequest ["VDIM", key]
 
 -- |Return the approximate vector associated with a given element in the vector set (<https://redis.io/commands/vemb>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vemb
@@ -1270,7 +1271,7 @@ vemb key element = sendRequest ["VEMB", key, element]
 
 -- |Return the raw internal representation of the vector associated with a given element in the vector set (<https://redis.io/commands/vemb>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vembRaw
@@ -1282,7 +1283,7 @@ vembRaw key element = sendRequest ["VEMB", key, element, "RAW"]
 
 -- |Retrieve the JSON attributes of an element in a vector set (<https://redis.io/commands/vgetattr>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vgetattr
@@ -1294,7 +1295,7 @@ vgetattr key element = sendRequest ["VGETATTR", key, element]
 
 -- |Return metadata and internal details about a vector set (<https://redis.io/commands/vinfo>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vinfo
@@ -1305,7 +1306,7 @@ vinfo key = sendRequest ["VINFO", key]
 
 -- |Check if an element exists in a vector set (<https://redis.io/commands/vismember>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vismember
@@ -1317,7 +1318,7 @@ vismember key element = sendRequest ["VISMEMBER", key, element]
 
 -- |Return the neighbors of a specified element in a vector set (<https://redis.io/commands/vlinks>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vlinks
@@ -1329,7 +1330,7 @@ vlinks key element = sendRequest ["VLINKS", key, element]
 
 -- |Return the neighbors of a specified element in a vector set together with their similarity scores (<https://redis.io/commands/vlinks>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vlinksWithScores
@@ -1341,7 +1342,7 @@ vlinksWithScores key element = sendRequest ["VLINKS", key, element, "WITHSCORES"
 
 -- |Return one random element from a vector set (<https://redis.io/commands/vrandmember>).
 --
--- $O(N)$ where $N$ is the absolute value of the count argument.
+-- /O(N)/ where /N/ is the absolute value of the count argument.
 --
 -- Since Redis 8.0.0
 vrandmember
@@ -1352,7 +1353,7 @@ vrandmember key = sendRequest ["VRANDMEMBER", key]
 
 -- |Return one or multiple random elements from a vector set (<https://redis.io/commands/vrandmember>).
 --
--- $O(N)$ where $N$ is the absolute value of the count argument.
+-- /O(N)/ where /N/ is the absolute value of the count argument.
 --
 -- Since Redis 8.0.0
 vrandmemberCount
@@ -1368,7 +1369,7 @@ vrandmemberCount key count = sendRequest ["VRANDMEMBER", key, encode count]
 
 -- |Returns elements in a lexicographical range (<https://redis.io/commands/vrange>).
 --
--- $O(log(K)+M)$ where $K$ is the number of elements in the start prefix, and $M$ is the number of elements returned. In practical terms, the command is just $O(M)$.
+-- /O(log(K)+M)/ where /K/ is the number of elements in the start prefix, and /M/ is the number of elements returned. In practical terms, the command is just /O(M)/.
 --
 -- Since Redis 8.4.0
 vrange
@@ -1389,7 +1390,7 @@ vrange key start end = sendRequest ["VRANGE", key, start, end]
 
 -- |Returns elements in a lexicographical range (<https://redis.io/commands/vrange>).
 --
--- $O(log(K)+M)$ where $K$ is the number of elements in the start prefix, and $M$ is the number of elements returned. In practical terms, the command is just $O(M)$.
+-- /O(log(K)+M)/ where /K/ is the number of elements in the start prefix, and /M/ is the number of elements returned. In practical terms, the command is just /O(M)/.
 --
 -- Since Redis 8.4.0
 vrangeCount
@@ -1408,7 +1409,7 @@ vrangeCount key start end count =
 
 -- |Remove an element from a vector set (<https://redis.io/commands/vrem>).
 --
--- $O(log(N))$ for each element removed, where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ for each element removed, where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vrem
@@ -1420,7 +1421,7 @@ vrem key element = sendRequest ["VREM", key, element]
 
 -- |Associate or remove the JSON attributes of an element in a vector set (<https://redis.io/commands/vsetattr>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.0.0
 vsetattr
@@ -1437,7 +1438,7 @@ vsetattr key element attributes = sendRequest ["VSETATTR", key, element, attribu
 
 -- |Return elements similar to a given vector or element (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vsim
@@ -1453,7 +1454,7 @@ vsim key query = vsimOpts key query defaultVSimOpts
 
 -- |Return elements similar to a given vector or element (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vsimOpts
@@ -1476,7 +1477,7 @@ vsimOpts key query opts =
 
 -- |Return elements similar to a given vector or element together with their similarity scores (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vsimWithScores
@@ -1488,7 +1489,7 @@ vsimWithScores key query = vsimWithScoresOpts key query defaultVSimOpts
 
 -- |Return elements similar to a given vector or element together with their similarity scores (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.0.0
 vsimWithScoresOpts
@@ -1502,7 +1503,7 @@ vsimWithScoresOpts key query opts =
 
 -- |Return elements similar to a given vector or element together with their similarity scores and JSON attributes (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.2.0
 vsimWithScoresWithAttribs
@@ -1515,7 +1516,7 @@ vsimWithScoresWithAttribs key query =
 
 -- |Return elements similar to a given vector or element together with their similarity scores and JSON attributes (<https://redis.io/commands/vsim>).
 --
--- $O(log(N))$ where $N$ is the number of elements in the vector set.
+-- /O(log(N))/ where /N/ is the number of elements in the vector set.
 --
 -- Since Redis 8.2.0
 vsimWithScoresWithAttribsOpts
@@ -1655,11 +1656,13 @@ restoreReplace
 restoreReplace key timeToLive serializedValue =
   sendRequest ["RESTORE", key, encode timeToLive, serializedValue, "REPLACE"]
 
+-- | Options for the 'copy' command.
 data CopyOpts = CopyOpts
-  { copyDestinationDb :: Maybe Integer
-  , copyReplace :: Bool
+  { copyDestinationDb :: Maybe Integer -- ^ Destination database number.
+  , copyReplace :: Bool -- ^ Replace the destination key if it already exists.
   } deriving (Show, Eq)
 
+-- | Redis default 'CopyOpts'. Equivalent to omitting all optional parameters.
 defaultCopyOpts :: CopyOpts
 defaultCopyOpts = CopyOpts
   { copyDestinationDb = Nothing
@@ -1668,26 +1671,26 @@ defaultCopyOpts = CopyOpts
 
 -- |Copies the value of a key to a new key (<https://redis.io/commands/copy>).
 --
--- $O(N)$ worst case for collections, where $N$ is the number of nested items. $O(1)$ for string values.
+-- /O(N)/ worst case for collections, where @N@ is the number of nested items. /O(1)/ for string values.
 --
 -- Since Redis 6.2.0
 copy
     :: (RedisCtx m f)
-    => ByteString
-    -> ByteString
+    => ByteString -- ^ Source key
+    -> ByteString -- ^ Destination key
     -> m (f Bool)
 copy source destination = copyOpts source destination defaultCopyOpts
 
 -- |Copies the value of a key to a new key (<https://redis.io/commands/copy>).
 --
--- $O(N)$ worst case for collections, where $N$ is the number of nested items. $O(1)$ for string values.
+-- /O(N)/ worst case for collections, where /N/ is the number of nested items. /O(1)/ for string values.
 --
 -- Since Redis 6.2.0
 copyOpts
     :: (RedisCtx m f)
-    => ByteString
-    -> ByteString
-    -> CopyOpts
+    => ByteString -- ^ Source key
+    -> ByteString -- ^ Destination key
+    -> CopyOpts -- ^ Copy options
     -> m (f Bool)
 copyOpts source destination CopyOpts{..} =
     sendRequest $ ["COPY", source, destination] ++ dbArg ++ replaceArg
@@ -1699,7 +1702,7 @@ copyOpts source destination CopyOpts{..} =
 --
 -- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
 --
--- $O(1)$. Since Redis 7.0.0
+-- /O(1)/. Since Redis 7.0.0
 expiretime
     :: (RedisCtx m f)
     => ByteString
@@ -1710,7 +1713,7 @@ expiretime key = sendRequest ["EXPIRETIME", key]
 --
 -- Returns @-2@ if the key does not exist; @-1@ if the key exists but has no associated expiration.
 --
--- $O(1)$. Since Redis 7.0.0
+-- /O(1)/. Since Redis 7.0.0
 pexpiretime
     :: (RedisCtx m f)
     => ByteString
@@ -1802,7 +1805,7 @@ setGetOpts key value opts = sendRequest $ ["SET", key, value, "GET"] ++ internal
 
 -- |Atomically sets multiple string keys with an optional shared expiration in a single operation (<https://redis.io/commands/msetex>).
 --
--- $O(N)$ where $N$ is the number of keys to set.
+-- /O(N)/ where /N/ is the number of keys to set.
 --
 -- Since Redis 8.4.0
 msetex
@@ -1813,7 +1816,7 @@ msetex keyValues = msetexOpts keyValues defaultSetOpts
 
 -- |Atomically sets multiple string keys with an optional shared expiration in a single operation (<https://redis.io/commands/msetex>).
 --
--- $O(N)$ where $N$ is the number of keys to set.
+-- /O(N)/ where /N/ is the number of keys to set.
 --
 -- Since Redis 8.4.0
 msetexOpts
@@ -1854,7 +1857,7 @@ defaultGetExOpts = GetExOpts
 
 -- |Returns the string value of a key after deleting the key (<https://redis.io/commands/getdel>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 getdel
@@ -1880,7 +1883,7 @@ delexConditionToArgs condition =
 
 -- |Conditionally removes the specified key based on value or hash digest comparison (<https://redis.io/commands/delex>).
 --
--- $O(1)$ for /IFEQ/ and /IFNE/. $O(N)$ for /IFDEQ/ and /IFDNE/, where $N$ is the length of the string value.
+-- /O(1)/ for /IFEQ/ and /IFNE/. /O(N)/ for /IFDEQ/ and /IFDNE/, where /N/ is the length of the string value.
 --
 -- Since Redis 8.4.0
 delex
@@ -1891,7 +1894,7 @@ delex key = sendRequest ["DELEX", key]
 
 -- |Conditionally removes the specified key based on value or hash digest comparison (<https://redis.io/commands/delex>).
 --
--- $O(1)$ for /IFEQ/ and /IFNE/. $O(N)$ for /IFDEQ/ and /IFDNE/, where $N$ is the length of the string value.
+-- /O(1)/ for /IFEQ/ and /IFNE/. /O(N)/ for /IFDEQ/ and /IFDNE/, where /N/ is the length of the string value.
 --
 -- Since Redis 8.4.0
 delexWhen
@@ -1913,7 +1916,7 @@ delexWhen key condition =
 
 -- |Returns the hash digest of a string value (<https://redis.io/commands/digest>).
 --
--- $O(N)$ where $N$ is the length of the string value.
+-- /O(N)/ where /N/ is the length of the string value.
 --
 -- Since Redis 8.4.0
 digest
@@ -1924,7 +1927,7 @@ digest key = sendRequest ["DIGEST", key]
 
 -- |Returns the string value of a key after setting its expiration time (<https://redis.io/commands/getex>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 getex
@@ -1935,7 +1938,7 @@ getex key = getexOpts key defaultGetExOpts
 
 -- |Returns the string value of a key after setting its expiration time (<https://redis.io/commands/getex>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 getexOpts
@@ -1971,7 +1974,7 @@ defaultHGetExOpts = HGetExOpts
 
 -- |Returns the values associated with the specified fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hgetex>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 8.0.0
 hgetex
@@ -1983,7 +1986,7 @@ hgetex key fields = hgetexOpts key fields defaultHGetExOpts
 
 -- |Returns the values associated with the specified fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hgetex>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 8.0.0
 hgetexOpts
@@ -2003,7 +2006,7 @@ hgetexOpts key fields HGetExOpts{..} =
 
 -- |Returns the values associated with the specified fields in a hash and deletes those fields (<https://redis.io/commands/hgetdel>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 8.0.0
 hgetdel
@@ -2041,7 +2044,7 @@ defaultHSetExOpts = HSetExOpts
 
 -- |Sets fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hsetex>).
 --
--- $O(N)$ where $N$ is the number of fields set.
+-- /O(N)/ where /N/ is the number of fields set.
 --
 -- Since Redis 8.0.0
 hsetex
@@ -2053,7 +2056,7 @@ hsetex key fieldValues = hsetexOpts key fieldValues defaultHSetExOpts
 
 -- |Sets fields in a hash and optionally updates the key expiration (<https://redis.io/commands/hsetex>).
 --
--- $O(N)$ where $N$ is the number of fields set.
+-- /O(N)/ where /N/ is the number of fields set.
 --
 -- Since Redis 8.0.0
 hsetexOpts
@@ -2113,7 +2116,7 @@ hashFieldArgs fields =
 
 -- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Set an expiration (TTL or time to live) on one or more fields of a given hash key. You must specify at least one field. Field(s) will automatically be deleted from the hash key when their TTLs expire.
 --
@@ -2135,7 +2138,7 @@ hexpire key seconds fields =
 
 -- |Sets expiration for hash fields using relative time to expire in seconds (<https://redis.io/commands/hexpire>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hexpireOpts
@@ -2150,7 +2153,7 @@ hexpireOpts key seconds fields opts =
 
 -- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpexpire
@@ -2164,7 +2167,7 @@ hpexpire key milliseconds fields =
 
 -- |Sets expiration for hash fields using relative time to expire in milliseconds (<https://redis.io/commands/hpexpire>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpexpireOpts
@@ -2179,7 +2182,7 @@ hpexpireOpts key milliseconds fields opts =
 
 -- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hexpireat
@@ -2193,7 +2196,7 @@ hexpireat key unixTimeSeconds fields =
 
 -- |Sets expiration for hash fields using an absolute Unix timestamp in seconds (<https://redis.io/commands/hexpireat>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hexpireatOpts
@@ -2208,7 +2211,7 @@ hexpireatOpts key unixTimeSeconds fields opts =
 
 -- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpexpireat
@@ -2222,7 +2225,7 @@ hpexpireat key unixTimeMilliseconds fields =
 
 -- |Sets expiration for hash fields using an absolute Unix timestamp in milliseconds (<https://redis.io/commands/hpexpireat>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpexpireatOpts
@@ -2237,7 +2240,7 @@ hpexpireatOpts key unixTimeMilliseconds fields opts =
 
 -- |Returns the TTL in seconds of hash fields (<https://redis.io/commands/httl>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 httl
@@ -2250,7 +2253,7 @@ httl key fields =
 
 -- |Returns the TTL in milliseconds of hash fields (<https://redis.io/commands/hpttl>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpttl
@@ -2263,7 +2266,7 @@ hpttl key fields =
 
 -- |Returns the expiration time of hash fields as a Unix timestamp in seconds (<https://redis.io/commands/hexpiretime>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hexpiretime
@@ -2276,7 +2279,7 @@ hexpiretime key fields =
 
 -- |Returns the expiration time of hash fields as a Unix timestamp in milliseconds (<https://redis.io/commands/hpexpiretime>).
 --
--- $O(N)$ where $N$ is the number of specified fields.
+-- /O(N)/ where /N/ is the number of specified fields.
 --
 -- Since Redis 7.4.0
 hpexpiretime
@@ -2340,10 +2343,11 @@ data ZaddOpts = ZaddOpts
 --
 -- @
 -- ZaddOpts
---     { zaddCondition = Nothing -- omit NX and XX options
---     , zaddChange    = False   -- don't modify the return value from the number of new elements added, to the total number of elements changed
---     , zaddIncrement = False   -- don't add like ZINCRBY
---     }
+--   { zaddCondition = Nothing -- omit NX and XX options
+--   , zaddChange    = False   -- don't modify the return value from the number of new elements added, to the total number of elements changed
+--   , zaddIncrement = False   -- don't add like ZINCRBY
+--   , zaddSizeCondition = Nothing -- omit GT and LT options
+--   }
 -- @
 --
 defaultZaddOpts :: ZaddOpts
@@ -2389,7 +2393,7 @@ clientReply mode =
 
 -- |Resumes processing commands from paused clients (<https://redis.io/commands/client-unpause>).
 --
--- $O(N)$ where $N$ is the number of paused clients.
+-- /O(N)/ where /N/ is the number of paused clients.
 --
 -- Since Redis 6.2.0
 clientUnpause
@@ -2403,7 +2407,7 @@ clientUnpause = sendRequest ["CLIENT", "UNPAUSE"]
 --
 -- When turned off, the client touches LFU/LRU stats just as a normal client.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.2.0
 clientNoTouch
@@ -2420,7 +2424,7 @@ data ClientSetInfoOpts
 
 -- | The CLIENT SETINFO command assigns various info attributes to the current connection which are displayed in the output of CLIENT LIST and CLIENT INFO (<https://redis.io/commands/client-setinfo>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.2.0
 clientSetinfo
@@ -2466,7 +2470,7 @@ spopN key count = sendRequest ["SPOP", key, encode count]
 
 -- |Determines whether multiple members belong to a set (<https://redis.io/commands/smismember>).
 --
--- $O(N)$ where $N$ is the number of elements being checked for membership.
+-- /O(N)/ where /N/ is the number of elements being checked for membership.
 --
 -- Since Redis 6.2.0
 smismember
@@ -2487,7 +2491,7 @@ defaultSintercardOpts = SintercardOpts
 
 -- |Returns the cardinality of the intersection of multiple sets (<https://redis.io/commands/sintercard>).
 --
--- $O(N*M)$ worst case where $N$ is the cardinality of the smallest set and $M$ is the number of sets.
+-- /O(N*M)/ worst case where /N/ is the cardinality of the smallest set and /M/ is the number of sets.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2500,7 +2504,7 @@ sintercard keys = sintercardOpts keys defaultSintercardOpts
 
 -- |Returns the cardinality of the intersection of multiple sets (<https://redis.io/commands/sintercard>).
 --
--- $O(N*M)$ worst case where $N$ is the cardinality of the smallest set and $M$ is the number of sets.
+-- /O(N*M)/ worst case where /N/ is the cardinality of the smallest set and /M/ is the number of sets.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2636,7 +2640,7 @@ hscanOpts key cursor opts = sendRequest $ addScanOpts ["HSCAN", key, encode curs
 
 -- |Returns a random field from a hash (<https://redis.io/commands/hrandfield>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 6.2.0
 hrandfield
@@ -2647,7 +2651,7 @@ hrandfield key = sendRequest ["HRANDFIELD", key]
 
 -- |Returns one or more random fields from a hash (<https://redis.io/commands/hrandfield>).
 --
--- $O(N)$ where $N$ is the number of fields returned.
+-- /O(N)/ where /N/ is the number of fields returned.
 --
 -- If the provided count argument is positive, return an array of distinct fields. The array's length is either count or the hash's number of fields (HLEN), whichever is lower.
 --
@@ -2663,7 +2667,7 @@ hrandfieldCount key count = sendRequest ["HRANDFIELD", key, encode count]
 
 -- |Returns one or more random fields and their values from a hash (<https://redis.io/commands/hrandfield>).
 --
--- $O(N)$ where $N$ is the number of fields returned.
+-- /O(N)/ where /N/ is the number of fields returned.
 --
 -- If the provided count argument is positive, return an array of distinct fields. The array's length is either count or the hash's number of fields (HLEN), whichever is lower.
 --
@@ -2742,7 +2746,7 @@ instance RedisResult ZPopResponse where
 
 -- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys (<https://redis.io/commands/zmpop>).
 --
--- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+-- /O(K) + O(M\log(N))/ where /K/ is the number of provided keys, /N/ is the number of elements in the sorted set, and /M/ is the number of elements popped.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2756,7 +2760,7 @@ zmpop keys where_ = zmpopCount keys where_ 1
 
 -- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys (<https://redis.io/commands/zmpop>).
 --
--- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+-- /O(K) + O(M\log(N))/ where /K/ is the number of provided keys, /N/ is the number of elements in the sorted set, and /M/ is the number of elements popped.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2772,7 +2776,7 @@ zmpopCount keys where_ count =
 
 -- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys, or blocks until one is available (<https://redis.io/commands/bzmpop>).
 --
--- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+-- /O(K) + O(M\log(N))/ where /K/ is the number of provided keys, /N/ is the number of elements in the sorted set, and /M/ is the number of elements popped.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2787,7 +2791,7 @@ bzmpop timeout keys where_ = bzmpopCount timeout keys where_ 1
 
 -- |Removes and returns member-score pairs from the first non-empty sorted set from a list of keys, or blocks until one is available (<https://redis.io/commands/bzmpop>).
 --
--- $O(K) + O(M\log(N))$ where $K$ is the number of provided keys, $N$ is the number of elements in the sorted set, and $M$ is the number of elements popped.
+-- /O(K) + O(M\log(N))/ where /K/ is the number of provided keys, /N/ is the number of elements in the sorted set, and /M/ is the number of elements popped.
 --
 -- In clustered environment, commands must operate on keys within the same hash slot.
 --
@@ -2804,7 +2808,7 @@ bzmpopCount timeout keys where_ count =
 
 -- |Returns the score of one or more members in a sorted set (<https://redis.io/commands/zmscore>).
 --
--- $O(N)$ where $N$ is the number of members being requested.
+-- /O(N)/ where /N/ is the number of members being requested.
 --
 -- Since Redis 6.2.0
 zmscore
@@ -2816,7 +2820,7 @@ zmscore key (member:|members) = sendRequest ("ZMSCORE" : key : member : members)
 
 -- |Returns a random member from a sorted set (<https://redis.io/commands/zrandmember>).
 --
--- $O(1)$ without the optional count argument.
+-- /O(1)/ without the optional count argument.
 --
 -- Since Redis 6.2.0
 zrandmember
@@ -2827,7 +2831,7 @@ zrandmember key = sendRequest ["ZRANDMEMBER", key]
 
 -- |Returns one or more random members from a sorted set (<https://redis.io/commands/zrandmember>).
 --
--- $O(N)$ where $N$ is the number of members returned.
+-- /O(N)/ where /N/ is the number of members returned.
 --
 -- Since Redis 6.2.0
 zrandmemberN
@@ -2839,7 +2843,7 @@ zrandmemberN key count = sendRequest ["ZRANDMEMBER", key, encode count]
 
 -- |Returns one or more random members and their scores from a sorted set (<https://redis.io/commands/zrandmember>).
 --
--- $O(N)$ where $N$ is the number of members returned.
+-- /O(N)/ where /N/ is the number of members returned.
 --
 -- Since Redis 6.2.0
 zrandmemberWithscores
@@ -2869,7 +2873,7 @@ defaultZRangeStoreOpts = ZRangeStoreOpts
 
 -- |Stores a range of members from a sorted set in a destination key (<https://redis.io/commands/zrangestore>).
 --
--- $O(\log(N) + M)$ with $N$ being the number of elements in the sorted set and $M$ the number of elements stored into the destination key.
+-- /O(\log(N) + M)/ with /N/ being the number of elements in the sorted set and /M/ the number of elements stored into the destination key.
 --
 -- Since Redis 6.2.0
 zrangestore
@@ -2884,7 +2888,7 @@ zrangestore destination source start stop =
 
 -- |Stores a range of members from a sorted set in a destination key (<https://redis.io/commands/zrangestore>).
 --
--- $O(\log(N) + M)$ with $N$ being the number of elements in the sorted set and $M$ the number of elements stored into the destination key.
+-- /O(\log(N) + M)/ with /N/ being the number of elements in the sorted set and /M/ the number of elements stored into the destination key.
 --
 -- Since Redis 6.2.0
 zrangestoreOpts
@@ -3169,6 +3173,7 @@ instance RedisResult XReadResponse where
         return XReadResponse{..}
     decode a = Left a
 
+-- |Read values from a stream (<https://redis.io/commands/xread>). The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'. Since Redis 5.0.0
 xreadOpts
     :: (RedisCtx m f)
     => [(ByteString, ByteString)] -- ^ (stream, id) pairs
@@ -3186,7 +3191,9 @@ internalXreadArgs streamsAndIds XReadOpts{..} =
         streams = map (\(stream, _) -> stream) streamsAndIds
         recordIds = map (\(_, recordId) -> recordId) streamsAndIds
 
-
+-- |Read values from a stream (<https://redis.io/commands/xread>).
+-- The Redis command @XREAD@ is split up into 'xread', 'xreadOpts'.
+-- Since Redis 5.0.0
 xread
     :: (RedisCtx m f)
     => [(ByteString, ByteString)] -- ^ (stream, id) pairs
@@ -3434,7 +3441,7 @@ xack stream groupName messageIds = sendRequest $ ["XACK", stream, groupName] ++ 
 
 -- |Acknowledges and conditionally deletes entries for a consumer group (<https://redis.io/commands/xackdel>).
 --
--- $O(1)$ for each entry ID processed.
+-- /O(1)/ for each entry ID processed.
 --
 -- Since Redis 8.2.0
 xackdel
@@ -3448,7 +3455,7 @@ xackdel stream groupName messageIds =
 
 -- |Acknowledges and conditionally deletes entries for a consumer group (<https://redis.io/commands/xackdel>).
 --
--- $O(1)$ for each entry ID processed.
+-- /O(1)/ for each entry ID processed.
 --
 -- Since Redis 8.2.0
 xackdelOpts
@@ -3825,7 +3832,7 @@ geopos key members = sendRequest $ ["GEOPOS", key] ++ members
 
 -- |Queries a geospatial index for members inside an area of a box or a circle (<https://redis.io/commands/geosearch>). Since Redis 6.2.0
 --
--- $O(N+\log(M))$ where N is the number of elements in the grid-aligned bounding box area around the shape provided as the filter and M is the number of items inside the shape
+-- /O(N+log(M))/ where N is the number of elements in the grid-aligned bounding box area around the shape provided as the filter and M is the number of items inside the shape
 --
 -- ACL: @read, @geo, @slow
 --
@@ -4149,7 +4156,7 @@ xdel stream (messageId:|messageIds) = sendRequest ("XDEL":stream:messageId: mess
 
 -- |Conditionally deletes entries from a stream (<https://redis.io/commands/xdelex>).
 --
--- $O(1)$ for each entry ID processed.
+-- /O(1)/ for each entry ID processed.
 --
 -- Since Redis 8.2.0
 xdelex
@@ -4162,7 +4169,7 @@ xdelex stream messageIds =
 
 -- |Conditionally deletes entries from a stream (<https://redis.io/commands/xdelex>).
 --
--- $O(1)$ for each entry ID processed.
+-- /O(1)/ for each entry ID processed.
 --
 -- Since Redis 8.2.0
 xdelexOpts
@@ -4178,7 +4185,7 @@ xdelexOpts stream messageIds opts =
 
 -- |Sets the IDMP configuration parameters for a stream (<https://redis.io/commands/xcfgset>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.0
 xcfgset
@@ -4201,7 +4208,7 @@ xcfgset key XCfgSetOpts{..} =
 --
 -- This is an internal command used during AOF loading.
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.2
 xidmprecord
@@ -4216,7 +4223,7 @@ xidmprecord key producerId idempotencyId streamId =
 
 -- |Releases claimed messages back to the group's PEL without acknowledging them (<https://redis.io/commands/xnack>).
 --
--- $O(1)$ for each message ID processed.
+-- /O(1)/ for each message ID processed.
 --
 -- Since Redis 8.8.0
 xnack
@@ -4231,7 +4238,7 @@ xnack key groupName mode messageIds =
 
 -- |Releases claimed messages back to the group's PEL without acknowledging them (<https://redis.io/commands/xnack>).
 --
--- $O(1)$ for each message ID processed.
+-- /O(1)/ for each message ID processed.
 --
 -- Since Redis 8.8.0
 xnackOpts
@@ -4457,7 +4464,7 @@ clusterInfo = sendRequest ["CLUSTER", "INFO"]
 
 -- |Returns the shard ID of a node (<https://redis.io/commands/cluster-myshardid>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 7.2.0
 clusterMyshardid
@@ -4880,7 +4887,7 @@ instance RedisResult ClusterMigrationTask where
 
 -- |Starts an atomic slot migration import task on the current node (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationImport
@@ -4897,7 +4904,7 @@ clusterMigrationImport slotRanges =
 
 -- |Cancels an ongoing migration task by task ID (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationCancelId
@@ -4909,7 +4916,7 @@ clusterMigrationCancelId taskId =
 
 -- |Cancels all ongoing migration tasks (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationCancelAll
@@ -4920,7 +4927,7 @@ clusterMigrationCancelAll =
 
 -- |Returns the status of current and completed atomic slot migration tasks (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationStatus
@@ -4931,7 +4938,7 @@ clusterMigrationStatus =
 
 -- |Returns the status of all current and completed atomic slot migration tasks (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationStatusAll
@@ -4942,7 +4949,7 @@ clusterMigrationStatusAll =
 
 -- |Returns the status of a specific atomic slot migration task (<https://redis.io/commands/cluster-migration>).
 --
--- $O(N)$ where $N$ is the total number of slots between the specified start and end slot arguments.
+-- /O(N)/ where /N/ is the total number of slots between the specified start and end slot arguments.
 --
 -- Since Redis 8.4.0
 clusterMigrationStatusId
@@ -4957,7 +4964,7 @@ command = sendRequest ["COMMAND"]
 
 -- |Returns a list of command names (<https://redis.io/commands/command-list>).
 --
--- $O(N)$ where $N$ is the total number of Redis commands.
+-- /O(N)/ where /N/ is the total number of Redis commands.
 --
 -- Since Redis 7.0.0
 commandList
@@ -4973,7 +4980,7 @@ data CommandListFilter
 
 -- |Returns a list of command names (<https://redis.io/commands/command-list>).
 --
--- $O(N)$ where $N$ is the total number of Redis commands.
+-- /O(N)/ where /N/ is the total number of Redis commands.
 --
 -- Since Redis 7.0.0
 commandListOpts
@@ -5027,7 +5034,7 @@ defaultIncrexOpts = IncrexOpts
 
 -- |Increments the numeric value of a key by one and optionally updates its expiration (<https://redis.io/commands/increx>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 increx
@@ -5038,7 +5045,7 @@ increx key = increxOpts key defaultIncrexOpts
 
 -- |Increments the numeric value of a key by one and optionally updates its expiration (<https://redis.io/commands/increx>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 increxOpts
@@ -5058,7 +5065,7 @@ increxOpts key opts =
 
 -- |Increments the integer value of a key by a specific amount and optionally updates its expiration (<https://redis.io/commands/increx>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 increxBy
@@ -5072,7 +5079,7 @@ increxBy key increment opts =
 
 -- |Increments the floating-point value of a key by a specific amount and optionally updates its expiration (<https://redis.io/commands/increx>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 increxByFloat
@@ -5259,7 +5266,7 @@ aropCountArgs operation =
 
 -- |Returns the number of non-empty elements in an array (<https://redis.io/commands/arcount>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 arcount
@@ -5270,7 +5277,7 @@ arcount key = sendRequest ["ARCOUNT", key]
 
 -- |Deletes elements at the specified indices in an array (<https://redis.io/commands/ardel>).
 --
--- $O(N)$ where $N$ is the number of indices to delete.
+-- /O(N)/ where /N/ is the number of indices to delete.
 --
 -- Since Redis 8.8.0
 ardel
@@ -5283,7 +5290,7 @@ ardel key indices =
 
 -- |Gets values in a range of indices (<https://redis.io/commands/argetrange>).
 --
--- $O(N)$ where $N$ is the range length.
+-- /O(N)/ where /N/ is the range length.
 --
 -- Since Redis 8.8.0
 argetrange
@@ -5297,7 +5304,7 @@ argetrange key start end =
 
 -- |Searches array elements in a range using textual predicates (<https://redis.io/commands/argrep>).
 --
--- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+-- /O(P * C)/ where /P/ is the number of visited positions and /C/ is the cost of evaluating predicates.
 --
 -- Since Redis 8.8.0
 argrep
@@ -5312,7 +5319,7 @@ argrep key start end predicates =
 
 -- |Searches array elements in a range using textual predicates (<https://redis.io/commands/argrep>).
 --
--- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+-- /O(P * C)/ where /P/ is the number of visited positions and /C/ is the cost of evaluating predicates.
 --
 -- Since Redis 8.8.0
 argrepOpts
@@ -5331,7 +5338,7 @@ argrepOpts key start end predicates opts =
 
 -- |Searches array elements in a range and returns matching index-value pairs (<https://redis.io/commands/argrep>).
 --
--- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+-- /O(P * C)/ where /P/ is the number of visited positions and /C/ is the cost of evaluating predicates.
 --
 -- Since Redis 8.8.0
 argrepWithValues
@@ -5346,7 +5353,7 @@ argrepWithValues key start end predicates =
 
 -- |Searches array elements in a range and returns matching index-value pairs (<https://redis.io/commands/argrep>).
 --
--- $O(P * C)$ where $P$ is the number of visited positions and $C$ is the cost of evaluating predicates.
+-- /O(P * C)/ where /P/ is the number of visited positions and /C/ is the cost of evaluating predicates.
 --
 -- Since Redis 8.8.0
 argrepWithValuesOpts
@@ -5366,7 +5373,7 @@ argrepWithValuesOpts key start end predicates opts =
 
 -- |Returns metadata about an array (<https://redis.io/commands/arinfo>).
 --
--- $O(1)$, or $O(N)$ with `FULL` where $N$ is the number of slices.
+-- /O(1)/, or /O(N)/ with `FULL` where /N/ is the number of slices.
 --
 -- Since Redis 8.8.0
 arinfo
@@ -5377,7 +5384,7 @@ arinfo key = sendRequest ["ARINFO", key]
 
 -- |Returns extended metadata about an array (<https://redis.io/commands/arinfo>).
 --
--- $O(N)$ where $N$ is the number of slices.
+-- /O(N)/ where /N/ is the number of slices.
 --
 -- Since Redis 8.8.0
 arinfoFull
@@ -5388,7 +5395,7 @@ arinfoFull key = sendRequest ["ARINFO", key, "FULL"]
 
 -- |Inserts one or more values at consecutive indices (<https://redis.io/commands/arinsert>).
 --
--- $O(N)$ where $N$ is the number of values.
+-- /O(N)/ where /N/ is the number of values.
 --
 -- Since Redis 8.8.0
 arinsert
@@ -5401,7 +5408,7 @@ arinsert key values =
 
 -- |Returns the most recently inserted elements (<https://redis.io/commands/arlastitems>).
 --
--- $O(N)$ where $N$ is the count.
+-- /O(N)/ where /N/ is the count.
 --
 -- Since Redis 8.8.0
 arlastitems
@@ -5414,7 +5421,7 @@ arlastitems key count =
 
 -- |Returns the most recently inserted elements (<https://redis.io/commands/arlastitems>).
 --
--- $O(N)$ where $N$ is the count.
+-- /O(N)/ where /N/ is the count.
 --
 -- Since Redis 8.8.0
 arlastitemsOpts
@@ -5428,7 +5435,7 @@ arlastitemsOpts key count ARLastItemsOpts{..} =
 
 -- |Returns the length of an array (max index + 1) (<https://redis.io/commands/arlen>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 arlen
@@ -5439,7 +5446,7 @@ arlen key = sendRequest ["ARLEN", key]
 
 -- |Gets values at multiple indices in an array (<https://redis.io/commands/armget>).
 --
--- $O(N)$ where $N$ is the number of indices.
+-- /O(N)/ where /N/ is the number of indices.
 --
 -- Since Redis 8.8.0
 armget
@@ -5452,7 +5459,7 @@ armget key indices =
 
 -- |Returns the next index that `ARINSERT` would use (<https://redis.io/commands/arnext>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 arnext
@@ -5463,7 +5470,7 @@ arnext key = sendRequest ["ARNEXT", key]
 
 -- |Performs aggregate operations on array elements in a range and returns a string result (<https://redis.io/commands/arop>).
 --
--- $O(P)$ where $P$ is the number of visited positions in touched slices.
+-- /O(P)/ where /P/ is the number of visited positions in touched slices.
 --
 -- Since Redis 8.8.0
 aropValue
@@ -5478,7 +5485,7 @@ aropValue key start end operation =
 
 -- |Performs aggregate operations on array elements in a range and returns an integer result (<https://redis.io/commands/arop>).
 --
--- $O(P)$ where $P$ is the number of visited positions in touched slices.
+-- /O(P)/ where /P/ is the number of visited positions in touched slices.
 --
 -- Since Redis 8.8.0
 aropCount
@@ -5493,7 +5500,7 @@ aropCount key start end operation =
 
 -- |Inserts values into a ring buffer of specified size, wrapping and truncating as needed (<https://redis.io/commands/arring>).
 --
--- $O(M)$ normally, or $O(N+M)$ on ring resize.
+-- /O(M)/ normally, or /O(N+M)/ on ring resize.
 --
 -- Since Redis 8.8.0
 arring
@@ -5507,7 +5514,7 @@ arring key size values =
 
 -- |Iterates existing elements in a range, returning index-value pairs (<https://redis.io/commands/arscan>).
 --
--- $O(P)$ where $P$ is the number of visited positions in touched slices.
+-- /O(P)/ where /P/ is the number of visited positions in touched slices.
 --
 -- Since Redis 8.8.0
 arscan
@@ -5521,7 +5528,7 @@ arscan key start end =
 
 -- |Iterates existing elements in a range, returning index-value pairs (<https://redis.io/commands/arscan>).
 --
--- $O(P)$ where $P$ is the number of visited positions in touched slices.
+-- /O(P)/ where /P/ is the number of visited positions in touched slices.
 --
 -- Since Redis 8.8.0
 arscanOpts
@@ -5538,7 +5545,7 @@ arscanOpts key start end ARScanOpts{..} =
 
 -- |Sets the `ARINSERT` / `ARRING` cursor to a specific index (<https://redis.io/commands/arseek>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.8.0
 arseek
@@ -5550,7 +5557,7 @@ arseek key index = sendRequest ["ARSEEK", key, encode index]
 
 -- |Sets one or more contiguous values starting at an index in an array (<https://redis.io/commands/arset>).
 --
--- $O(N)$ where $N$ is the number of values.
+-- /O(N)/ where /N/ is the number of values.
 --
 -- Since Redis 8.8.0
 arset
@@ -5665,7 +5672,7 @@ instance RedisResult HotkeysGetResponse where
 
 -- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.0
 hotkeysStart
@@ -5681,7 +5688,7 @@ hotkeysStart metrics = hotkeysStartOpts metrics defaultHotkeysStartOpts
 
 -- |Starts hotkeys tracking (<https://redis.io/commands/hotkeys-start>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.0
 hotkeysStartOpts
@@ -5702,7 +5709,7 @@ hotkeysStartOpts metrics HotkeysStartOpts{..} =
 
 -- |Returns tracking results and metadata from the current or most recent hotkeys tracking session (<https://redis.io/commands/hotkeys-get>).
 --
--- $O(K)$ where $K$ is the number of hotkeys returned.
+-- /O(K)/ where /K/ is the number of hotkeys returned.
 --
 -- Since Redis 8.6.0
 hotkeysGet
@@ -5712,7 +5719,7 @@ hotkeysGet = sendRequest ["HOTKEYS", "GET"]
 
 -- |Stops hotkeys tracking (<https://redis.io/commands/hotkeys-stop>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.0
 hotkeysStop
@@ -5722,7 +5729,7 @@ hotkeysStop = sendRequest ["HOTKEYS", "STOP"]
 
 -- |Release the resources used for hotkey tracking (<https://redis.io/commands/hotkeys-reset>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since Redis 8.6.0
 hotkeysReset

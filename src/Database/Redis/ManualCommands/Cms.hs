@@ -55,7 +55,7 @@ cmsMergeOptsToArgs (CMSMergeWeighted weightedSourceKeys) =
 
 -- |Increases the count of one or more items by increment (<https://redis.io/commands/cms.incrby>).
 --
--- $O(n)$ where $n$ is the number of items
+-- /O(n)/ where /n/ is the number of items
 --
 -- Since RedisBloom 2.0.0
 cmsincrby
@@ -70,7 +70,7 @@ cmsincrby key itemIncrements =
 
 -- |Returns information about a sketch (<https://redis.io/commands/cms.info>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.0.0
 cmsinfo
@@ -81,7 +81,7 @@ cmsinfo key = sendRequest ["CMS.INFO", key]
 
 -- |Initializes a Count-Min Sketch to dimensions specified by user (<https://redis.io/commands/cms.initbydim>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.0.0
 cmsinitbydim
@@ -95,7 +95,7 @@ cmsinitbydim key width depth =
 
 -- |Initializes a Count-Min Sketch to accommodate requested tolerances (<https://redis.io/commands/cms.initbyprob>).
 --
--- $O(1)$
+-- /O(1)/
 --
 -- Since RedisBloom 2.0.0
 cmsinitbyprob
@@ -111,7 +111,7 @@ cmsinitbyprob key err probability =
 --
 -- Source sketches are merged with the default weight of @1@.
 --
--- $O(n)$ where $n$ is the number of sketches
+-- /O(n)/ where /n/ is the number of sketches
 --
 -- Since RedisBloom 2.0.0
 cmsmerge
@@ -124,7 +124,7 @@ cmsmerge destination sourceKeys =
 
 -- |Merges several sketches into one sketch (<https://redis.io/commands/cms.merge>).
 --
--- $O(n)$ where $n$ is the number of sketches
+-- /O(n)/ where /n/ is the number of sketches
 --
 -- Since RedisBloom 2.0.0
 cmsmergeOpts
@@ -137,7 +137,7 @@ cmsmergeOpts destination opts =
 
 -- |Merges several sketches into one sketch (<https://redis.io/commands/cms.merge>).
 --
--- $O(n)$ where $n$ is the number of sketches
+-- /O(n)/ where /n/ is the number of sketches
 --
 -- Since RedisBloom 2.0.0
 cmsmergeWeighted
@@ -150,7 +150,7 @@ cmsmergeWeighted destination weightedSourceKeys =
 
 -- |Returns the count for one or more items in a sketch (<https://redis.io/commands/cms.query>).
 --
--- $O(n)$ where $n$ is the number of items
+-- /O(n)/ where /n/ is the number of items
 --
 -- Since RedisBloom 2.0.0
 cmsquery
