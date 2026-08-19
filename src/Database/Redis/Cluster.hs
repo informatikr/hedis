@@ -30,7 +30,7 @@ import Data.List(nub, sortBy, find)
 import Data.Maybe(mapMaybe, fromMaybe)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
-import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError)
+import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError, uninterruptibleMask_)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
 import Control.Monad(zipWithM, when, replicateM, forM_)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
@@ -175,7 +175,7 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
         return (n, nodeConn)
 
 disconnect :: Connection -> IO ()
-disconnect Connection{connectionNodes=nodeConnMap} = mapM_ disconnectNode (HM.elems nodeConnMap) where
+disconnect Connection{connectionNodes=nodeConnMap} = uninterruptibleMask_ $ mapM_ disconnectNode (HM.elems nodeConnMap) where
     disconnectNode (NodeConnection nodeCtx _ _) = CC.disconnect nodeCtx
 
 -- Add a request to the current pipeline for this connection. The pipeline will
