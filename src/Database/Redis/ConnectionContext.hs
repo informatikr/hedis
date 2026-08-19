@@ -23,7 +23,7 @@ import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.IORef as IOR
 import Control.Concurrent.MVar(newMVar, readMVar, swapMVar)
-import Control.Exception(bracketOnError, Exception, throwIO, try, finally, mask_)
+import Control.Exception(bracketOnError, Exception, throwIO, try, finally, uninterruptibleMask_)
 import Data.Functor(void)
 import qualified Network.Socket as NS
 import qualified Network.TLS as TLS
@@ -160,7 +160,7 @@ enableTLS _ c@(TLSContext _ _) = return c
 
 
 disconnect :: ConnectionContext -> IO ()
-disconnect (NormalHandle h) = mask_ $ do
+disconnect (NormalHandle h) = uninterruptibleMask_ $ do
   open <- hIsOpen h
   when open $ hClose h
 disconnect (TLSContext ctx h) =
