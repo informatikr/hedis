@@ -136,23 +136,29 @@ createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    conn' <- PP.connectWithHooks connectAddr timeoutOptUs connectTLSParams connectHooks
-    PP.beginReceiving conn'
-
-    runRedisInternal conn' $ do
-        -- AUTH
-        forM_ connectAuth $ \pass -> do
+    -- Since resource-pool-0.5.0.0:
+    -- The socket is opened before the handshake (beginReceiving/AUTH/SELECT).
+    -- If the handshake throws, or an async exception interrupts it,
+    -- the socket must be closed or it leaks.
+    bracketOnError
+      (PP.connectWithHooks connectAddr timeoutOptUs connectTLSParams connectHooks)
+      PP.disconnect
+      $ \conn' -> do
+        PP.beginReceiving conn'
+        runRedisInternal conn' $ do
+          -- AUTH
+          forM_ connectAuth $ \pass -> do
             resp <- authOpts pass defaultAuthOpts{ authOptsUsername = connectUsername}
             case resp of
               Left r -> liftIO $ throwIO $ ConnectAuthError r
               _      -> return ()
-        -- SELECT
-        when (connectDatabase /= 0) $ do
-          resp <- select connectDatabase
-          case resp of
+          -- SELECT
+          when (connectDatabase /= 0) $ do
+            resp <- select connectDatabase
+            case resp of
               Left r -> liftIO $ throwIO $ ConnectSelectError r
               _      -> return ()
-    return conn'
+        return conn'
 
 -- | Constructs a 'Connection' pool to a Redis server designated by the
 --  given 'ConnectInfo'.
