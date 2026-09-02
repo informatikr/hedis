@@ -136,10 +136,9 @@ createConnection :: ConnectInfo -> IO PP.Connection
 createConnection ConnInfo{..} = do
     let timeoutOptUs =
           round . (1000000 *) <$> connectTimeout
-    -- Since resource-pool-0.5.0.0:
-    -- The socket is opened before the handshake (beginReceiving/AUTH/SELECT).
-    -- If the handshake throws, or an async exception interrupts it,
-    -- the socket must be closed or it leaks.
+    -- In a case of an asynchronous exception happening after
+    -- connection is created but not yet initialized opened connection
+    -- could be lost, in order to fix that we use 'bracketOnError'
     bracketOnError
       (PP.connectWithHooks connectAddr timeoutOptUs connectTLSParams connectHooks)
       PP.disconnect
