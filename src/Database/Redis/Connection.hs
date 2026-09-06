@@ -175,9 +175,12 @@ connect cInfo@ConnInfo{..} = NonClusteredConnection <$>
 --  established.
 checkedConnect :: ConnectInfo -> IO Connection
 checkedConnect connInfo = do
-    conn <- connect connInfo
-    runRedis conn $ void ping
-    return conn
+    bracketOnError
+        (connect connInfo)
+        (disconnect)
+        $ \conn -> do
+            runRedis conn $ void ping
+            return conn
 
 -- |Constructs a 'Connection' pool to a Redis cluster designated by the
 --  given 'ConnectInfo', then tests if the server is actually there.
