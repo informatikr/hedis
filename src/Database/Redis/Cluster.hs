@@ -30,7 +30,7 @@ import Data.List(nub, sortBy, find)
 import Data.Maybe(mapMaybe, fromMaybe)
 import Data.Map(fromListWith, assocs)
 import Data.Function(on)
-import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError, uninterruptibleMask_)
+import Control.Exception(Exception, throwIO, BlockedIndefinitelyOnMVar(..), catches, Handler(..), bracketOnError, uninterruptibleMask_, mask_, finally)
 import Control.Concurrent.MVar(MVar, newMVar, readMVar, modifyMVar, modifyMVar_)
 import Control.Monad(zipWithM, when, replicateM, forM_)
 import Database.Redis.Cluster.HashSlot(HashSlot, keyToSlot)
@@ -149,19 +149,29 @@ connectWith mUsername mPassword mTlsParams commandInfos shardMapVar timeoutOpt h
         shardMap <- readMVar shardMapVar
         stateVar <- newMVar $ Pending []
         pipelineVar <- newMVar $ Pipeline stateVar
-        nodeConns <- nodeConnections shardMap
-        return $ Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) hooks' where
-    nodeConnections :: ShardMap -> IO (HM.HashMap NodeID NodeConnection)
-    nodeConnections shardMap = HM.fromList <$> connectNodes (nub $ nodes shardMap)
-    connectNodes :: [Node] -> IO [(NodeID, NodeConnection)]
-    connectNodes [] = return []
-    connectNodes (z@Node{nodeHost = host, nodePort = port}:ns) = do
+        withNodeConnections shardMap $ \nodeConns ->
+           Connection nodeConns pipelineVar shardMapVar (CMD.newInfoMap commandInfos) hooks' where
+    withNodeConnections :: ShardMap -> (HM.HashMap NodeID NodeConnection -> x) -> IO x
+    withNodeConnections shardMap f =
         bracketOnError
-          (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt mTlsParams)
-          (CC.disconnect) $ \ctx0 -> do
-            nodeConn <- connectNode z ctx0
-            rest <- connectNodes ns
-            return $ nodeConn : rest
+            (IOR.newIORef [])
+            (\connsRef -> uninterruptibleMask_ $ do
+              conns <- IOR.readIORef connsRef
+              foldr (\x r -> CC.disconnect x `finally` r) (return ()) conns)
+            $ \connsRef ->
+                f . HM.fromList <$> connectNodes connsRef (nub $ nodes shardMap)
+    connectNodes :: IOR.IORef [CC.ConnectionContext] -> [Node] -> IO [(NodeID, NodeConnection)]
+    connectNodes connsRef ns = do
+        traverse (\z@Node{nodeHost = host, nodePort = port} -> do
+            ctx0 <- bracketOnError
+                       (CC.connect (CC.ConnectAddrHostPort host $ toEnum port) timeoutOpt mTlsParams)
+                       (CC.disconnect)
+                       $ \ctx0 -> mask_ $ do
+                          IOR.modifyIORef' connsRef (ctx0:)
+                          return ctx0
+            conn <- connectNode z ctx0
+            return conn) ns
+
     connectNode :: Node -> CC.ConnectionContext -> IO (NodeID, NodeConnection)
     connectNode Node{nodeId = n, nodeHost = host, nodePort = port} ctx0 = do
         ref <- IOR.newIORef Nothing
