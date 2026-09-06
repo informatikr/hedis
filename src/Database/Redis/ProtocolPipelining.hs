@@ -21,6 +21,7 @@ module Database.Redis.ProtocolPipelining (
 ) where
 
 import           Prelude
+import           Control.Exception (bracketOnError)
 import           Control.Monad
 import qualified Scanner
 import qualified Data.ByteString as S
@@ -56,12 +57,15 @@ connect :: CC.ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> IO Connectio
 connect connectAddr timeoutOpt mTlsParams = connectWithHooks connectAddr timeoutOpt mTlsParams defaultHooks
 
 connectWithHooks :: CC.ConnectAddr -> Maybe Int -> Maybe TLS.ClientParams -> Hooks -> IO Connection
-connectWithHooks connectAddr timeoutOpt mTlsParams hooks = do
-    connCtx <- CC.connect connectAddr timeoutOpt mTlsParams
-    connReplies <- newIORef []
-    connPending <- newIORef []
-    connPendingCnt <- newIORef 0
-    return Conn{..}
+connectWithHooks connectAddr timeoutOpt mTlsParams hooks =
+    bracketOnError
+        (CC.connect connectAddr timeoutOpt mTlsParams)
+        (CC.disconnect)
+        $ \connCtx -> do
+            connReplies <- newIORef []
+            connPending <- newIORef []
+            connPendingCnt <- newIORef 0
+            return Conn{..}
 
 beginReceiving :: Connection -> IO ()
 beginReceiving conn = do
