@@ -189,13 +189,16 @@ checkedConnect connInfo = do
 --  established.
 checkedConnectCluster :: ConnectInfo -> IO Connection
 checkedConnectCluster connInfo = do
-  conn <- connectCluster connInfo
-  res <- runRedis conn clusterInfo
-  case res of
-    Right r -> case clusterInfoResponseState r of
-      OK -> pure conn
-      Down -> throwIO $ ClusterDownError r
-    Left e -> throwIO $ ClusterConnectError e
+    bracketOnError
+        (connectCluster connInfo)
+        (disconnect)
+        $ \conn -> do
+           res <- runRedis conn clusterInfo
+           case res of
+             Right r -> case clusterInfoResponseState r of
+               OK -> pure conn
+               Down -> throwIO $ ClusterDownError r
+             Left e -> throwIO $ ClusterConnectError e
 
 newtype ClusterDownError = ClusterDownError ClusterInfoResponse
   deriving (Eq, Show)
