@@ -1,5 +1,9 @@
 # Changelog for Hedis
 
+## 0.16.4
+
+- Various fixes in connect for all types of the connection. Thannks to Andrey Prokopenko (and Chordify)
+
 ## 0.16.3
 
 - Fix disconnect. Thanks to Andrey Prokopenko (and Chordify)
